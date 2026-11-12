@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { registerHooks } from 'node:module';
+const calls=[];let response;
+globalThis.__product={call:async(method,payload={})=>{calls.push({method,payload});if(method==='GetMVPState')return {workspaces:[],agentTasks:[],skills:[],actions:[],onboarding:{completed:false},commandCatalog:[]};return response;},fail:e=>{throw e;}};
+registerHooks({resolve(s,c,n){if(c.parentURL?.endsWith('/product-store.ts')&&['./bridge','./store'].includes(s))return {url:'product-test:'+s.slice(2),shortCircuit:true};return n(s,c);},load(u,c,n){if(u==='product-test:bridge')return {format:'module',shortCircuit:true,source:'export const call=(...a)=>globalThis.__product.call(...a);'};if(u==='product-test:store')return {format:'module',shortCircuit:true,source:'export const fail=globalThis.__product.fail;'};return n(u,c);}});
+const {product,refreshProduct,approveProductAction,selectWorkspace}=await import('./product-store.ts');
+await refreshProduct();assert.equal(product.ready,true);
+product.selectedWorkspace='old';product.report={files:[{path:'secret'}]};product.file={content:'old'};selectWorkspace('new');assert.equal(product.report,null);assert.equal(product.file,null);
+const pending={id:'p',hash:'exact',status:'PENDING',expiresAt:new Date(Date.now()+20000).toISOString(),proposal:{afterContent:'approved'}};response={...pending,status:'SUCCEEDED'};
+await approveProductAction(pending);assert.deepEqual(calls.find(x=>x.method==='ApproveProductAction').payload,{id:'p',hash:'exact'});
+const count=calls.length;await approveProductAction({...pending,expiresAt:'2000-01-01T00:00:00Z'});assert.equal(calls.length,count);
+console.log('PASS workspace changes clear source context; approval sends only immutable ID/hash; expired proposal never dispatches');

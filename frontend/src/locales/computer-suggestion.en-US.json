@@ -1,0 +1,30 @@
+{
+  "computerSuggestion": {
+    "heading": "Computer action suggestions",
+    "capture": "Ask AI to suggest an action",
+    "targetHelp": "Inspect the Asimi test window and select an input or button. Finish the screenshot review and action approval within one minute of inspection.",
+    "reviewTarget": "Review the image for sensitive information and make sure it shows the selected control ({selector}). Enter the action you want help with.",
+    "selectedControl": "Selected test control",
+    "refresh": "Refresh suggestions",
+    "review": "Review exact action",
+    "source": "Action source",
+    "model": "Model suggestion",
+    "observation": "Observed test control {selector} at {date}",
+    "status": {
+      "PENDING": "Waiting for model",
+      "RUNNING": "Analyzing screenshot",
+      "FAILED": "Analysis failed",
+      "CANCELLED": "Analysis cancelled",
+      "REQUEST_OUTCOME_UNKNOWN": "Analysis outcome unknown",
+      "UNKNOWN": "Analysis outcome unknown",
+      "READY": "Ready for action review",
+      "STALE": "Observation expired or changed. Inspect and analyze again.",
+      "NO_ACTION": "The model suggested no action",
+      "INVALID": "The model response could not be used",
+      "STAGED": "Action recorded in the journal"
+    }
+  },
+  "errors": {
+    "CONTROL_SUGGESTION_UNAVAILABLE": "This analysis has no available action suggestion."
+  }
+}

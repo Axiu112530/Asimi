@@ -1,0 +1,30 @@
+{
+  "computerSuggestion": {
+    "heading": "电脑操作建议",
+    "capture": "请 AI 建议操作",
+    "targetHelp": "检查 Asimi 测试窗口，然后选择输入框或按钮。请在检查后的一分钟内完成截图审阅和操作审批。",
+    "reviewTarget": "请确认截图中没有敏感信息，并且可以看见选定的控件（{selector}）。请输入希望完成的操作。",
+    "selectedControl": "选定的测试控件",
+    "refresh": "刷新建议",
+    "review": "审阅具体操作",
+    "source": "操作来源",
+    "model": "模型建议",
+    "observation": "于 {date} 观察到测试控件 {selector}",
+    "status": {
+      "PENDING": "等待模型响应",
+      "RUNNING": "正在分析截图",
+      "FAILED": "分析失败",
+      "CANCELLED": "分析已取消",
+      "REQUEST_OUTCOME_UNKNOWN": "分析结果未知",
+      "UNKNOWN": "分析结果未知",
+      "READY": "可审阅操作",
+      "STALE": "观察已过期或发生变化。请重新检查并分析。",
+      "NO_ACTION": "模型未建议操作",
+      "INVALID": "模型响应无法用于操作建议",
+      "STAGED": "操作已记录到日志"
+    }
+  },
+  "errors": {
+    "CONTROL_SUGGESTION_UNAVAILABLE": "此分析没有可用的操作建议。"
+  }
+}

@@ -1,0 +1,67 @@
+.community-wizard {
+  display: grid;
+  gap: 14px;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+
+.community-wizard h1:focus {
+  outline: none;
+}
+
+.community-wizard h1,
+.community-wizard p,
+.community-form p {
+  margin: 0;
+}
+
+.community-connection,
+.community-form {
+  display: grid;
+  gap: 12px;
+}
+
+.community-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.community-default {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  margin: 0;
+}
+
+.community-default dt {
+  font-weight: 600;
+}
+
+.community-default dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.community-verified {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-advanced > summary,
+.community-capabilities > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.community-advanced[open] > summary,
+.community-capabilities[open] > summary {
+  margin-bottom: 12px;
+}
+
+.community-advanced > .settings-section,
+.community-advanced .ai-profiles > .settings-section {
+  margin-top: 12px;
+}

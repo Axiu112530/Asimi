@@ -1,0 +1,72 @@
+# Phase 0 local toolchains, caches, binaries, and transient fixture state.
+.phase0-tools/
+.phase0-cache/
+validation/phase0/bin/
+validation/phase0/frontend/node_modules/
+validation/phase0/frontend/dist/
+validation/phase0/wails/assets/
+*.exe
+*.test
+
+# Phase 1 application output and isolated acceptance data.
+frontend/node_modules/
+frontend/dist/
+build/bin/
+.phase1-data/
+docs/phase1-evidence/*.png
+
+# Phase 2A isolated failure-injection profiles and test binaries.
+.phase2a-data/
+
+# Phase 2B isolated profiles, credentials and transient validation output.
+.phase2b-data/
+.phase2c-data/
+.phase2d-data/
+
+# MVP portable output and isolated acceptance profiles.
+.mvp01-data/
+.v02-data/
+.v021-data/
+.asimi-data/
+/.local-validation/
+/rsrc_asimi_windows_amd64.syso
+build/notepad-native/
+
+# Local indexes, generated native fixtures, and app data.
+/.codegraph/
+/build/notepad-policy/
+/build/phase2a-tool-tests/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+.env
+.env.*
+!.env.example
+
+# Local acceptance outputs. Keep only reproducibility inputs and release summaries.
+/docs/evidence/*
+/docs/phase1-evidence/*
+/docs/phase2a-evidence/*
+/docs/phase2b-evidence/*
+/docs/phase2c-evidence/*
+/docs/phase2d-evidence/*
+/docs/mvp01-evidence/*
+!/docs/mvp01-evidence/locale-baseline-en-US.json
+!/docs/mvp01-evidence/locale-baseline-zh-CN.json
+!/docs/mvp01-evidence/package.json
+/docs/0.2/evidence/*
+!/docs/0.2/evidence/package.json
+/docs/0.2.1/evidence/*
+!/docs/0.2.1/evidence/package.json
+!/docs/0.2.1/evidence/final-checks.json
+/docs/release/evidence/*
+!/docs/release/evidence/package.json
+!/docs/release/evidence/final-checks.json
+

@@ -1,0 +1,7 @@
+# Developer improvements
+
+The Developer page inspects the selected workspace with its exclusions. Recognized data includes manifests, languages, frameworks, package managers, entry points and tests. Environment discovery checks for runtime executables and bounded, safely readable version metadata. Runtime states and local evidence are shown in the Environment tab. Existing explicit diagnostics can run version commands when the user requests them.
+
+Git inspection reads supported repository data directly. It uses no Git process, hooks, external filters or network and writes no repository metadata. It shows the branch, available HEAD and bounded staged, unstaged and untracked results. The Agent can suggest up to three relevant source or test files. Its review includes aggregate Git status, dirty flags for selected files, source text and observed command output. The file diff is generated from the working copy and independently checked by the existing identity, hash and transactional verification path. Commands keep their separate approval and network consent.
+
+Supported repositories include ordinary SHA-1 worktrees, index v2/v3 and supported loose or packed Git objects. Worktrees requiring an external Git directory and configurations requiring filters, alternate objects, external includes or unsupported indexes may show an unavailable or partial state. Existing local changes remain subject to human review of the full diff.
