@@ -2,7 +2,7 @@
 
 | Item | Status | Scope |
 | --- | --- | --- |
-| Public source and binary distribution | BLOCKED | The application license requires an owner decision. |
+| Public source and binary distribution | PENDING | Community uses MIT. Public release still depends on the owner reviewing the history and packaging the distributable with the application and third-party notices. |
 | Real desktop visual analysis and empty Notepad | PENDING | The user must run each acceptance scenario on the target desktop. |
 | Windows versions beyond the tested Windows 11 25H2 x64 environment | PENDING | The release evidence applies to its recorded host. |
 | Additional provider configurations | CONDITIONAL | Custom endpoints use the advanced editor and need their own connection check. |

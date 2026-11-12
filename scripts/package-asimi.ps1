@@ -11,7 +11,8 @@ foreach ($Name in $Docs) {
     Copy-Item -LiteralPath (Join-Path $Repo "docs/release/$Name") -Destination (Join-Path $Portable $Name)
 }
 Copy-Item -LiteralPath (Join-Path $Repo 'PRIVACY.md') -Destination (Join-Path $Portable 'PRIVACY.md')
-$Files = $Runtime + $Docs + @('PRIVACY.md')
+Copy-Item -LiteralPath (Join-Path $Repo 'LICENSE') -Destination (Join-Path $Portable 'LICENSE')
+$Files = $Runtime + $Docs + @('PRIVACY.md','LICENSE')
 $Manifest = foreach ($Name in $Files) {
     '{0}  {1}' -f (Get-FileHash -LiteralPath (Join-Path $Portable $Name) -Algorithm SHA256).Hash,$Name
 }

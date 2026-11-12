@@ -9,6 +9,6 @@
 | Git 和电脑 | VERIFIED | 回环 Agent 保留已有修改与索引。合成截图与专用 TestHost 覆盖确认后外发、遮挡、UIA、目标验证及结果回读。 |
 | 最终 ZIP 敏感信息 | VERIFIED | 精确成员清单与有限内容扫描通过。扫描未检出凭据、私钥、数据库、个人绝对路径或禁止打包的成员。 |
 | 当前工作树和 Git 历史 | CONDITIONAL | 扫描可达提交和有界工作树，未发现凭据阻断项。保留的历史及原始验证报告仍含本机工作区路径，公开源码前需审查脱敏。 |
-| 公开分发 | BLOCKED | 根目录无所有者选择的应用许可证，发布由所有者决定。 |
+| 公开分发 | PENDING | Community 已选择 MIT 许可证。验收摘要对应选择许可证前的候选包。正式发布需审查公开内容，并核验包含应用许可证和第三方声明的新归档。 |
 
 扫描明细保存在本地 `docs/release/evidence/secret-scan.json`。[最终核对摘要](evidence/final-checks.json) · [第三方声明](THIRD-PARTY-NOTICES.md) · [许可证决策](LICENSE-DECISION.md)

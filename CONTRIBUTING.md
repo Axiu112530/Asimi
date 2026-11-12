@@ -1,6 +1,6 @@
 # Contributing to Asimi Community
 
-Use GitHub issues for public bug reports and GitHub pull requests for proposed changes. Report vulnerabilities through the maintainer's private contact channel. [Security reporting](SECURITY.md)
+Use GitHub issues for public bug reports and feature requests. Use GitHub pull requests for proposed changes. Asimi Community is licensed under MIT. Submit contributions you have the right to share under these terms. [MIT License](LICENSE) Report vulnerabilities through the maintainer's private contact channel. [Security reporting](SECURITY.md)
 
 Use Windows 11 x64 and the repository's pinned Go, Wails, and frontend dependencies. Use the release build and packaging commands documented in the acceptance report. Run Go and frontend regression tests before submitting changes. [Release acceptance](docs/release/RELEASE-ACCEPTANCE.md)
 
