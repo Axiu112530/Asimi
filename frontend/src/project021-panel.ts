@@ -44,7 +44,7 @@ function projectOverview(summary: Summary) {
   return h('article', { class: 'product-card', 'data-testid': 'developer-project-overview' }, [
     h('h2', label('project')),
     !summary.types?.length ? h('p', label('noProject')) : null,
-    h('dl', summaryFields.flatMap(key => {
+    h('dl', { class: 'product-details' }, summaryFields.flatMap(key => {
       const values = summary[key];
       return values?.length ? field(key, values.join(', ')) : [];
     })),
@@ -56,7 +56,7 @@ function gitOverview(git: GitContext) {
   const unavailable = { NOT_REPOSITORY: 'noRepo', UNSUPPORTED: 'unsupportedGit', ERROR: 'gitError' };
   return h('article', { class: 'product-card', 'data-testid': 'developer-git-status', 'data-status': git.status }, [
     h('h2', label('git')),
-    git.status === 'AVAILABLE' ? h('dl', [
+    git.status === 'AVAILABLE' ? h('dl', { class: 'product-details' }, [
       ...field('branch', git.branch || label('detached')),
       ...field('head', git.head || label('unborn')),
       ...field('changedFiles', number(git.changedFiles)),
@@ -81,7 +81,7 @@ function runtimeCard(runtime: RuntimeDiagnostic) {
   return h('article', { class: 'product-card', 'data-testid': `developer-runtime-${runtime.component}`, 'data-status': runtime.status }, [
     h('div', { class: 'split' }, [h('h3', label(`component.${runtime.component}`)), h('span', label(`status.${runtime.status}`))]),
     runtime.executable ? h('code', runtime.executable) : null,
-    h('dl', [
+    h('dl', { class: 'product-details' }, [
       ...(runtime.version ? field('version', runtime.version) : []),
       ...(runtime.minimumVersion ? field('minimum', runtime.minimumVersion) : []),
       ...(runtime.source ? field('source', label(`origin.${runtime.source}`)) : []),

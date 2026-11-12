@@ -27,10 +27,18 @@ export function selectProvider(s:ChatSession,id:string){s.providerId=id;s.modelI
 export function selectModel(s:ChatSession,id:string){s.modelId=id;s.temperature=null;s.imageDetail=model(s)?.capabilities.imageDetails?.[0]||'auto';s.stream=model(s)?.capabilities.streaming==='SUPPORTED';}
 export async function refreshAI(){
   const firstLoad=!ai.loaded;
+  const previousDefault = ai.settings;
   const [profiles,settings,usage]=await Promise.all([call<AIProfile[]>('ListAIProfiles'),call<AISelection>('GetAISettings'),call<AIUsageRecord[]>('GetUsage')]);
   ai.profiles=profiles||[];ai.settings=settings;ai.usage=usage||[];ai.loaded=true;
   for(const s of [ai.assistant,ai.playground]){
-    if(!s.providerId&&settings.defaultProviderId){selectProvider(s,settings.defaultProviderId);if(profile(s)?.models.some(m=>m.id===settings.defaultModelId))selectModel(s,settings.defaultModelId);}
+    const followsDefault = s.providerId === previousDefault.defaultProviderId &&
+      s.modelId === previousDefault.defaultModelId;
+    const defaultChanged = settings.defaultProviderId !== previousDefault.defaultProviderId ||
+      settings.defaultModelId !== previousDefault.defaultModelId;
+    if (settings.defaultProviderId && (!profile(s)?.enabled || followsDefault && defaultChanged && !s.conversation?.messages.length)) {
+      selectProvider(s, settings.defaultProviderId);
+      if (profile(s)?.models.some(m => m.id === settings.defaultModelId)) selectModel(s, settings.defaultModelId);
+    }
     if(firstLoad)s.maxOutputTokens=settings.maxOutputTokens||1024;
   }
 }
@@ -51,8 +59,9 @@ export function stopAI(){
   requests.clear();terminalRequests.clear();pendingEvents.clear();
   for(const s of [ai.assistant,ai.playground]){s.scope++;s.busy=false;s.starting=false;s.importing=false;}
 }
-export async function startAI(selectDefaultMode = false){
+export async function startAI(releaseMode = false){
   stopAI();const generation=epoch;
+  if (releaseMode) ai.mode = 'real';
   for(const name of ['started','delta','completed','failed','cancelled'])disposers.push(subscribe('assistant.stream.'+name,data=>{if(data&&typeof data==='object')void receive(data as AIStreamEvent,name,generation);}));
   let selectedSession:ChatSession|undefined;
   stopWatch=watch(()=>state.conversation?.id,()=>{
@@ -62,12 +71,11 @@ export async function startAI(selectDefaultMode = false){
     target.conversation=c;selectedSession=target;
     const previous=[...(c?.messages||[])].reverse().find(m=>m.providerId&&m.providerId!=='mock');
     if(previous){if(!c?.playground)ai.mode='real';target.providerId=previous.providerId!;target.modelId=previous.modelId||'';state.inspectorOpen=false;}
-    else if(c?.tasks?.length)ai.mode='mock';
+    else if(!releaseMode && c?.tasks?.length)ai.mode='mock';
     if(c?.playground)state.route='playground';
     if(c)void hydrateAttachments(c);
   },{immediate:true,flush:'sync'});
   await refreshAI();
-  if (selectDefaultMode && !state.conversation) ai.mode = usableDefaultAI() ? 'real' : 'mock';
 }
 async function hydrateAttachments(c:Conversation){
   await Promise.all((c.messages||[]).flatMap(m=>(m.attachments||[]).filter(a=>!a.previewDataUrl).map(async a=>{
@@ -148,8 +156,7 @@ function chatConversation(id: string, playground = false): Conversation {
   return {id,title:'',createdAt:'',updatedAt:'',messages:[],tasks:[],playground};
 }
 
-export function screenConversation() {
-  const c=state.conversation;
+export function screenConversation(c = state.conversation) {
   return c&&!c.playground&&!c.tasks?.length&&!c.messages?.some(m=>m.taskId||m.providerId==='mock')?c:undefined;
 }
 
@@ -180,7 +187,8 @@ export async function sendAI(s:ChatSession,playground=false,test=false){
   const p=profile(s),m=model(s);if(!p?.enabled||!m||m.capabilities.text!=='SUPPORTED')return;
   if(!test&&s.attachments.length&&m.capabilities.vision!=='SUPPORTED'){s.error='UNSUPPORTED_CAPABILITY';return;}
   if(!test&&!s.draft.trim()&&!s.attachments.length)return;
-  const previous=s.conversation?.messages.filter(message=>message.providerId).at(-1)?.providerId;const switched=!!previous&&previous!==s.providerId;
+  const conversation = playground ? s.conversation : screenConversation(s.conversation);
+  const previous=conversation?.messages.filter(message=>message.providerId).at(-1)?.providerId;const switched=!!previous&&previous!==s.providerId;
   if(switched&&!window.confirm(t('ai.switchConfirm')))return;
   const outputCost=m.pricing?s.maxOutputTokens*m.pricing.outputPerMillion/1000000:null;
   const estimate=outputCost==null?t('ai.priceUnknown'):t('ai.outputEstimate',{cost:outputCost.toFixed(6),currency:m.pricing!.currency});
@@ -188,11 +196,11 @@ export async function sendAI(s:ChatSession,playground=false,test=false){
   const warning=t(!test&&s.attachments.length?'ai.imageConfirm':'ai.sendConfirm',{provider:p.name,model:m.displayName||m.id})+'\n'+estimate+(exceeded?'\n'+t('ai.thresholdExceeded'):'')+'\n'+t('ai.thresholdNotice',{threshold:threshold??t('common.unknown')});
   if(!window.confirm(warning))return;
   await admitChat(s,()=>call<AIReply>(test?'TestAIConnection':'StartChat',{
-      conversationId:s.conversation?.id||undefined,providerId:s.providerId,modelId:s.modelId,content:test?t('ai.testPrompt'):s.draft.trim(),
+      conversationId:conversation?.id,providerId:s.providerId,modelId:s.modelId,content:test?t('ai.testPrompt'):s.draft.trim(),
       attachmentIds:test?[]:s.attachments.map(a=>a.id),stream:!test&&s.stream&&m.capabilities.streaming==='SUPPORTED',maxOutputTokens:s.maxOutputTokens,
       temperature:m.capabilities.temperature==='SUPPORTED'?s.temperature??undefined:undefined,imageDetail:s.imageDetail,confirmSend:true,confirmProviderSwitch:switched,playground,
   }),reply=>{
-    if(!s.conversation)s.conversation=chatConversation(reply.conversationId,playground);
+    if(s.conversation?.id!==reply.conversationId)s.conversation=chatConversation(reply.conversationId,playground);
     if(!test){s.draft='';s.attachments=[];}
   });
 }

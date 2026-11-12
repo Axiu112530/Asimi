@@ -5,7 +5,8 @@ param(
     [string]$LegacyAgent02,
     [switch]$Live,
     [switch]$LiveOnly,
-    [switch]$AsimiEvidence
+    [switch]$AsimiEvidence,
+    [switch]$Visual
 )
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -95,12 +96,23 @@ try {
             }
             $Params += @('--acceptance-fixture',$FixtureTag)
         } elseif ($Stage -eq 18) { $Params += @('--acceptance-fixture',$Entry.mode) }
+        $CaptureVisual = $Visual -and $Stage -in @(14,15)
+        if ($CaptureVisual) {
+            $Listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $Listener.Start()
+            try { $DebugPort = $Listener.LocalEndpoint.Port } finally { $Listener.Stop() }
+            $Params += @('--acceptance-debug-port',$DebugPort)
+        }
         $Timer = [Diagnostics.Stopwatch]::StartNew()
         $Stderr = Join-Path $Evidence "$Name.stderr.log"
         $ChildEnvironment = if ($Stage -eq 16) { @{} } else { @{ DEEPSEEK_API_KEY = $null } }
         $Process = Start-Process -FilePath $Exe -WorkingDirectory $Run -ArgumentList $Params -Environment $ChildEnvironment -WindowStyle Hidden -PassThru -RedirectStandardError $Stderr
         try {
             $null = $Process.Handle
+            if ($CaptureVisual) {
+                & node "$PSScriptRoot/capture-app.cjs" $DebugPort $Evidence | Out-Host
+                if ($LASTEXITCODE) { throw "Visual check failed for stage $Name" }
+            }
             $Peak = 0L
             while (!$Process.WaitForExit(125) -and $Timer.Elapsed.TotalSeconds -lt 85) {
                 $Process.Refresh()

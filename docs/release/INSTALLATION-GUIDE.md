@@ -1,9 +1,17 @@
 # Install Asimi 0.2.1
 
-Asimi 0.2.1 is a portable Windows x64 release candidate. Use a standard Windows account. The native acceptance environment is Windows 11 25H2 x64. Asimi uses the installed Microsoft Edge WebView2 Evergreen Runtime. The computer helpers use the Windows .NET Framework 4.x runtime. [WebView2 Runtime](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution) · [.NET Framework versions](https://learn.microsoft.com/en-us/dotnet/framework/install/versions-and-dependencies)
+Use a standard Windows account on Windows x64. Asimi needs Microsoft Edge WebView2 Evergreen Runtime and Windows .NET Framework 4.x. Native acceptance was performed on Windows 11 25H2 x64. [WebView2 Runtime](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution) · [.NET Framework versions](https://learn.microsoft.com/en-us/dotnet/framework/install/versions-and-dependencies)
 
-1. Obtain `Asimi-0.2.1-win-x64.zip` and its companion `.sha256` file from the release owner. In PowerShell, run `Get-FileHash .\Asimi-0.2.1-win-x64.zip -Algorithm SHA256` and compare the result with the companion file.
-2. Extract the entire ZIP into a new local folder. Keep `Asimi.exe`, both native helpers and their matching `.config` files together. The helpers are AsimiControlHost.exe and AsimiUIAWorker.exe. `SHA256SUMS.txt` records the hash of each delivered member.
-3. Open `Asimi.exe`. Choose English or Simplified Chinese, then connect your provider or continue offline. Open Settings → About to find the local data directory.
+1. Download `Asimi-0.2.1-Setup-x64.exe` and the matching `.sha256` file from Releases.
+2. In PowerShell, run `Get-FileHash .\Asimi-0.2.1-Setup-x64.exe -Algorithm SHA256` and compare it with the published checksum.
+3. Open the installer, select a language, then choose an installation folder. The default is `%LOCALAPPDATA%\Programs\Asimi`. Choose **Browse** to use another folder.
+4. Follow the prompts to install and create an optional desktop shortcut. Launch Asimi from Start or from the final installer screen.
+5. Choose your interface language and connect a model, or select **Set up later** to browse projects and history.
 
-To replace an older installation, follow the upgrade guide. For first use, see the user guide. [Upgrade guide](UPGRADE-GUIDE.md) · [User guide](USER-GUIDE.md)
+Use **Settings → Apps → Installed apps** to uninstall. Your settings and conversations are stored separately in `%LOCALAPPDATA%\Asimi`.
+
+If you use the portable ZIP, verify its own checksum and extract the complete archive into a new local folder. Run `Asimi.exe` with both helpers and their matching `.config` files in the same directory.
+
+To build the installer, run `scripts/build.ps1`, `scripts/package-asimi.ps1` and `scripts/build-installer.ps1` in that order. The installer script uses Inno Setup 6.7.4 by default from `.phase0-tools/innosetup-6.7.4/ISCC.exe`. Use `-CompilerPath` to specify the compiler location. [Inno Setup 6.7.4](https://github.com/jrsoftware/issrc/releases/tag/is-6_7_4)
+
+[Asimi Releases](https://github.com/Axiu112530/Asimi/releases) · [Upgrade guide](UPGRADE-GUIDE.md) · [User guide](USER-GUIDE.md)

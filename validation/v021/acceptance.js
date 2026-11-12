@@ -37,6 +37,12 @@ function input(id, value, event = 'input') {
   element.dispatchEvent(new Event(event, { bubbles: true }));
 }
 
+async function reviewVisual() {
+  if (!params.has('visual')) return;
+  globalThis.__asimiAcceptanceReady = { stage };
+  await until('visual review', () => globalThis.__asimiAcceptanceContinue, 42);
+}
+
 function checkBrand(surface, text) {
   check(surface, /\bAsimi\b/.test(text || '') && !/\bDeskPilot\b/.test(text || ''));
 }
@@ -65,6 +71,10 @@ async function setup(live) {
   const provider = await until('provider', () => byId('preset-provider'));
   check('onlyVerifiedPresetOffered', provider.options.length === 1 && provider.value === 'deepseek');
   check('passwordField', byId('preset-api-key').type === 'password' && byId('preset-connect').disabled);
+  check('setupUsesOpaqueSurface', getComputedStyle(byId('preset-onboarding')).visibility === 'visible' &&
+    getComputedStyle(byId('preset-onboarding')).backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+    getComputedStyle(document.querySelector('.desktop-app')).visibility === 'hidden');
+  await reviewVisual();
   if (live) {
     input('preset-api-key', 'preset-native-acceptance-placeholder');
     await click('preset-connect');
@@ -94,6 +104,7 @@ async function setup(live) {
       checkBrand('settingsAboutBrand', document.querySelector('.about-brand h2')?.textContent);
       checkBrand('settingsDescriptionBrand', document.querySelector('.about-brand p')?.textContent);
     }
+    check('releaseSettingsHideDemoCopy', !document.querySelector('.settings-page').textContent.includes('Mock'));
     check('advancedCollapsed', !advanced.open);
     advanced.querySelector('summary').click();
     await until('limit form', () => byId('preset-limit-requests'));
@@ -128,8 +139,30 @@ async function restart(live) {
     const reset = await call('RestoreConfigurationDefaults', { confirm: true });
     check('resetRestoresSourceAndValue', reset.agent.requests === reset.agentMaximum.requests && reset.media.attachments === reset.mediaMaximum.attachments && reset.sources['agent.requests'] === 'DEFAULT' && reset.sources['media.attachments'] === 'DEFAULT');
     await click('product-chat');
-    await until('offline composer', () => byId('composer'));
-    check('offlineChatRemainsAvailable', !(await call('GetUsage'))?.length);
+    await until('model setup entry', () => byId('chat-model-required'));
+    check('releaseHasNoDemoControls', !byId('ai-assistantMode') && !byId('composer') && !document.querySelector('.runtime-info,.local-indicator'));
+    check('releaseRejectsDemoRequests', (await rpc('SendMessage')).error?.code === 'METHOD_NOT_ALLOWED');
+    check('noUsageWithoutModel', !(await call('GetUsage'))?.length);
+    if (params.has('visual')) {
+      await call('SaveAIProfile', { profile: {
+        id: 'visual-fixture', name: 'Local fixture', protocol: 'chat-completions',
+        baseUrl: 'http://127.0.0.1:1/v1', enabled: true, trustedHttp: false,
+        models: [{ id: 'fixture-model', displayName: 'Fixture model',
+          capabilities: {
+            text: 'SUPPORTED', vision: 'SUPPORTED', streaming: 'SUPPORTED', toolCalling: 'UNSUPPORTED',
+            structuredOutput: 'UNSUPPORTED', computerUse: 'UNSUPPORTED', temperature: 'UNSUPPORTED',
+            contextLimit: 32768, imageDetails: ['auto'],
+          } }],
+      } });
+      const settings = await call('GetAISettings');
+      await call('SaveAISettings', { ...settings, defaultProviderId: 'visual-fixture', defaultModelId: 'fixture-model' });
+      await click('nav-models');
+      await until('model refresh', () => byId('preset-default-model')?.textContent.includes('fixture-model'));
+      await click('nav-assistant');
+      await until('configured composer', () => byId('ai-composer'));
+      check('sendLabel', byId('real-send').textContent.trim() === '发送');
+      await reviewVisual();
+    }
   }
 }
 

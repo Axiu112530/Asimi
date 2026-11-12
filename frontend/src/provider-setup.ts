@@ -178,11 +178,11 @@ const ProviderConnection = defineComponent({
             ? h('p', { class: 'preset-verified', role: 'status', 'data-testid': 'preset-connected' }, [
                 icon('check', 16), label('verified', { model: model.id }),
               ])
-            : !pending.value ? h('p', { class: 'muted' }, label(current.hasCredential ? 'unverified' : 'noKey')) : null,
+            : !props.wizard && !pending.value && current.hasCredential ? h('p', { class: 'muted' }, label('unverified')) : null,
           error.value ? h('p', {
             role: 'alert', class: 'ai-error', 'data-testid': 'preset-connection-error',
           }, connectionErrors[error.value] ? label(connectionErrors[error.value]) : errorText(error.value)) : null,
-          h('details', { class: 'preset-capabilities', open: !!current.verifiedAt }, [
+          props.wizard ? null : h('details', { class: 'preset-capabilities' }, [
             h('summary', label(current.configuredModel ? 'configuredCapabilities' : 'capabilities')),
             h('dl', { class: 'ai-capabilities' }, capabilityKeys.map(key => h('div', [
               h('dt', t('ai.' + key)), h('dd', t('ai.' + model.capabilities[key])),
@@ -284,13 +284,13 @@ const SetupWizard = defineComponent({
     }
 
     return () => h('div', {
-      class: 'product-overlay', role: 'dialog', 'aria-modal': 'true',
+      class: 'setup-screen', role: 'dialog', 'aria-modal': 'true',
       'aria-labelledby': 'provider-setup-title', 'data-testid': 'preset-onboarding', onKeydown: keepFocus,
-    }, h('section', { class: 'product-onboarding preset-wizard' }, [
+    }, h('section', { class: 'preset-wizard' }, [
+      h('div', { class: 'setup-brand', 'aria-hidden': 'true' }, [icon('logo', 30)]),
       h('h1', { id: 'provider-setup-title', ref: title, tabindex: -1 }, label(step.value)),
       step.value === 'welcome' ? [
         h('p', label('intro')),
-        h('p', { class: 'muted' }, label('privacy')),
         h('label', { class: 'ai-field' }, [
           h('span', t('settings.language')),
           h('select', {
@@ -316,9 +316,6 @@ const SetupWizard = defineComponent({
             : action('skipAI', 'skip-ai', () => { step.value = 'ready'; }, connecting.value),
         ]),
       ] : [
-        h('p', { 'data-testid': 'preset-ready-status' }, provider.value?.defaultUsable
-          ? label('readyAI', { provider: provider.value.defaultProviderName, model: provider.value.defaultModelId })
-          : label('readyOffline')),
         h('p', { class: 'muted' }, label('project')),
         workspace() ? h('dl', { class: 'preset-default' }, [
           h('dt', label('selectedProject')), h('dd', { 'data-testid': 'preset-selected-project' }, workspace()?.name),

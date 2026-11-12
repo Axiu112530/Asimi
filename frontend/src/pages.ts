@@ -67,7 +67,7 @@ export function SettingsPage(legacyAcceptance = false) {
     h('section',{class:'settings-section'},[h('h2',t('settings.general')),
       settingRow('settings.startup','settings.startupHint',settingSelect('startup',[['welcome','settings.welcome'],['last','settings.last']],'startup')),
     ]),
-    h('section',{class:'settings-section'},[h('h2',t('preset.providers')),settingRow('settings.models','settings.modelsHint',button('settings.manageModels',()=>state.route='models',{class:'button secondary'}))]),
+    h('section',{class:'settings-section'},[h('h2',t('preset.providers')),settingRow('settings.models',legacyAcceptance?'settings.modelsHint':'settings.manageModelsHint',button('settings.manageModels',()=>state.route='models',{class:'button secondary'}))]),
     h('section',{class:'settings-section'},[h('h2',t('preset.appearance')),
       settingRow('settings.theme','settings.themeHint',settingSelect('theme',[['light','settings.light'],['dark','settings.dark'],['system','settings.system']],'theme')),
     ]),

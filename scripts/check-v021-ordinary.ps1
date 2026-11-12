@@ -48,6 +48,10 @@ private static extern int GetWindowText(System.IntPtr window, System.Text.String
 private static extern bool PostMessage(System.IntPtr window, uint message, System.IntPtr wParam, System.IntPtr lParam);
 [System.Runtime.InteropServices.DllImport("user32.dll")]
 private static extern System.IntPtr SendMessageTimeout(System.IntPtr window, uint message, System.UIntPtr wParam, System.IntPtr lParam, uint flags, uint timeoutMs, out System.UIntPtr result);
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+private static extern System.IntPtr GetWindowDpiAwarenessContext(System.IntPtr window);
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+private static extern bool AreDpiAwarenessContextsEqual(System.IntPtr first, System.IntPtr second);
 public static bool Close(uint ownedProcessId, string expectedTitle, bool requireIcon) {
     System.IntPtr found = System.IntPtr.Zero;
     EnumWindows(delegate(System.IntPtr window, System.IntPtr state) {
@@ -64,6 +68,7 @@ public static bool Close(uint ownedProcessId, string expectedTitle, bool require
     }, System.IntPtr.Zero);
     if (found == System.IntPtr.Zero) return false;
     if (requireIcon) {
+        if (!AreDpiAwarenessContextsEqual(GetWindowDpiAwarenessContext(found), new System.IntPtr(-4))) return false;
         System.UIntPtr icon;
         var sent = SendMessageTimeout(found, 0x007f, new System.UIntPtr(1u), System.IntPtr.Zero, 0x0002, 1500, out icon);
         if (sent == System.IntPtr.Zero || icon == System.UIntPtr.Zero) return false;
@@ -110,6 +115,7 @@ if ($AsimiEvidence) {
     $Result.productVersion = $Metadata.ProductVersion
     $Result.associatedIcon = $true
     $Result.nativeWindowIcon = $true
+    $Result.perMonitorV2 = $true
     $Result.defaultProfileDirectory = Split-Path $Data -Leaf
     $Result.isolatedLocalAppData = $true
 }

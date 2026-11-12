@@ -38,24 +38,14 @@ Asimi is a local-first AI desktop assistant for developers. Review project conte
 
 便携版运行所需文件位于同一目录中。源码构建另需 Go、Node.js、npm 和 Wails。
 
-### 获取便携版
+### 运行安装向导
 
-查看仓库的 Releases 页面。发布了二进制附件时，下载同一版本的 ZIP 和对应的 SHA256 文件。当前打包脚本生成的文件名为 `Asimi-0.2.1-win-x64.zip`。若页面尚无二进制附件，可按下文从源码构建。[Releases](https://github.com/Axiu112530/Asimi/releases)
+1. 从 Releases 下载 `Asimi-0.2.1-Setup-x64.exe` 和对应的 SHA256 文件，核对校验值。
+2. 运行安装程序，选择语言和安装目录。默认安装到 `%LOCALAPPDATA%\Programs\Asimi`，也可通过「浏览」选择其他目录。
+3. 完成安装后，从开始菜单打开 **Asimi**。安装时可以选择创建桌面快捷方式。
+4. 首次打开时连接模型，或选择「稍后配置」并继续使用本地功能。
 
-在 PowerShell 中计算校验值，并与同一发布页面的 SHA256 文件核对。
-
-```powershell
-Get-FileHash .\Asimi-0.2.1-win-x64.zip -Algorithm SHA256
-Get-Content .\Asimi-0.2.1-win-x64.zip.sha256
-```
-
-1. 将 ZIP 完整解压到新的本地文件夹。
-2. 保留 `Asimi.exe`、两个 Helper 和各自的 `.config` 文件。
-3. 打开 `Asimi.exe`，选择英语或简体中文。
-4. 连接 AI 供应商，或选择离线继续。
-5. 选择一个本地项目，从查看结构和阅读文件开始。
-
-历史候选包的校验值对应当时生成的文件。每个下载文件应使用其所属版本随附的校验值。[安装详情](docs/release/INSTALLATION-GUIDE.md)
+程序安装目录与应用数据目录分开。卸载应用会保留 `%LOCALAPPDATA%\Asimi` 中的用户数据。[Releases](https://github.com/Axiu112530/Asimi/releases) · [安装指南](docs/release/INSTALLATION-GUIDE.md)
 
 ### 连接 AI
 
@@ -174,7 +164,7 @@ Pop-Location
 - 0.2.1 为试用候选版，Windows 验证结果限于已记录的环境。
 - 真实桌面视觉分析和空白记事本场景仍需要用户在目标桌面主动验收。
 - 额外供应商和自定义模型需要各自的连接与能力检查。
-- 离线模式支持本地浏览、历史及离线体验，真实 AI 推理需要可用的模型服务。
+- 连接模型前仍可浏览本地项目和历史记录。
 - 修改可能需要恢复或重新审批，请根据任务时间线和实际文件状态处理。[已知限制](docs/release/KNOWN-LIMITATIONS.md)
 
 ## 反馈、贡献与仓库权限

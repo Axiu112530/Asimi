@@ -70,16 +70,33 @@ const productDescription = "Asimi is a local-first AI desktop assistant for deve
 // No native file, shell, Windows, network, key retrieval or state setter is bound.
 type DesktopService struct {
 	service              *backend.Service
+	legacyAcceptance     bool
 	connectPresetFixture func(string) (domain.Reply, bool)
 }
 
 func (s *DesktopService) Call(method, payload string) domain.Reply {
+	if !s.legacyAcceptance {
+		switch method {
+		case "SendMessage", "CreateTask", "ListModels", "GetModelCapabilities":
+			return domain.Reply{Error: &domain.Error{Code: "METHOD_NOT_ALLOWED"}}
+		case "ListProviders":
+			return domain.Reply{Data: []any{}}
+		}
+	}
 	if method == "ConnectPresetProvider" && s.connectPresetFixture != nil {
 		if reply, handled := s.connectPresetFixture(payload); handled {
 			return reply
 		}
 	}
-	return s.service.Call(method, payload)
+	reply := s.service.Call(method, payload)
+	if !s.legacyAcceptance && method == "GetAppInfo" {
+		if info, ok := reply.Data.(map[string]any); ok {
+			delete(info, "mode")
+			delete(info, "provider")
+			delete(info, "model")
+		}
+	}
+	return reply
 }
 
 // AcceptanceService is NEVER registered in an ordinary launch.
@@ -243,7 +260,10 @@ func run() int {
 		return 1
 	}
 	defer service.Close()
-	desktopService := &DesktopService{service: service}
+	desktopService := &DesktopService{
+		service:          service,
+		legacyAcceptance: acceptance && acceptanceStage > 0 && acceptanceStage <= 13,
+	}
 	if livePreset {
 		key := []byte(os.Getenv("DEEPSEEK_API_KEY"))
 		_ = os.Unsetenv("DEEPSEEK_API_KEY")

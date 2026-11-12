@@ -4,7 +4,7 @@ import { state, fail } from './store';
 import { call } from './bridge';
 import { ScreenCaptureActions, ScreenCaptureLabel, ScreenResult } from './screen-pages';
 import { t, date, number } from './i18n';
-import { button, errorText } from './ui';
+import { button, errorText, icon } from './ui';
 import { Markdown } from './markdown';
 import type { AIModel, AIProfile, AIUsageRecord, Capability } from './ai-types';
 
@@ -100,9 +100,102 @@ function messages(s: ChatSession) {
 }
 function localizedStatus(status:string){const key='ai.status'+status.toUpperCase();const value=t(key);return value===key?unknown():value;}
 function usageSource(source:string){const key='ai.source'+source;const value=t(key);return value===key?unknown():value;}
-function composer(s:ChatSession,playground:boolean){const m=model(s);const canVision=m?.capabilities.vision==='SUPPORTED';return h('form',{class:'composer-wrap',onSubmit:(e:SubmitEvent)=>{e.preventDefault();void sendAI(s,playground);}},[s.attachments.length?attachments(s.attachments,id=>removeAttachment(s,id)):null,h('div',{class:'composer-box'},[h('textarea',{rows:3,value:s.draft,'aria-label':t('ai.prompt'),'data-testid':'ai-composer',placeholder:t('ai.prompt'),disabled:!state.connected||s.busy,onInput:(e:Event)=>s.draft=(e.target as HTMLTextAreaElement).value}),h('div',{class:'composer-bottom ai-row'},[field(playground?'addImage':'attachImage',h('input',{type:'file',accept:'image/png,image/jpeg,image/webp,image/gif',multiple:true,disabled:!canVision||s.busy||s.importing||!state.connected,onChange:(e:Event)=>importImages(s,e.target as HTMLInputElement),'data-testid':playground?'playground-images':'assistant-images'})),playground?null:h(ScreenCaptureActions,{source:'assistant'}),s.busy?action('cancel',()=>cancelAI(s),!s.requestId):h('button',{type:'submit',class:'button primary',disabled:!state.connected||s.importing||s.starting||!profile(s)?.enabled||m?.capabilities.text!=='SUPPORTED'||(!s.draft.trim()&&!s.attachments.length)||(!!s.attachments.length&&!canVision),'data-testid':playground?'playground-send':'real-send'},t('ai.send'))])]),s.importing?h('p',{role:'status'},t('ai.importing')):null,s.error?h('p',{class:'ai-error',role:'alert'},errorText(s.error)):null,h('p',{class:'input-hint'},t('ai.privacyNotice'))]);}
+function composer(session: ChatSession, playground: boolean) {
+  const selectedModel = model(session);
+  const supportsImages = selectedModel?.capabilities.vision === 'SUPPORTED';
+  const cannotAttach = !supportsImages || session.busy || session.importing || !state.connected;
+  const cannotSend = !state.connected || session.importing || session.starting || !profile(session)?.enabled ||
+    selectedModel?.capabilities.text !== 'SUPPORTED' || (!session.draft.trim() && !session.attachments.length) ||
+    (session.attachments.length > 0 && !supportsImages);
+  const attachmentLabel = t('ai.attachImage');
+  return h('form', {
+    class: 'composer-wrap',
+    onSubmit: (event: SubmitEvent) => {
+      event.preventDefault();
+      void sendAI(session, playground);
+    },
+  }, [
+    session.attachments.length ? attachments(session.attachments, id => removeAttachment(session, id)) : null,
+    h('div', { class: 'composer-box' }, [
+      h('textarea', {
+        rows: 3,
+        value: session.draft,
+        'aria-label': t('ai.prompt'),
+        'data-testid': 'ai-composer',
+        placeholder: t('ai.prompt'),
+        disabled: !state.connected || session.busy,
+        onInput: (event: Event) => { session.draft = (event.target as HTMLTextAreaElement).value; },
+      }),
+      h('div', { class: 'composer-bottom ai-row' }, [
+        h('label', { class: ['button secondary attachment-trigger', { 'is-disabled': cannotAttach }] }, [
+          icon('file', 15),
+          h('span', attachmentLabel),
+          h('input', {
+            type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true,
+            disabled: cannotAttach, 'aria-label': attachmentLabel,
+            'data-testid': playground ? 'playground-images' : 'assistant-images',
+            onChange: (event: Event) => importImages(session, event.target as HTMLInputElement),
+          }),
+        ]),
+        playground ? null : h(ScreenCaptureActions, { source: 'assistant' }),
+        session.busy ? action('cancel', () => cancelAI(session), !session.requestId) : h('button', {
+          type: 'submit', class: 'button primary', disabled: cannotSend,
+          'data-testid': playground ? 'playground-send' : 'real-send',
+        }, t('ai.send')),
+      ]),
+    ]),
+    session.importing ? h('p', { role: 'status' }, t('ai.importing')) : null,
+    session.error ? h('p', { class: 'ai-error', role: 'alert' }, errorText(session.error)) : null,
+  ]);
+}
 
-export const RealAssistant=defineComponent({setup(){const scroll=ref<HTMLElement|null>(null);watch(()=>ai.assistant.conversation?.messages.map(m=>m.content).join(''),async()=>{await nextTick();if(scroll.value)scroll.value.scrollTop=scroll.value.scrollHeight;});return ()=>{const s=ai.assistant;return h('section',{class:'assistant-workspace ai-chat','data-testid':'ai-assistant'},[h('header',{class:'conversation-header'},[h('div',[h('h1',s.conversation?.title||t('ai.real')),h('p',{class:'micro muted'},t('ai.textVisionOnly'))]),h('div',{class:'ai-row'},[action('clear',()=>clearAI(s),s.busy||!s.conversation),action('deleteConversation',()=>clearAI(s,true),s.busy||!s.conversation)])]),h('details',{class:'ai-chat-options',open:!s.conversation},[h('summary',t('ai.configuration')),chatControls(s)]),h('div',{class:'message-scroll',ref:scroll,'aria-live':'polite'},s.conversation?.messages.length?messages(s):[h('div',{class:'list-empty'},[h('h2',t('ai.ready')),h('p',t('ai.noAutoSend'))])]),composer(s,false)]);};}});
+export const RealAssistant = defineComponent({
+  props: { legacy: Boolean },
+  setup(props) {
+    const scroll = ref<HTMLElement | null>(null);
+    onMounted(() => {
+      if (state.connected) void refreshAI().catch(fail);
+    });
+    watch(() => ai.assistant.conversation?.messages.map(message => message.content).join(''), async () => {
+      await nextTick();
+      if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight;
+    });
+    return () => {
+      const session = ai.assistant;
+      const hasMessages = !!session.conversation?.messages.length;
+      const canChat = !!profile(session)?.enabled && model(session)?.capabilities.text === 'SUPPORTED';
+      const history = hasMessages ? messages(session) : null;
+      return h('section', { class: 'assistant-workspace ai-chat', 'data-testid': 'ai-assistant' }, [
+        h('header', { class: 'conversation-header' }, [
+          h('div', [h('h1', session.conversation?.title || t('assistant.newConversation'))]),
+          h('div', { class: 'ai-row' }, [
+            button('product.agentTasks', () => { state.route = 'workflows'; }, { class: 'button secondary' }),
+            hasMessages ? action('clear', () => clearAI(session), session.busy) : null,
+            hasMessages ? action('deleteConversation', () => clearAI(session, true), session.busy) : null,
+          ]),
+        ]),
+        ai.profiles.some(item => item.enabled) || props.legacy
+          ? h('details', { class: 'ai-chat-options', open: props.legacy && !session.conversation }, [
+              h('summary', t('ai.chatSettings')),
+              chatControls(session),
+            ])
+          : null,
+        h('div', { class: 'message-scroll', ref: scroll, 'aria-live': 'polite' }, [
+          history,
+          !canChat && !props.legacy ? h('div', { class: 'chat-empty', 'data-testid': 'chat-model-required' }, [
+            h('h2', t('ai.connectModel')),
+            h('p', t('ai.connectModelHint')),
+            button('ai.configureModel', () => { state.route = 'models'; }, { class: 'button primary' }),
+          ]) : !hasMessages ? h('div', { class: 'chat-empty' }, [
+            h('h2', t('ai.startConversation')),
+            h('p', t('ai.startConversationHint')),
+          ]) : null,
+        ]),
+        canChat || props.legacy ? composer(session, false) : null,
+      ]);
+    };
+  },
+});
 
 function metrics(record:AIUsageRecord|undefined,s?:ChatSession){const response=s?.response;const u=record?.usage||response?.usage;return h('dl',{class:'ai-metrics'},[
   ['provider',record?.providerId||s?.providerId||unknown()],['model',record?.modelId||s?.modelId||unknown()],['requestId',record?.requestId||s?.requestId||unknown()],['httpStatus',measured(record?.httpStatus||response?.httpStatus||null)],['firstTokenLatency',measured(record?.firstTokenLatencyMs??response?.firstTokenLatencyMs)],['duration',measured(record?.durationMs??response?.durationMs)],['inputTokens',measured(u?.inputTokens)],['outputTokens',measured(u?.outputTokens)],['totalTokens',measured(u?.totalTokens)],['cachedTokens',measured(u?.cachedInputTokens)],['reasoningTokens',measured(u?.reasoningTokens)],['usageSource',u?usageSource(u.source):unknown()],['estimatedCost',record?.estimatedCost==null?unknown():`${record.estimatedCost.toFixed(6)} ${record.pricing?.currency||unknown()}`],['requestStatus',record?localizedStatus(record.status):response?localizedStatus(response.status):unknown()],

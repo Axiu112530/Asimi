@@ -1,5 +1,5 @@
 export interface Settings { appLanguage: 'en-US'|'zh-CN'; agentLanguage: 'follow-app'|'auto'|'en-US'|'zh-CN'; theme: 'light'|'dark'|'system'; startup: 'welcome'|'last' }
-export interface AppInfo { version: string; goVersion: string; wailsVersion: string; dataDir: string; workspace: string; mode: string; provider: string; model: string }
+export interface AppInfo { version: string; goVersion: string; wailsVersion: string; dataDir: string; workspace: string; mode?: string; provider?: string; model?: string }
 import type { ScreenMetadata, VisionResult } from './screen-types';
 export interface Message { id: string; conversationId: string; role: string; content: string; createdAt: string; taskId?: string; providerId?:string; modelId?:string; requestId?:string; status?:string; errorCode?:string; attachments?:import('./ai-types').AIAttachment[]; usage?:import('./ai-types').AIUsage; screenCapture?:ScreenMetadata; vision?:VisionResult }
 export interface Conversation { id: string; title: string; createdAt: string; updatedAt: string; messages: Message[]; tasks: Task[]; playground?:boolean }

@@ -4,7 +4,7 @@ Asimi is a local-first AI desktop assistant for developers, combining AI convers
 
 ## Connect your own provider
 
-On the first launch, choose a language. English is the default. Select the DeepSeek preset, enter your API key, then choose **Test connection**. The test sends one short request to the provider and may use account credit. A successful test saves the key using Windows DPAPI and sets the default model. You can continue offline and configure a provider later in Settings → AI providers. The advanced editor supports compatible Chat Completions and Responses endpoints.
+On the first launch, choose a language. English is the default. Select the DeepSeek preset, enter your API key, then choose **Connect and save**. The test sends one short request to the provider and may use account credit. A successful test saves the key using Windows DPAPI and sets the default model. Select **Set up later** to browse projects and history. Open AI providers to connect a model when you want to chat. The advanced editor supports compatible Chat Completions and Responses endpoints.
 
 ## Work on a project
 

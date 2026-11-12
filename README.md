@@ -36,22 +36,12 @@ Portable builds contain the application and its helpers. Source builds additiona
 
 ## Install and start
 
-Check the repository's Releases page for binary attachments. When available, download the ZIP and its matching SHA256 file from the same release. The current packaging script produces `Asimi-0.2.1-win-x64.zip`. If binary attachments are unavailable, follow the source-build instructions below. [Releases](https://github.com/Axiu112530/Asimi/releases)
+1. Download `Asimi-0.2.1-Setup-x64.exe` and its matching SHA256 file from the same release.
+2. Verify the checksum, open the installer, and choose a language and destination. The default is `%LOCALAPPDATA%\Programs\Asimi`.
+3. Open **Asimi** from Start after installation. The installer can also create a desktop shortcut.
+4. Connect a model on first launch or select **Set up later** to use the local features.
 
-Compare the following hash with the checksum published alongside that archive.
-
-```powershell
-Get-FileHash .\Asimi-0.2.1-win-x64.zip -Algorithm SHA256
-Get-Content .\Asimi-0.2.1-win-x64.zip.sha256
-```
-
-1. Extract the complete ZIP into a new local folder.
-2. Keep `Asimi.exe`, `AsimiControlHost.exe`, `AsimiUIAWorker.exe` and both helper `.config` files together.
-3. Open `Asimi.exe` and select English or Simplified Chinese.
-4. Connect an AI provider or continue offline.
-5. Choose a local project and start by inspecting its structure and files.
-
-Use the checksum supplied with the specific archive you downloaded. Historical acceptance hashes identify the files from those earlier runs. [Installation guide](docs/release/INSTALLATION-GUIDE.md)
+The installer keeps program files and user data in separate directories. Uninstalling preserves the profile in `%LOCALAPPDATA%\Asimi`. [Releases](https://github.com/Axiu112530/Asimi/releases) · [Installation guide](docs/release/INSTALLATION-GUIDE.md)
 
 ## Connect an AI provider
 
@@ -59,7 +49,7 @@ The first-run setup offers a DeepSeek preset. Enter your API key and select **Te
 
 Configure other compatible services in the advanced section of **Settings → AI providers**. Verify the service address, protocol, model ID and capabilities before testing. Screenshot analysis requires a model with image-input support.
 
-Provider charges are billed to your service account. Available models, pricing and data-retention rules are governed by that provider. Offline mode supports local browsing, history and offline exercises. Real inference requires a reachable model service. [Privacy](PRIVACY.md)
+Provider charges are billed to your service account. Available models, pricing and data-retention rules are governed by that provider. Local project browsing and history are available before you connect a model. [Privacy](PRIVACY.md)
 
 ## Work on a project
 
