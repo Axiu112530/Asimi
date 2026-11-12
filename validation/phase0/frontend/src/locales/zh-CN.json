@@ -1,4 +1,4 @@
 {
-  "probe": {"title":"DeskPilot Phase 0 验证","language":"应用语言","switch":"切换语言","notice":"语言已更新","error":"操作被拒绝","empty":"暂无任务","loading":"加载中","approval":"允许此操作？","hint":"此临时窗口用于验证语言切换，不会运行 Agent。"},
+  "probe": {"title":"Asimi Phase 0 验证","language":"应用语言","switch":"切换语言","notice":"语言已更新","error":"操作被拒绝","empty":"暂无任务","loading":"加载中","approval":"允许此操作？","hint":"此临时窗口用于验证语言切换，不会运行 Agent。"},
   "language": {"en-US":"English","zh-CN":"简体中文"}
 }

@@ -47,7 +47,7 @@ export const Agent02Panel = defineComponent({
       return h('section', { class: 'product-card', 'data-testid': 'agent02-run', 'data-task-id': props.task.id }, [
         h('h3', t('agent02.planHistory')),
         h('p', { class: 'micro muted' }, run.limits
-          ? t('community.runLimits', { rounds: run.rounds.length, requests: run.limits.requests, at: date(run.deadline), reserve: run.reservedUsd.toFixed(4), budget: run.limits.budgetUsd })
+          ? t('preset.runLimits', { rounds: run.rounds.length, requests: run.limits.requests, at: date(run.deadline), reserve: run.reservedUsd.toFixed(4), budget: run.limits.budgetUsd })
           : t('agent02.limits', { rounds: run.rounds.length, at: date(run.deadline), reserve: run.reservedUsd.toFixed(4) })),
         ...run.rounds.map(round => h('details', { key: round.version }, [
           h('summary', [t('agent02.round', { number: round.version }), ' ', badge(round.status)]),

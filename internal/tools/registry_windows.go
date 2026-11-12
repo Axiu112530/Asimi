@@ -19,7 +19,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 	"golang.org/x/sys/windows"
 )
 
@@ -430,7 +430,7 @@ func (r *Registry) execute(ctx context.Context, op domain.Operation, hooks Execu
 	if _, err = rand.Read(random[:]); err != nil {
 		return v, toolError("FILE_IO")
 	}
-	tempName := ".deskpilot-" + hex.EncodeToString(random[:]) + ".tmp"
+	tempName := ".asimi-" + hex.EncodeToString(random[:]) + ".tmp"
 	if strings.EqualFold(tempName, op.FileName) {
 		return v, toolError("FILE_IO")
 	}

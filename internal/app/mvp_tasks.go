@@ -7,8 +7,8 @@ import (
 	"errors"
 	"strings"
 
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
+	"asimi/internal/command"
+	"asimi/internal/developer"
 )
 
 func (s *Service) createAgentTask(workspaceID, goal string) (AgentTask, error) {

@@ -10,7 +10,11 @@ import (
 // Hold the lock for the lifetime of SQLite and its workers. Windows releases
 // the handle on process termination, including a crash.
 func acquireProfile(dir string) (func() error, error) {
-	path, err := windows.UTF16PtrFromString(filepath.Join(dir, "deskpilot.lock"))
+	return acquireProfileFile(filepath.Join(dir, "asimi.lock"))
+}
+
+func acquireProfileFile(name string) (func() error, error) {
+	path, err := windows.UTF16PtrFromString(name)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/developer"
+	"asimi/internal/developer"
 )
 
 type Error string
@@ -290,7 +290,7 @@ func InspectAvailability(workspace string) map[string]string {
 
 func Diagnose(ctx context.Context) []Diagnostic {
 	out := []Diagnostic{}
-	dir, e := os.MkdirTemp("", "deskpilot-diagnosis-")
+	dir, e := os.MkdirTemp("", "asimi-diagnosis-")
 	if e != nil {
 		return out
 	}

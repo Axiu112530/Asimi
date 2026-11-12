@@ -54,7 +54,7 @@ func AnalyzeWithOptions(root, query string, options Options) (Report, error) {
 			}
 			visited++
 			relative := path.Join(directory, entry.name)
-			if entry.unsafe || excluded(relative, options.Exclusions) || strings.HasPrefix(strings.ToLower(entry.name), ".deskpilot-") {
+			if entry.unsafe || excluded(relative, options.Exclusions) || strings.HasPrefix(strings.ToLower(entry.name), ".asimi-") {
 				continue
 			}
 			if entry.directory {

@@ -1,10 +1,30 @@
 # Upgrade to Asimi 0.2.1
 
-DeskPilot 0.2 and 0.2.1 profiles use the same default data directory, `%LOCALAPPDATA%\DeskPilotAI`. Keep the directory name so Asimi can reopen your settings, history, credentials and recovery records.
+The default profile is **`%LOCALAPPDATA%\Asimi`**, with database **`asimi.db`**. Earlier versions used `%LOCALAPPDATA%\DeskPilotAI` and `deskpilot.db`.
 
-1. In the existing app, note the data directory shown under Settings → About. Close all instances and back up that directory to a private local location.
-2. Extract Asimi into a new program folder and launch `Asimi.exe` using the same Windows account on the same computer. For an existing custom profile, run `.\Asimi.exe --data-dir "C:\path\to\existing-profile"`.
-3. Confirm the provider, default model, language, theme and history in Asimi. Review unfinished tasks and approvals before resuming work. Credentials protected by Windows DPAPI may need to be entered again if the profile moves to a different account or computer.
-4. If you need to roll back, close Asimi and restore the pre-upgrade backup before starting the earlier executable. Keep a separate copy of the post-upgrade profile for troubleshooting.
+## Move an older default profile
 
-[Install Asimi](INSTALLATION-GUIDE.md)
+1. In the old app, record the actual directory shown under Settings → About.
+2. Close all instances of both versions and back up the entire profile to a private local location.
+3. Copy its contents into `%LOCALAPPDATA%\Asimi` while the new directory is empty. Preserve attachments and the workspace as well as the database. Keep your backup.
+4. Extract the new program separately and launch `Asimi.exe` under the same Windows account on the same computer.
+5. When only `deskpilot.db` exists, Asimi checks the legacy lock, verifies SQLite integrity, checkpoints WAL data and renames the database to `asimi.db`.
+6. Verify your provider, model, language, theme and history before resuming tasks.
+
+An existing `asimi.db` takes precedence. If both names exist, Asimi uses the current database and leaves the old file available for recovery. Choose a separate empty profile when recovering another history.
+
+## Custom profiles
+
+Continue using an existing custom directory with the launch flag. Database filename migration also applies there.
+
+```powershell
+.\Asimi.exe --data-dir "C:\path\to\existing-profile"
+```
+
+DPAPI credentials can require re-entry after moving accounts or computers. File and action records retain their target identities, so inspect recovery status and prepare fresh approvals as needed. New temporary and recovery files use `.asimi-`, and the legacy prefix remains recognized for existing records.
+
+## Rollback
+
+Close Asimi and restore your complete pre-upgrade backup into a separate profile before launching the old executable. Retain the post-upgrade profile separately for troubleshooting.
+
+[Installation](INSTALLATION-GUIDE.md) · [Privacy](../../PRIVACY.md)

@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/provider"
-	"deskpilot/internal/tools"
+	"asimi/internal/domain"
+	"asimi/internal/provider"
+	"asimi/internal/tools"
 )
 
 type executor interface {
@@ -124,7 +124,7 @@ func New(dataDir string, registry *tools.Registry, emit func(string, any)) (*Ser
 
 func (s *Service) changed(conversationID, taskID string) {
 	if s.emit != nil {
-		s.emit("deskpilot:changed", map[string]string{"conversationId": conversationID, "taskId": taskID})
+		s.emit("asimi:changed", map[string]string{"conversationId": conversationID, "taskId": taskID})
 	}
 }
 
@@ -151,7 +151,7 @@ func (s *Service) workerFailureLocked(conversationID, taskID string, e error, ev
 	}
 	log.Printf("Asimi task persistence: %s (task %s)", code, taskID)
 	if s.emit != nil {
-		s.emit("deskpilot:changed", map[string]string{"conversationId": conversationID, "taskId": taskID, "errorCode": code})
+		s.emit("asimi:changed", map[string]string{"conversationId": conversationID, "taskId": taskID, "errorCode": code})
 	}
 }
 

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/screen"
+	"asimi/internal/ai"
+	"asimi/internal/domain"
+	"asimi/internal/screen"
 )
 
 type screenReview struct {

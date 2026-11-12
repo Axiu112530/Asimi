@@ -6,7 +6,7 @@ import (
 	"image"
 	"image/color"
 
-	"deskpilot/internal/screen"
+	"asimi/internal/screen"
 )
 
 type Driver struct{}

@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . "$Repo/validation/phase0/env.ps1"
-$Exe = (Resolve-Path -LiteralPath (Join-Path $Repo "$Bin/DeskPilotAI.exe")).Path
+$Exe = (Resolve-Path -LiteralPath (Join-Path $Repo "$Bin/Asimi.exe")).Path
 $Id = [Guid]::NewGuid().ToString('N')
 $Run = Join-Path $Repo ".local-validation/v021/soak-$Id"
 $Evidence = Join-Path $Repo "docs/0.2.1/evidence/soak-$Id"
@@ -22,7 +22,7 @@ $FixtureExe = Join-Path $Run 'providerfixture.exe'
 & go build -trimpath -o $FixtureExe ./validation/phase2b/providerfixture
 if ($LASTEXITCODE) { throw 'Fixture build failed' }
 
-Add-Type -Namespace DeskPilotAcceptance -Name Resources -MemberDefinition @'
+Add-Type -Namespace AsimiAcceptance -Name Resources -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("user32.dll")]
 public static extern uint GetGuiResources(System.IntPtr process, uint flag);
 '@
@@ -56,13 +56,13 @@ try {
         }
         $WebView = @($Descendants | Where-Object Name -EQ 'msedgewebview2.exe')
         $WebViewWorkingSet = ($WebView | Measure-Object WorkingSetSize -Sum).Sum
-        $Helpers = @($Descendants | Where-Object Name -In @('DeskPilotControlHost.exe','DeskPilotUIAWorker.exe'))
-        $DatabaseSize = (Get-Item -LiteralPath (Join-Path $Profile 'deskpilot.db')).Length
+        $Helpers = @($Descendants | Where-Object Name -In @('AsimiControlHost.exe','AsimiUIAWorker.exe'))
+        $DatabaseSize = (Get-Item -LiteralPath (Join-Path $Profile 'asimi.db')).Length
         $FileCount = @(Get-ChildItem -LiteralPath $Profile -File -Force | Where-Object Name -Match '(\.tmp$|\.sqlite-journal$|\.db-wal$)').Count
         $Sample = [ordered]@{
             elapsedMs=$Timer.ElapsedMilliseconds;mainWorkingSetBytes=$Process.WorkingSet64;mainPrivateBytes=$Process.PrivateMemorySize64;
-            mainHandles=$Process.HandleCount;mainThreads=$Process.Threads.Count;gdiHandles=[DeskPilotAcceptance.Resources]::GetGuiResources($Process.Handle,0);
-            userHandles=[DeskPilotAcceptance.Resources]::GetGuiResources($Process.Handle,1);webViewChildren=$WebView.Count;webViewWorkingSetBytes=$WebViewWorkingSet;
+            mainHandles=$Process.HandleCount;mainThreads=$Process.Threads.Count;gdiHandles=[AsimiAcceptance.Resources]::GetGuiResources($Process.Handle,0);
+            userHandles=[AsimiAcceptance.Resources]::GetGuiResources($Process.Handle,1);webViewChildren=$WebView.Count;webViewWorkingSetBytes=$WebViewWorkingSet;
             helperChildren=$Helpers.Count;sqliteBytes=$DatabaseSize;profileTopLevelTransientFiles=$FileCount
         }
         Add-Content -LiteralPath $SampleFile -Value ($Sample | ConvertTo-Json -Compress) -Encoding utf8
@@ -72,7 +72,7 @@ try {
     $Result = Get-Content -Raw -LiteralPath $Report | ConvertFrom-Json
     if ($Process.ExitCode -ne 0 -or !$Result.passed) { throw "Soak failed: $($Result.error)" }
     if ($Result.elapsedMs -lt ($Seconds * 1000) -or $Result.counts.completedTurns -ne 105 -or $Result.counts.completedTasks -ne 20) { throw 'Soak duration or workload did not meet its configured target' }
-    $Handle = [IO.File]::Open((Join-Path $Profile 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+    $Handle = [IO.File]::Open((Join-Path $Profile 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
     $Handle.Dispose()
     $Log = [IO.File]::ReadAllText((Join-Path $Profile 'runtime.log'))
     if (!$Log.Contains('lifecycle.storage_closed') -or !$Log.Contains('lifecycle.run_returned')) { throw 'Unclean soak shutdown' }

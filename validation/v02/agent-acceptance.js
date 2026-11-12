@@ -40,7 +40,7 @@ async function trackRound(want,actionKind=''){
   const proposal=await readAction();
   check(`boundProposal${want}`,proposal.kind===actionKind&&proposal.taskId===taskId&&proposal.proposal.planVersion===round.version&&proposal.proposal.policyVersion==='agent-02-v1'&&proposal.proposal.stepId===t.steps.at(-1).id);
   if(actionKind==='file'){
-    if(params.has('gitFixture'))check('dirtyFileWarningAndExactBase',proposal.proposal.gitDirtyFile&&proposal.proposal.file.beforeContent.includes('Workspace author note')&&!!await until('Git warning',()=>byId('community-git-warning')));
+    if(params.has('gitFixture'))check('dirtyFileWarningAndExactBase',proposal.proposal.gitDirtyFile&&proposal.proposal.file.beforeContent.includes('Workspace author note')&&!!await until('Git warning',()=>byId('preset-git-warning')));
     check('exactDiffVisible',!!await until('diff preview',()=>document.querySelector(`[data-action-id="${proposal.id}"] [data-testid="product-diff"]`)?.textContent.includes('a + b')));
     const bad=await rpc('ApproveProductAction',{id:proposal.id,hash:'invalid'});check('invalidApprovalDenied',!!bad.error);
   }else{
@@ -71,8 +71,8 @@ async function run(){
  }
  const modelId=stage===12?'deepseek-flash':'agent-fixture';
  let providerId='deepseek-live-acceptance';
- if(params.has('communityProfileAgent')){
-   const provider=await call('GetCommunityProvider');
+ if(params.has('presetProfileAgent')){
+   const provider=await call('GetPresetProvider');
    check('usesVerifiedDPAPIProfile',provider.hasCredential&&provider.verifiedAt&&provider.defaultUsable&&provider.defaultModelId===modelId);
    providerId=provider.defaultProviderId;
  }
@@ -83,7 +83,7 @@ async function run(){
  const workspace=await call('PickWorkspace');
  if(params.has('gitFixture')){
    const inspection=await call('InspectDeveloperProject',{workspaceId:workspace.id,exclusions:[]});
-   check('detectedGoAndReadOnlyGit',inspection.summary.types.includes('Go')&&inspection.git.branch==='community-fixture'&&inspection.git.staged===3&&inspection.git.unstaged===1&&inspection.git.untracked===1);
+   check('detectedGoAndReadOnlyGit',inspection.summary.types.includes('Go')&&inspection.git.branch==='preset-fixture'&&inspection.git.staged===3&&inspection.git.unstaged===1&&inspection.git.untracked===1);
  }
  const before=await call('ReadWorkspaceFile',{workspaceId:workspace.id,path:'calc.go'});
  check('knownBrokenFixture',before.content.includes('a - b'));
@@ -107,4 +107,4 @@ async function run(){
 
 let error='';
 try{await run();}catch(e){error=/^[A-Za-z0-9 _.]+$/.test(e?.message||'')?String(e.message).slice(0,140):'Acceptance failed';}
-await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:!error,error,checks,timings,rounds,source:params.has('communityProfileAgent')?'REAL_DEEPSEEK_DPAPI_PROFILE':stage===12?'REAL_DEEPSEEK':'LOOPBACK_OR_RESTART'}));
+await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:!error,error,checks,timings,rounds,source:params.has('presetProfileAgent')?'REAL_DEEPSEEK_DPAPI_PROFILE':stage===12?'REAL_DEEPSEEK':'LOOPBACK_OR_RESTART'}));

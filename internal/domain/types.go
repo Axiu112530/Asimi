@@ -2,8 +2,8 @@
 package domain
 
 import (
-	"deskpilot/internal/ai"
-	"deskpilot/internal/screen"
+	"asimi/internal/ai"
+	"asimi/internal/screen"
 )
 
 type Error struct {

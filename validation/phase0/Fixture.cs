@@ -31,13 +31,13 @@ public static class Fixture {
     }
     static void ProbeApps(string workspace,string output) {
         var results=new List<object>();
-        string textFile=Path.Combine(workspace,"validation","phase0","bin","deskpilot-uia-fixture.txt");
-        File.WriteAllText(textFile,"DeskPilot Phase 0 UIA fixture. No user content.");
+        string textFile=Path.Combine(workspace,"validation","phase0","bin","asimi-uia-fixture.txt");
+        File.WriteAllText(textFile,"Asimi Phase 0 UIA fixture. No user content.");
         foreach(string name in new[]{"notepad","explorer","WindowsTerminal"}) {
             var baseline=new HashSet<IntPtr>(WindowsFor(name));
-            string marker=name=="notepad"?"deskpilot-uia-fixture":name=="explorer"?"desktop-AI":"DeskPilotPhase0";
+            string marker=name=="notepad"?"asimi-uia-fixture":name=="explorer"?"desktop-AI":"AsimiPhase0";
             string exe=name=="notepad"?"notepad.exe":name=="explorer"?"explorer.exe":"wt.exe";
-            string arguments=name=="notepad"?'"'+textFile+'"':name=="explorer"?"/n,\""+workspace+"\"":"-w new new-tab --title DeskPilotPhase0 powershell.exe -NoProfile -NoLogo -Command \"Start-Sleep -Seconds 18\"";
+            string arguments=name=="notepad"?'"'+textFile+'"':name=="explorer"?"/n,\""+workspace+"\"":"-w new new-tab --title AsimiPhase0 powershell.exe -NoProfile -NoLogo -Command \"Start-Sleep -Seconds 18\"";
             List<IntPtr> owned=new List<IntPtr>();
             try {
                 var info=new ProcessStartInfo(exe,arguments){UseShellExecute=false,WindowStyle=ProcessWindowStyle.Hidden};
@@ -64,7 +64,7 @@ public static class Fixture {
     }
     static void RunFixture(string path) {
         Application.EnableVisualStyles();
-        var form = new Form { Text="DeskPilot Phase0 Fixture", Width=450, Height=280, StartPosition=FormStartPosition.CenterScreen };
+        var form = new Form { Text="Asimi Phase0 Fixture", Width=450, Height=280, StartPosition=FormStartPosition.CenterScreen };
         var edit = new TextBox { Name="probeEdit", AccessibleName="probeEdit", Left=20, Top=20, Width=380 };
         var label = new Label { Name="probeStatus", Text="idle", Left=20, Top=110, Width=380 };
         var button = new Button { Name="probeButton", AccessibleName="probeButton", Text="Probe", Left=20, Top=65, Width=100 };

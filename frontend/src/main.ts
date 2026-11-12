@@ -10,7 +10,7 @@ import './ai.css';
 import './screen.css';
 import { ai, profile, startAI, stopAI } from './ai-store';
 import { AIProfilesPage, AssistantSelection, RealAssistant, PlaygroundPage, UsagePage } from './ai-pages';
-import { CommunityOnboarding, CommunityProviders } from './community-setup';
+import { PresetOnboarding, PresetProviders } from './provider-setup';
 import { ComputerPage } from './screen-pages';
 import { HomePage, DeveloperPage, WorkspacesPage, TasksPage, SkillsPage, Onboarding } from './product-pages';
 import { product, refreshProduct } from './product-store';
@@ -19,7 +19,7 @@ const routes: Route[]=['home','assistant','computer','developer','workspaces','w
 const params=new URLSearchParams(location.search);
 const stage=params.has('acceptance')?Number(params.get('stage')):0;
 const legacyAcceptance=stage>0&&stage<=13;
-const routeLabel=(route:Route)=>!legacyAcceptance&&route==='models'?'community.providers':'navigation.'+route;
+const routeLabel=(route:Route)=>!legacyAcceptance&&route==='models'?'preset.providers':'navigation.'+route;
 const realSurface=()=>state.route==='playground'||ai.mode==='real';
 const activeSession=()=>state.route==='playground'?ai.playground:ai.assistant;
 const App=defineComponent({setup(){
@@ -44,7 +44,7 @@ const App=defineComponent({setup(){
       h('header',{class:'topbar'},[
         h('div',{class:'topbar-route'},[icon(state.route,17),h('span',t(routeLabel(state.route)))]),
         h('div',{class:'runtime-info','aria-label':t('accessibility.status')},[
-          h('span',{class:'mode-tag'},t(realSurface()?'ai.real':legacyAcceptance?'app.mode':'community.offlineMode')),h('span',{class:'topbar-provider',title:t('app.provider')},realSurface()?(profile(activeSession())?.name||t('common.notConfigured')):state.info?.provider||t('models.mock')),h('code',{class:'topbar-model',title:t('app.model')},realSurface()?activeSession().modelId||t('common.dash'):state.info?.model||t('common.dash')),
+          h('span',{class:'mode-tag'},t(realSurface()?'ai.real':legacyAcceptance?'app.mode':'preset.offlineMode')),h('span',{class:'topbar-provider',title:t('app.provider')},realSurface()?(profile(activeSession())?.name||t('common.notConfigured')):state.info?.provider||t('models.mock')),h('code',{class:'topbar-model',title:t('app.model')},realSurface()?activeSession().modelId||t('common.dash'):state.info?.model||t('common.dash')),
           h('span',{class:'runtime-status'},[h('i',{class:['online-dot',{offline:!state.connected,working:!!state.security?.activeTasks||ai.assistant.busy||ai.playground.busy}]}),t(!state.connected?'common.unavailable':state.security?.activeTasks||ai.assistant.busy||ai.playground.busy?'app.running':'app.ready')]),
         ]),
         h('div',{class:'topbar-actions'},[
@@ -56,11 +56,11 @@ const App=defineComponent({setup(){
       state.notice?h('div',{class:'notification success-notification',role:'status'},[icon('check',17),h('span',t(state.notice)),iconButton('close','accessibility.dismissNotice',()=>state.notice='')]):null,
       h('main',{class:'workspace','aria-label':t('accessibility.workspace')},[
         !state.ready?h('div',{class:'boot-screen',role:'status'},[h('span',{class:'welcome-mark'},icon('logo',36)),h('span',{class:'spinner'}),h('p',t('app.connecting'))]):
-          state.route==='home'?h(HomePage):state.route==='developer'?h(DeveloperPage):state.route==='workspaces'?h(WorkspacesPage):state.route==='workflows'?h(TasksPage):state.route==='skills'?h(SkillsPage):state.route==='assistant'?h('div',{class:'ai-assistant-shell'},[h('div',{class:'product-row'},[AssistantSelection(),button('product.agentMode',()=>state.route='workflows',{class:'button secondary'})]),ai.mode==='mock'?h(Assistant):h(RealAssistant)]):state.route==='computer'?h(ComputerPage):state.route==='settings'?SettingsPage(legacyAcceptance):state.route==='models'?h('div',{class:'ai-models-route'},[legacyAcceptance?h(AIProfilesPage):h(CommunityProviders),h('details',{class:'ai-legacy'},[h('summary',t('ai.offlineCatalog')),ModelsPage()])]):state.route==='playground'?PlaygroundPage():state.route==='usage'?UsagePage():state.route==='security'?SecurityPage():state.route==='history'?HistoryPage():FuturePage(state.route),
+          state.route==='home'?h(HomePage):state.route==='developer'?h(DeveloperPage):state.route==='workspaces'?h(WorkspacesPage):state.route==='workflows'?h(TasksPage):state.route==='skills'?h(SkillsPage):state.route==='assistant'?h('div',{class:'ai-assistant-shell'},[h('div',{class:'product-row'},[AssistantSelection(),button('product.agentMode',()=>state.route='workflows',{class:'button secondary'})]),ai.mode==='mock'?h(Assistant):h(RealAssistant)]):state.route==='computer'?h(ComputerPage):state.route==='settings'?SettingsPage(legacyAcceptance):state.route==='models'?h('div',{class:'ai-models-route'},[legacyAcceptance?h(AIProfilesPage):h(PresetProviders),h('details',{class:'ai-legacy'},[h('summary',t('ai.offlineCatalog')),ModelsPage()])]):state.route==='playground'?PlaygroundPage():state.route==='usage'?UsagePage():state.route==='security'?SecurityPage():state.route==='history'?HistoryPage():FuturePage(state.route),
         state.ready&&state.route==='assistant'&&state.inspectorOpen&&ai.mode==='mock'?h(Inspector):null,
       ]),
     ]),
-    legacyAcceptance?h(Onboarding):h(CommunityOnboarding),
+    legacyAcceptance?h(Onboarding):h(PresetOnboarding),
   ]);
 }});
 const app=createApp(App);app.use(i18n);app.mount('#app');

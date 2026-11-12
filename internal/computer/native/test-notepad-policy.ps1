@@ -16,7 +16,7 @@ $notepadRefs = @('/r:System.Web.Extensions.dll','/r:System.Runtime.Serialization
 $notepadWorkerSource = Join-Path $PSScriptRoot 'UIAWorker.cs'
 $notepadTestSource = Join-Path $PSScriptRoot 'NotepadPolicyTests.cs'
 $notepadTest = Join-Path $notepadOutput 'NotepadPolicyTests.exe'
-$notepadWorker = Join-Path $notepadOutput 'DeskPilotUIAWorker.exe'
+$notepadWorker = Join-Path $notepadOutput 'AsimiUIAWorker.exe'
 & $notepadCompiler /nologo /target:exe /platform:x64 /main:NotepadPolicyTests "/out:$notepadTest" @notepadRefs $notepadWorkerSource $notepadTestSource $notepadPin
 if ($LASTEXITCODE) { throw 'Policy harness compilation failed' }
 & $notepadTest

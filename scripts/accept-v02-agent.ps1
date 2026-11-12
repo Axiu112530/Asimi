@@ -1,11 +1,11 @@
-param([string]$Bin = 'build/bin/v02-portable', [ValidateSet('Loopback','Live')][string]$Mode = 'Loopback', [switch]$Version021Evidence, [string]$CommunityProfile, [switch]$AsimiEvidence)
+param([string]$Bin = 'build/bin/v02-portable', [ValidateSet('Loopback','Live')][string]$Mode = 'Loopback', [switch]$Version021Evidence, [string]$PresetProfile, [switch]$AsimiEvidence)
 
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . "$Repo/validation/phase0/env.ps1"
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
-$ExeName = if ($AsimiEvidence) { 'Asimi.exe' } else { 'DeskPilotAI.exe' }
+$ExeName = 'Asimi.exe'
 $Exe = (Resolve-Path -LiteralPath (Join-Path $Repo "$Bin/$ExeName")).Path
 $RunID = [Guid]::NewGuid().ToString('N')
 $Run = Join-Path $Repo ".local-validation/v02/$RunID"
@@ -20,15 +20,15 @@ $GitFixture = $Version021Evidence -or $AsimiEvidence
 $Profile = Join-Path $Run 'profile'
 $Workspace = Join-Path $Profile 'mvp-fixture'
 New-Item -ItemType Directory -Force -Path $Workspace,$Evidence | Out-Null
-if ($CommunityProfile) {
-    if (!$Version021Evidence -or $Mode -ne 'Live') { throw 'Community profile requires 0.2.1 live acceptance' }
-    $CommunityProfile = $CommunityProfile -replace '^(?:\.[\\/])?\.v021-data[\\/]', '.local-validation/v021/'
-    $Source = (Resolve-Path -LiteralPath (Join-Path $Repo $CommunityProfile)).Path
+if ($PresetProfile) {
+    if (!$Version021Evidence -or $Mode -ne 'Live') { throw 'Preset profile requires 0.2.1 live acceptance' }
+    $PresetProfile = $PresetProfile -replace '^(?:\.[\\/])?\.v021-data[\\/]', '.local-validation/v021/'
+    $Source = (Resolve-Path -LiteralPath (Join-Path $Repo $PresetProfile)).Path
     $Isolated = [IO.Path]::GetFullPath((Join-Path $Repo '.local-validation/v021')) + [IO.Path]::DirectorySeparatorChar
-    if (!$Source.StartsWith($Isolated,[StringComparison]::OrdinalIgnoreCase)) { throw 'Expected an isolated Community fixture profile' }
-    $SourceDB = Join-Path $Source 'deskpilot.db'
-    if ((Test-Path -LiteralPath ($SourceDB + '-wal')) -and (Get-Item -LiteralPath ($SourceDB + '-wal')).Length) { throw 'Community fixture database needs a clean shutdown' }
-    Copy-Item -LiteralPath $SourceDB -Destination (Join-Path $Profile 'deskpilot.db')
+    if (!$Source.StartsWith($Isolated,[StringComparison]::OrdinalIgnoreCase)) { throw 'Expected an isolated Preset fixture profile' }
+    $SourceDB = Join-Path $Source 'asimi.db'
+    if ((Test-Path -LiteralPath ($SourceDB + '-wal')) -and (Get-Item -LiteralPath ($SourceDB + '-wal')).Length) { throw 'Preset fixture database needs a clean shutdown' }
+    Copy-Item -LiteralPath $SourceDB -Destination (Join-Path $Profile 'asimi.db')
 }
 $env:GOCACHE = Join-Path $Repo '.phase0-cache/go-build'
 $env:TMP = $Run
@@ -46,7 +46,7 @@ if ($GitFixture) {
     $env:GIT_CONFIG_NOSYSTEM = '1'
     $env:GIT_CONFIG_GLOBAL = (Join-Path $Run 'empty-gitconfig')
     [IO.File]::WriteAllText($env:GIT_CONFIG_GLOBAL,'')
-    & git -C $Workspace init --quiet --initial-branch=community-fixture --template=
+    & git -C $Workspace init --quiet --initial-branch=preset-fixture --template=
     if ($LASTEXITCODE) { throw 'Git fixture initialization failed' }
     & git -C $Workspace -c core.autocrlf=false add -- go.mod calc.go calc_test.go
     if ($LASTEXITCODE) { throw 'Git fixture index creation failed' }
@@ -73,13 +73,13 @@ try {
         $ProcessArgs = @('--acceptance','--acceptance-stage',$CurrentStage,'--data-dir',('"{0}"' -f $Profile),'--acceptance-report',('"{0}"' -f $Report))
         if ($CurrentStage -eq 11) { $ProcessArgs += @('--acceptance-fixture',$FixtureURL) }
         if ($CurrentStage -eq 12) {
-            $ProcessArgs += $(if ($CommunityProfile) { '--acceptance-community-profile-agent' } else { '--acceptance-live-agent' })
+            $ProcessArgs += $(if ($PresetProfile) { '--acceptance-preset-profile-agent' } else { '--acceptance-live-agent' })
         }
         if ($GitFixture) { $ProcessArgs += '--acceptance-git-fixture' }
         $Runtime = Join-Path $Profile 'runtime.log'
         $PreviousLength = if (Test-Path -LiteralPath $Runtime) { ([IO.File]::ReadAllText($Runtime)).Length } else { 0 }
         $Timer = [Diagnostics.Stopwatch]::StartNew()
-        $ChildEnvironment = if ($CurrentStage -eq 12 -and !$CommunityProfile) { @{} } else { @{ DEEPSEEK_API_KEY = $null } }
+        $ChildEnvironment = if ($CurrentStage -eq 12 -and !$PresetProfile) { @{} } else { @{ DEEPSEEK_API_KEY = $null } }
         $Process = Start-Process -FilePath $Exe -WorkingDirectory $Run -ArgumentList $ProcessArgs -Environment $ChildEnvironment -WindowStyle Hidden -PassThru -RedirectStandardError $Stderr
         try {
             $null = $Process.Handle
@@ -99,7 +99,7 @@ try {
                 if ($Index -lt 0) { throw "Lifecycle marker missing: $Mark" }
             }
             [IO.File]::WriteAllText((Join-Path $Evidence "stage-$CurrentStage.runtime.log"),$Log)
-            $Handle = [IO.File]::Open((Join-Path $Profile 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+            $Handle = [IO.File]::Open((Join-Path $Profile 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
             $Handle.Dispose()
             $Results += [ordered]@{stage=$CurrentStage;elapsedMs=$Timer.ElapsedMilliseconds;assertions=@($Value.checks.PSObject.Properties).Count;appPeakWorkingSetBytes=$Peak;databaseExclusiveReopen=$true;orderedShutdown=$true}
         } finally { $Process.Dispose() }
@@ -113,7 +113,7 @@ try {
     $ReportValue = Get-Content -LiteralPath (Join-Path $Evidence "stage-$Stage.json") -Raw | ConvertFrom-Json
     $Summary = [ordered]@{mode=$Mode;binarySHA256=(Get-FileHash -LiteralPath $Exe).Hash;stages=$Results;externalCalls=$(if ($Mode -eq 'Live') { @($ReportValue.rounds).Count } else { 0 });sourceOracle=$true;testFileUnchanged=$true;evidence=$Evidence;diagnostic1412Conclusion='CHARACTERIZED'}
     if ($GitFixture) { $Summary.gitIndexUnchanged=$true; $Summary.existingLocalChangePreserved=$true }
-    if ($CommunityProfile) { $Summary.connectedDPAPIProfile=$true }
+    if ($PresetProfile) { $Summary.connectedDPAPIProfile=$true }
     $Summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Evidence 'summary.json') -Encoding utf8
     $Summary | ConvertTo-Json -Depth 8
 } finally {

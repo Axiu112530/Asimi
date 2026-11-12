@@ -1,4 +1,4 @@
-module deskpilot.local/phase0/wails
+module asimi.local/phase0/wails
 
 go 1.26.0
 

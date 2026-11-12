@@ -56,9 +56,9 @@ export const AIProfilesPage=defineComponent({props:{embedded:Boolean},setup(prop
       field('protocol',select(p.protocol,v=>p.protocol=v,[['responses',t('ai.responses')],['chat-completions',t('ai.chatCompletions')]])),
       field('baseUrl',text(p.baseUrl,v=>p.baseUrl=v,{type:'url',placeholder:'https://api.example.com/v1'})),
       props.embedded?h('label',{class:'ai-field'},[
-        h('span',t('communitySetup.timeout')),
+        h('span',t('presetSetup.timeout')),
         numeric(p.timeoutSeconds??null,v=>p.timeoutSeconds=v??undefined,{min:1,max:120,step:1,'data-testid':'ai-timeoutSeconds'}),
-        h('small',{class:'muted'},t('communitySetup.timeoutNote')),
+        h('small',{class:'muted'},t('presetSetup.timeoutNote')),
       ]):null,
       check('enabled',p.enabled,v=>p.enabled=v),
       check('trustedHttp',p.trustedHttp,v=>p.trustedHttp=v),

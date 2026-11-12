@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
+	"asimi/internal/ai"
+	"asimi/internal/command"
+	"asimi/internal/developer"
 )
 
 func (s *Service) planAgent02(id, hash string) (AgentTask, error) {

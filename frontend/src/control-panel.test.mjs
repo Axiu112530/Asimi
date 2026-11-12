@@ -134,7 +134,7 @@ try {
   await tick();
   click('control-select-element');
   await tick();
-  const exact = '  Hello DeskPilot  ';
+  const exact = '  Hello Asimi  ';
   find('control-text-input').props.onInput({ target: { value: exact } });
   find('control-task-link').props.onChange({ target: { value: task.id } });
   await tick();

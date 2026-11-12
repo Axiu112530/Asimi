@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/configuration"
-	"deskpilot/internal/developer"
-	"deskpilot/internal/domain"
+	"asimi/internal/ai"
+	"asimi/internal/configuration"
+	"asimi/internal/developer"
+	"asimi/internal/domain"
 )
 
 const agent02MaxFiles = 4

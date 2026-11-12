@@ -21,8 +21,8 @@ try {
     New-Item -ItemType Directory -Force -Path $ControlOutput | Out-Null
     $ControlFramework = Join-Path ([Environment]::GetFolderPath('Windows')) 'Microsoft.NET/Framework64/v4.0.30319'
     $ControlCompiler = Join-Path $ControlFramework 'csc.exe'
-    $ControlHost = Join-Path $ControlOutput 'DeskPilotControlHost.exe'
-    $ControlWorker = Join-Path $ControlOutput 'DeskPilotUIAWorker.exe'
+    $ControlHost = Join-Path $ControlOutput 'AsimiControlHost.exe'
+    $ControlWorker = Join-Path $ControlOutput 'AsimiUIAWorker.exe'
     $ControlHostSource = Join-Path $Phase1Root 'internal\computer\native\ControlHost.cs'
     $ControlWorkerSource = Join-Path $Phase1Root 'internal\computer\native\UIAWorker.cs'
     & $ControlCompiler /nologo /target:winexe /platform:x64 "/out:$ControlHost" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:Accessibility.dll $ControlHostSource
@@ -47,7 +47,7 @@ try {
     [IO.File]::WriteAllText($ControlHost + '.config', '<configuration/>', [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($ControlWorker + '.config', '<configuration/>', [Text.UTF8Encoding]::new($false))
     $ControlWorkerHash = (Get-FileHash -LiteralPath $ControlWorker -Algorithm SHA256).Hash.ToLowerInvariant()
-    $ControlLDFlags = "-H=windowsgui -X deskpilot/internal/computer.hostSHA256=$ControlHostHash -X deskpilot/internal/computer.workerSHA256=$ControlWorkerHash"
+    $ControlLDFlags = "-H=windowsgui -X asimi/internal/computer.hostSHA256=$ControlHostHash -X asimi/internal/computer.workerSHA256=$ControlWorkerHash"
     $ControlDesktop = Join-Path $ControlOutput 'Asimi.exe'
     $AsimiResource = Join-Path $Phase1Root 'rsrc_asimi_windows_amd64.syso'
     $Wails = Join-Path $Phase1Root '.phase0-tools/bin/wails3.exe'

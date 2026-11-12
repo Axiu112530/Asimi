@@ -376,8 +376,8 @@
       "libraryNote": "发现可复用的任务序列。",
       "saved": "已保存工作流",
       "savedNote": "随时使用可信流程。",
-      "community": "社区工作流",
-      "communityNote": "使用共享工作流前先审核。",
+      "preset": "共享工作流",
+      "presetNote": "使用共享工作流前先审核。",
       "create": "创建工作流",
       "createNote": "定义具有明确权限边界的流程。"
     }
@@ -1091,7 +1091,7 @@
       "AGENT_ACTION_REVIEW": "提案已生成，等待你的审批。"
     }
   },
-  "community": {
+  "preset": {
     "edition": "Asimi",
     "offlineMode": "离线",
     "providers": "AI 供应商",

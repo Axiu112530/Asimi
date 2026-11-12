@@ -3,7 +3,7 @@ package configuration
 import (
 	"testing"
 
-	"deskpilot/internal/ai"
+	"asimi/internal/ai"
 )
 
 func TestResolvePreservesExplicitValuesAndLabelsDefaults(t *testing.T) {

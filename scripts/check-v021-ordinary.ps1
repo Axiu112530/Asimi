@@ -2,8 +2,8 @@ param([Parameter(Mandatory)][string]$Bin, [switch]$AsimiEvidence)
 
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$ExeName = if ($AsimiEvidence) { 'Asimi.exe' } else { 'DeskPilotAI.exe' }
-$WindowTitle = if ($AsimiEvidence) { 'Asimi' } else { 'DeskPilot AI' }
+$ExeName = 'Asimi.exe'
+$WindowTitle = 'Asimi'
 $Exe = (Resolve-Path -LiteralPath (Join-Path $Repo "$Bin/$ExeName")).Path
 $RunID = [Guid]::NewGuid().ToString('N')
 $Working = Join-Path $Repo ".local-validation/v021/ordinary-$RunID"
@@ -14,7 +14,7 @@ if ($AsimiEvidence) {
     $Working = Join-Path $Repo ".local-validation/asimi/ordinary-$RunID"
     $Evidence = Join-Path $Repo "docs/release/evidence/ordinary-$RunID"
     $LocalData = Join-Path $Working 'LocalAppData'
-    $Data = Join-Path $LocalData 'DeskPilotAI'
+    $Data = Join-Path $LocalData 'Asimi'
     $ChildEnvironment.LOCALAPPDATA = $LocalData
     $Metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($Exe)
     if ($Metadata.ProductName -cne 'Asimi' -or $Metadata.ProductVersion -notmatch '^0\.2\.1(?:\.0)?$') { throw 'Asimi PE identity mismatch' }
@@ -36,7 +36,7 @@ function Read-RuntimeLog {
     } finally { $Stream.Dispose() }
 }
 
-Add-Type -Namespace DeskPilotAcceptance -Name OwnWindow -MemberDefinition @'
+Add-Type -Namespace AsimiAcceptance -Name OwnWindow -MemberDefinition @'
 private delegate bool WindowCallback(System.IntPtr window, System.IntPtr state);
 [System.Runtime.InteropServices.DllImport("user32.dll")]
 private static extern bool EnumWindows(WindowCallback callback, System.IntPtr state);
@@ -88,16 +88,16 @@ $Rows = foreach ($Cycle in 1..2) {
             $Log = (Read-RuntimeLog).Substring($Previous)
         } until ($App.HasExited -or $Log.Contains('lifecycle.navigation_completed') -or $Timer.Elapsed.TotalSeconds -gt 20)
         if ($App.HasExited -or !$Log.Contains('lifecycle.navigation_completed')) { throw 'Ordinary launch did not load its WebView' }
-        if (![DeskPilotAcceptance.OwnWindow]::Close($App.Id,$WindowTitle,$AsimiEvidence.IsPresent) -or !$App.WaitForExit(15000) -or $App.ExitCode -ne 0) { throw 'Expected native window or icon did not verify, or the app did not close normally' }
+        if (![AsimiAcceptance.OwnWindow]::Close($App.Id,$WindowTitle,$AsimiEvidence.IsPresent) -or !$App.WaitForExit(15000) -or $App.ExitCode -ne 0) { throw 'Expected native window or icon did not verify, or the app did not close normally' }
         $Log = ([IO.File]::ReadAllText($Runtime)).Substring($Previous)
         [IO.File]::WriteAllText((Join-Path $Evidence "ordinary-$Cycle.runtime.log"),$Log)
         if ($Log -notmatch '"bindings":1' -or !$Log.Contains('lifecycle.storage_closed') -or !$Log.Contains('lifecycle.run_returned')) { throw 'Ordinary lifecycle or service isolation failed' }
-        $Database = [IO.File]::Open((Join-Path $Data 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+        $Database = [IO.File]::Open((Join-Path $Data 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
         $Database.Dispose()
         [ordered]@{cycle=$Cycle;elapsedMs=$Timer.ElapsedMilliseconds;oneProductBinding=$true;databaseExclusiveReopen=$true;exitCode=$App.ExitCode}
     } finally {
         if (!$App.HasExited) {
-            $null = [DeskPilotAcceptance.OwnWindow]::Close($App.Id,$WindowTitle,$false)
+            $null = [AsimiAcceptance.OwnWindow]::Close($App.Id,$WindowTitle,$false)
             if (!$App.WaitForExit(5000)) { $App.Kill(); $App.WaitForExit() }
         }
         $App.Dispose()

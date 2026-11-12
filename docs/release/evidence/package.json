@@ -2,15 +2,15 @@
   "passed": true,
   "product": "Asimi",
   "version": "0.2.1",
-  "archiveSha256": "242EE30E000C75248AB53D01904F66D623BB4A8475EDFE0271ACDFA3DF4B5FF0",
-  "mainSha256": "1F3191247DE4E71C3F3D80348AEC1E4EB8FDF121F0CB60B604A64134DC1A3649",
+  "archiveSha256": "9338B9E4BB5447D86A88479ABCF9DA4B2036D9E449BD5C96DABD035583451C02",
+  "mainSha256": "F5D06347BAA92B12C2A7DE0689343525C4300491AFC3F11857CEB490729ACEFF",
   "fileCount": 13,
   "members": [
     "Asimi.exe",
-    "DeskPilotControlHost.exe",
-    "DeskPilotControlHost.exe.config",
-    "DeskPilotUIAWorker.exe",
-    "DeskPilotUIAWorker.exe.config",
+    "AsimiControlHost.exe",
+    "AsimiControlHost.exe.config",
+    "AsimiUIAWorker.exe",
+    "AsimiUIAWorker.exe.config",
     "INSTALLATION-GUIDE.md",
     "USER-GUIDE.md",
     "UPGRADE-GUIDE.md",
@@ -20,5 +20,5 @@
     "LICENSE",
     "SHA256SUMS.txt"
   ],
-  "extracted": "asimi-extracted-cd11dee0760b419c9e7f8eefe94c75d7"
+  "extracted": "asimi-extracted-864fcf5d71ee4ddfa2cbee33363f5cde"
 }

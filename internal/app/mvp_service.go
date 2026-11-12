@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
-	"deskpilot/internal/domain"
+	"asimi/internal/command"
+	"asimi/internal/developer"
+	"asimi/internal/domain"
 )
 
 func (s *Service) callMVP(method, payload string) (domain.Reply, bool) {

@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/configuration"
+	"asimi/internal/ai"
+	"asimi/internal/configuration"
 )
 
 func TestMediaLimitAppliesToHistoricalOutboundImages(t *testing.T) {
@@ -64,7 +64,7 @@ func TestMediaLimitAppliesToHistoricalOutboundImages(t *testing.T) {
 	}
 }
 
-func TestCommunityMediaOverridesFailBeforeRequest(t *testing.T) {
+func TestPresetMediaOverridesFailBeforeRequest(t *testing.T) {
 	s, _, _ := fixture(t)
 	value := mustCall(t, s, "SaveAgentPreferences", map[string]any{
 		"media": configuration.MediaLimits{Attachments: 1, ImageMiB: 1},

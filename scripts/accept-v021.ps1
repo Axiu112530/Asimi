@@ -9,7 +9,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$ExeName = if ($AsimiEvidence) { 'Asimi.exe' } else { 'DeskPilotAI.exe' }
+$ExeName = 'Asimi.exe'
 $Exe = (Resolve-Path -LiteralPath (Join-Path $Repo "$Bin/$ExeName")).Path
 $Id = [Guid]::NewGuid().ToString('N')
 $Run = Join-Path $Repo ".local-validation/v021/$Id"
@@ -29,7 +29,7 @@ foreach ($Mode in @('offline','live')) {
     $Profile = Join-Path $Run $Mode
     $Fixture = Join-Path $Profile 'mvp-fixture'
     New-Item -ItemType Directory -Force -Path $Fixture | Out-Null
-    [IO.File]::WriteAllText((Join-Path $Fixture 'go.mod'), "module example.com/communityfixture`n`ngo 1.26.0`n")
+    [IO.File]::WriteAllText((Join-Path $Fixture 'go.mod'), "module example.com/presetfixture`n`ngo 1.26.0`n")
     [IO.File]::WriteAllText((Join-Path $Fixture 'main.go'), "package main`n`nfunc main() {}`n")
     foreach ($Stage in $(if ($Mode -eq 'offline') { @(14,15) } else { @(16,17) })) {
         $Stages.Add(@{stage=$Stage;profile=$Profile;mode=$Mode})
@@ -38,12 +38,13 @@ foreach ($Mode in @('offline','live')) {
 foreach ($Sample in @(@{mode='provider';path=$LegacyProvider},@{mode='agent';path=$LegacyAgent},@{mode='agent-02';path=$LegacyAgent02})) {
     if (!$Sample.path) { continue }
     $Original = (Resolve-Path -LiteralPath $Sample.path).Path
-    $LegacyDatabase = Join-Path $Original 'deskpilot.db'
+    $LegacyDatabase = Join-Path $Original 'asimi.db'
+    if (!(Test-Path -LiteralPath $LegacyDatabase)) { $LegacyDatabase = Join-Path $Original 'deskpilot.db' }
     $Handle = [IO.File]::Open($LegacyDatabase,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
     $Handle.Dispose()
     if ((Test-Path -LiteralPath ($LegacyDatabase + '-wal')) -and (Get-Item -LiteralPath ($LegacyDatabase + '-wal')).Length) { throw 'Close and checkpoint the old profile before copying it' }
     $Profile = Join-Path $Run ('upgrade-' + $Sample.mode)
-    $Sources.Add(@{mode=$Sample.mode;path=$LegacyDatabase;hash=(Get-FileHash -LiteralPath $LegacyDatabase).Hash;destination=(Join-Path $Profile 'deskpilot.db')})
+    $Sources.Add(@{mode=$Sample.mode;path=$LegacyDatabase;hash=(Get-FileHash -LiteralPath $LegacyDatabase).Hash;destination=(Join-Path $Profile 'asimi.db')})
     New-Item -ItemType Directory -Path $Profile | Out-Null
     Copy-Item -LiteralPath $LegacyDatabase -Destination $Profile
     $Attachments = Join-Path $Original 'attachments'
@@ -84,7 +85,7 @@ try {
         $Runtime = Join-Path $Profile 'runtime.log'
         $Previous = if (Test-Path -LiteralPath $Runtime) { ([IO.File]::ReadAllText($Runtime)).Length } else { 0 }
         $Params = @('--data-dir',('"{0}"' -f $Profile),'--acceptance','--acceptance-stage',$Stage,'--acceptance-report',('"{0}"' -f $Report))
-        if ($Stage -eq 16) { $Params += '--acceptance-community-live' }
+        if ($Stage -eq 16) { $Params += '--acceptance-preset-live' }
         if ($AsimiEvidence) {
             $FixtureTag = switch ($Entry.mode) {
                 'provider' { "asimi-provider:$FixtureURL" }
@@ -116,7 +117,7 @@ try {
                 if ($Index -lt 0) { throw "Stage $Name missing lifecycle marker: $Marker" }
             }
             [IO.File]::WriteAllText((Join-Path $Evidence "$Name.runtime.log"),$Log)
-            $Database = [IO.File]::Open((Join-Path $Profile 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+            $Database = [IO.File]::Open((Join-Path $Profile 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
             $Database.Dispose()
             [ordered]@{stage=$Stage;mode=$Entry.mode;elapsedMs=$Timer.ElapsedMilliseconds;assertions=@($Value.checks.PSObject.Properties).Count;sampledPeakMainWorkingSetBytes=$Peak;exclusiveDatabaseReopen=$true;orderedShutdown=$true;diagnostic1412=[regex]::Matches($Log+(Get-Content -Raw -LiteralPath $Stderr),'Chrome_WidgetWin_0[^\r\n]*1412').Count}
         } finally {

@@ -27,7 +27,7 @@ func run() int {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil)).With("pid", os.Getpid(), "probe", *closePath)
 	logger.Info("probe.start", "bindings", 0, "database", false, "profile", *profile)
 	desktop := application.New(application.Options{
-		Name:     "DeskPilot Wails lifecycle probe",
+		Name:     "Asimi Wails lifecycle probe",
 		Logger:   logger,
 		LogLevel: slog.LevelInfo,
 		Windows:  application.WindowsOptions{WebviewUserDataPath: *profile},
@@ -43,7 +43,7 @@ func run() int {
 		PostShutdown: func() { logger.Info("probe.post_shutdown") },
 	})
 	window := desktop.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "DeskPilot Wails lifecycle probe",
+		Title:  "Asimi Wails lifecycle probe",
 		Width:  640,
 		Height: 420,
 		URL:    "/",

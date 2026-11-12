@@ -83,8 +83,8 @@ func TestSyntheticGDICaptureReleasesHandles(t *testing.T) {
 }
 
 func TestNativeDisplayEnumeration(t *testing.T) {
-	if os.Getenv("DESKPILOT_SCREEN_NATIVE_TEST") != "1" {
-		t.Skip("set DESKPILOT_SCREEN_NATIVE_TEST=1 to enumerate the current displays")
+	if os.Getenv("ASIMI_SCREEN_NATIVE_TEST") != "1" {
+		t.Skip("set ASIMI_SCREEN_NATIVE_TEST=1 to enumerate the current displays")
 	}
 	driver := NewDriver()
 	ctx := context.Background()

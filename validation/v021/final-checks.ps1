@@ -4,12 +4,12 @@ $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $Evidence = Join-Path $Repo 'docs/0.2.1/evidence'
 $Package = Get-Content -Raw -LiteralPath (Join-Path $Evidence 'package.json') | ConvertFrom-Json
-$Archive = Join-Path $Repo 'build/bin/DeskPilot-Community-0.2.1-win-x64.zip'
+$Archive = Join-Path $Repo 'build/bin/Asimi-0.2.1-win-x64.zip'
 $Extracted = Join-Path $Repo ('build/bin/' + $Package.extracted)
 if ((Get-FileHash -LiteralPath $Archive).Hash -ne $Package.archiveSha256) { throw 'Archive hash changed' }
 $ExpectedSidecar = '{0}  {1}' -f $Package.archiveSha256,(Split-Path -Leaf $Archive)
 if ((Get-Content -LiteralPath ($Archive + '.sha256') -Raw).Trim() -ne $ExpectedSidecar) { throw 'Archive checksum sidecar differs' }
-if ((Get-FileHash -LiteralPath (Join-Path $Extracted 'DeskPilotAI.exe')).Hash -ne $Package.mainSha256) { throw 'Executable hash changed' }
+if ((Get-FileHash -LiteralPath (Join-Path $Extracted 'Asimi.exe')).Hash -ne $Package.mainSha256) { throw 'Executable hash changed' }
 $Manifest = Get-Content -LiteralPath (Join-Path $Extracted 'SHA256SUMS.txt')
 foreach ($Line in $Manifest) {
     $Hash,$Name = $Line -split '  ',2
@@ -54,8 +54,8 @@ if (!$Ordinary.passed -or $Ordinary.binarySha256 -ne $Package.mainSha256) { thro
 
 $Archive02 = Get-Content -Raw -LiteralPath (Join-Path $Repo 'docs/0.2/evidence/package.json') | ConvertFrom-Json
 $Archive01 = Get-Content -Raw -LiteralPath (Join-Path $Repo 'docs/mvp01-evidence/package.json') | ConvertFrom-Json
-if ((Get-FileHash -LiteralPath (Join-Path $Repo 'build/bin/DeskPilotAI-0.2-win-x64.zip')).Hash -ne $Archive02.archiveSha256) { throw '0.2 archive changed' }
-if ((Get-FileHash -LiteralPath (Join-Path $Repo 'build/bin/DeskPilotAI-MVP-0.1-win-x64.zip')).Hash -ne $Archive01.archiveSha256) { throw 'MVP archive changed' }
+if ((Get-FileHash -LiteralPath (Join-Path $Repo 'build/bin/Asimi-0.2-win-x64.zip')).Hash -ne $Archive02.archiveSha256) { throw '0.2 archive changed' }
+if ((Get-FileHash -LiteralPath (Join-Path $Repo 'build/bin/Asimi-MVP-0.1-win-x64.zip')).Hash -ne $Archive01.archiveSha256) { throw 'MVP archive changed' }
 
 $Credential = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY')
 if (!$Credential) { throw 'Credential scan input unavailable' }
@@ -93,7 +93,7 @@ try {
     if ($LASTEXITCODE) { throw 'Git whitespace check failed' }
 } finally { Pop-Location }
 
-$AppProcesses = @(Get-CimInstance Win32_Process -Filter "Name='DeskPilotAI.exe' OR Name='DeskPilotControlHost.exe' OR Name='DeskPilotUIAWorker.exe' OR Name='providerfixture.exe'" | Where-Object {
+$AppProcesses = @(Get-CimInstance Win32_Process -Filter "Name='Asimi.exe' OR Name='AsimiControlHost.exe' OR Name='AsimiUIAWorker.exe' OR Name='providerfixture.exe'" | Where-Object {
     $_.ExecutablePath -and $_.ExecutablePath.StartsWith($Repo+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)
 })
 if ($AppProcesses.Count) { throw 'An isolated app or fixture process remains running' }
@@ -101,7 +101,7 @@ if ($AppProcesses.Count) { throw 'An isolated app or fixture process remains run
 $Result = [ordered]@{
     passed=$true;archiveSha256=$Package.archiveSha256;binarySha256=$Package.mainSha256;archiveMembers=$Package.fileCount;
     regressionAssertions=($Regression.data.stages | Measure-Object assertions -Sum).Sum;
-    communityAssertions=($Native.data.stages | Measure-Object assertions -Sum).Sum;
+    presetAssertions=($Native.data.stages | Measure-Object assertions -Sum).Sum;
     loopbackAssertions=($Loopback.data.stages | Measure-Object assertions -Sum).Sum;
     liveAssertions=($Live.data.stages | Measure-Object assertions -Sum).Sum;
     finalExternalRequests=($Native.data.externalConnectionChecks+$Live.data.externalCalls);

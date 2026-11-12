@@ -115,8 +115,8 @@ func main() {
 			go func() { time.Sleep(150 * time.Millisecond); app.Quit() }()
 		})
 	})
-	app = application.New(application.Options{Name: "DeskPilot Phase0", Assets: application.AssetOptions{Handler: mux}, Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(local, "webview-profile")}})
-	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "DeskPilot Phase 0", Width: 720, Height: 640})
+	app = application.New(application.Options{Name: "Asimi Phase0", Assets: application.AssetOptions{Handler: mux}, Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(local, "webview-profile")}})
+	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Asimi Phase 0", Width: 720, Height: 640})
 	go func() { time.Sleep(20 * time.Second); app.Quit() }()
 	if e = app.Run(); e != nil {
 		fmt.Fprintln(os.Stderr, e)

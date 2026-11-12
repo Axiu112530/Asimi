@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/computer"
+	"asimi/internal/computer"
 )
 
 func notepadFixture(t *testing.T) *controlFixtureDriver {
@@ -39,7 +39,7 @@ func TestNotepadApprovalRequiresFreshBlankValueEditor(t *testing.T) {
 	d := notepadFixture(t)
 	s.desktopControl.driver = d
 	o := observeControlFixture(t, s)
-	p := mustCall(t, s, "ProposeControlAction", map[string]string{"type": string(computer.TypeText), "observationId": o.ID, "elementId": o.Elements[0].ID, "text": "Hello DeskPilot"}).(computer.Proposal)
+	p := mustCall(t, s, "ProposeControlAction", map[string]string{"type": string(computer.TypeText), "observationId": o.ID, "elementId": o.Elements[0].ID, "text": "Hello Asimi"}).(computer.Proposal)
 	if d.calls != 0 || p.Window.App != computer.Notepad || p.Expected != "TEXT_MATCH" {
 		t.Fatal("proposal dispatched or lost exact target")
 	}
@@ -73,7 +73,7 @@ func TestNotepadPolicyRejectsUnsafeEditorAndAction(t *testing.T) {
 			tc.change(d)
 			s.desktopControl.driver = d
 			o := observeControlFixture(t, s)
-			screenError(t, s, "ProposeControlAction", map[string]string{"type": string(tc.action), "observationId": o.ID, "elementId": o.Elements[0].ID, "text": "Hello DeskPilot"}, "CONTROL_ACTION_DENIED")
+			screenError(t, s, "ProposeControlAction", map[string]string{"type": string(tc.action), "observationId": o.ID, "elementId": o.Elements[0].ID, "text": "Hello Asimi"}, "CONTROL_ACTION_DENIED")
 			if d.calls != 0 {
 				t.Fatal("unsafe Notepad dispatch")
 			}

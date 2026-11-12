@@ -9,8 +9,8 @@ import (
 	"errors"
 	"time"
 
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
+	"asimi/internal/command"
+	"asimi/internal/developer"
 )
 
 // The permit binds every input, including workspace, task, limits and expiry.

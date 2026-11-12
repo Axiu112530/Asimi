@@ -7,11 +7,11 @@ const catalog = createI18n({ legacy: false, messages: {
   'en-US': await readLocale('en-US.json'),
   'zh-CN': await readLocale('zh-CN.json'),
 } });
-// Mirror the resources merged by i18n.ts, project021-panel.ts and community-setup.ts.
+// Mirror the resources merged by i18n.ts, project021-panel.ts and provider-setup.ts.
 for (const [namespace, englishFile, chineseFile] of [
   [null, 'computer-suggestion.en-US.json', 'computer-suggestion.zh-CN.json'],
   ['project021', 'project021.en-US.json', 'project021.zh-CN.json'],
-  ['communitySetup', 'community-setup-en.json', 'community-setup-zh.json'],
+  ['presetSetup', 'provider-setup-en.json', 'provider-setup-zh.json'],
 ]) {
   const english = await readLocale(englishFile);
   const chinese = await readLocale(chineseFile);

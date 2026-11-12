@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"deskpilot/internal/screen"
+	"asimi/internal/screen"
 )
 
 func blankNotepad(t *testing.T) Observation {
@@ -54,10 +54,10 @@ func TestNotepadTargetRequiresOneProvenBlankWritableEditor(t *testing.T) {
 
 func TestNotepadVerifierRequiresIndependentMatchingIdentityAndHash(t *testing.T) {
 	o := blankNotepad(t)
-	p := Proposal{Type: TypeText, Window: &o.Window, Element: &o.Elements[0], Text: "Hello DeskPilot", Expected: "TEXT_MATCH"}
+	p := Proposal{Type: TypeText, Window: &o.Window, Element: &o.Elements[0], Text: "Hello Asimi", Expected: "TEXT_MATCH"}
 	after := blankNotepad(t)
 	after.Elements[0].Blank = false
-	after.Elements[0].ValueSHA256 = "0eebadf51de0b866df6e933b8116251191640c21a1ecc9b9debb022d1f9a4047"
+	after.Elements[0].ValueSHA256 = "a371da63fae9f0a1a474c553dcec6579b25fcf572b9a00f8801ee9bb6048a1d1"
 	if !verifyNotepad(p, after) {
 		t.Fatal("fresh exact text hash should verify")
 	}

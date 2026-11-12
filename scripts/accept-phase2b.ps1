@@ -22,7 +22,7 @@ try {
     for ($i=0; $i -lt 100 -and !(Test-Path -LiteralPath $ready); $i++) { Start-Sleep -Milliseconds 50 }
     $fixtureURL = Get-Content -LiteralPath $ready -Raw
     if (!$fixtureURL.StartsWith('http://127.0.0.1:')) { throw 'Fixture must use loopback' }
-    $binary = Join-Path $Phase2BRoot $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
+    $binary = Join-Path $Phase2BRoot $(if ($SkipBuild) { 'build/bin/Asimi.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $results = @()
     foreach ($stage in @(5,6,1,2)) {
         $profile = if ($stage -ge 5) { Join-Path $dataRoot 'byok' } else { Join-Path $dataRoot 'phase1-regression' }
@@ -44,7 +44,7 @@ try {
         $result = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
         $diagnostics = @(Select-String -LiteralPath "$evidence/stage-$stage.stderr.log" -Pattern 'Chrome_WidgetWin_0.*1412').Count
         Copy-Item -LiteralPath "$profile/runtime.log" -Destination "$evidence/stage-$stage.runtime.log"
-        $dbHandle = [IO.File]::Open((Join-Path $profile 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+        $dbHandle = [IO.File]::Open((Join-Path $profile 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
         $dbHandle.Dispose()
         $runtimeText = Get-Content -LiteralPath "$evidence/stage-$stage.runtime.log" -Raw
         $cursor = -1
@@ -57,7 +57,7 @@ try {
         $child.Dispose()
     }
     $key = 'fixture-secret'
-    $dbBytes = [IO.File]::ReadAllBytes((Join-Path $dataRoot 'byok/deskpilot.db'))
+    $dbBytes = [IO.File]::ReadAllBytes((Join-Path $dataRoot 'byok/asimi.db'))
     if ([Text.Encoding]::UTF8.GetString($dbBytes).Contains($key)) { throw 'Dummy credential plaintext present in SQLite' }
     $previous = @(Get-Content -LiteralPath '.local-validation/phase2b/prior-evidence-baseline.json' -Raw | ConvertFrom-Json)
     foreach ($entry in $previous) {

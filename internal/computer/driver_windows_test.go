@@ -29,7 +29,7 @@ func TestVerifyFixtureRejectsAmbiguousResults(t *testing.T) {
 }
 
 func TestWindowSnapshotRejectsChangedProcessAndBounds(t *testing.T) {
-	approved := Window{App: TestHost, HWND: "133", PID: 7, CreationTime: "321", ImagePath: "C:\\app\\DeskPilotControlHost.exe"}
+	approved := Window{App: TestHost, HWND: "133", PID: 7, CreationTime: "321", ImagePath: "C:\\app\\AsimiControlHost.exe"}
 	current := approved
 	current.ObservedAt = "later"
 	current.Foreground = true
@@ -77,7 +77,7 @@ func TestPinnedBinaryRejectsMismatchAndBlocksReplacement(t *testing.T) {
 // This opt-in test starts only the fixed hash-pinned fixture. Compile this test
 // into the release directory with the same helper hash ldflags as the app.
 func TestNativeFixtureLifecycle(t *testing.T) {
-	if os.Getenv("DESKPILOT_CONTROL_FIXTURE_TEST") != "1" {
+	if os.Getenv("ASIMI_CONTROL_FIXTURE_TEST") != "1" {
 		t.Skip("dedicated native fixture acceptance requires an explicit opt-in")
 	}
 	driver := NewDriver()

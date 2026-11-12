@@ -7,7 +7,7 @@ try {
     $evidence = Join-Path $Phase1Root "docs/release/evidence/phase1-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Force -Path $evidence | Out-Null
     $data = Join-Path $Phase1Root ('.local-validation/phase1/acceptance-' + [Guid]::NewGuid().ToString('N'))
-    $binary = Join-Path $Phase1Root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
+    $binary = Join-Path $Phase1Root $(if ($SkipBuild) { 'build/bin/Asimi.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $stages = @()
     foreach ($stage in @(1,2)) {
         $report = Join-Path $evidence "app-stage$stage.json"
@@ -30,7 +30,7 @@ try {
     # Independent acceptance oracle reads only the deliberately created test file.
     $created = Join-Path $data 'workspace/phase1-created.txt'
     $actual = [IO.File]::ReadAllBytes($created)
-    $FixtureBrand = if ($SkipBuild) { 'DeskPilot' } else { 'Asimi' }
+    $FixtureBrand = if ($SkipBuild) { 'Asimi' } else { 'Asimi' }
     $expected = [Text.Encoding]::UTF8.GetBytes("$FixtureBrand Phase 1`nVerified locally. 中文")
     if ([Convert]::ToBase64String($actual) -ne [Convert]::ToBase64String($expected)) { throw 'External file oracle mismatch' }
     foreach($name in @('phase1-denied.txt','phase1-cancelled.txt')) { if(Test-Path -LiteralPath (Join-Path $data "workspace/$name")){throw "Denied/cancelled file exists: $name"} }

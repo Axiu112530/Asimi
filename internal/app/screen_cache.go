@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"deskpilot/internal/screen"
+	"asimi/internal/screen"
 )
 
 const (

@@ -22,7 +22,7 @@ export async function connect(onChange: (data: ChangeEvent) => void): Promise<vo
   try {
     const loaded = await import('/wails/runtime.js');
     if (pendingConnection !== connection) throw new ServiceError('bridge.unavailable');
-    unsubscribe = loaded.Events.On('deskpilot:changed', event => {
+    unsubscribe = loaded.Events.On('asimi:changed', event => {
       let data = event.data;
       if (Array.isArray(data)) data = data[0];
       if (data && typeof data === 'object') onChange(data as ChangeEvent);

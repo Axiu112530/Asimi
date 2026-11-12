@@ -14,7 +14,7 @@ import (
 	"time"
 	"unsafe"
 
-	"deskpilot/internal/screen"
+	"asimi/internal/screen"
 	"golang.org/x/sys/windows"
 )
 

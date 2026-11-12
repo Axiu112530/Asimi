@@ -46,7 +46,7 @@ export const Assistant = defineComponent({setup(){
   };
 }});
 
-const futureItems: Record<string,string[]> = {computer:['screen','mouse','keyboard','uia','monitors'],developer:['workspace','assistant','terminal','git','environment'],workflows:['library','saved','community','create']};
+const futureItems: Record<string,string[]> = {computer:['screen','mouse','keyboard','uia','monitors'],developer:['workspace','assistant','terminal','git','environment'],workflows:['library','saved','preset','create']};
 export function FuturePage(route: string) {
   return h('div',{class:'page-scroll'},h('div',{class:'page future-page'},[
     h('div',{class:'future-hero'},[h('div',{class:'future-icon'},icon(route,36)),h('span',{class:'eyebrow'},t('navigation.'+route)),h('h1',t('future.'+route+'Title')),h('p',t('future.'+route+'Description')),h('span',{class:'badge neutral'},t('future.badge'))]),
@@ -67,16 +67,16 @@ export function SettingsPage(legacyAcceptance = false) {
     h('section',{class:'settings-section'},[h('h2',t('settings.general')),
       settingRow('settings.startup','settings.startupHint',settingSelect('startup',[['welcome','settings.welcome'],['last','settings.last']],'startup')),
     ]),
-    h('section',{class:'settings-section'},[h('h2',t('community.providers')),settingRow('settings.models','settings.modelsHint',button('settings.manageModels',()=>state.route='models',{class:'button secondary'}))]),
-    h('section',{class:'settings-section'},[h('h2',t('community.appearance')),
+    h('section',{class:'settings-section'},[h('h2',t('preset.providers')),settingRow('settings.models','settings.modelsHint',button('settings.manageModels',()=>state.route='models',{class:'button secondary'}))]),
+    h('section',{class:'settings-section'},[h('h2',t('preset.appearance')),
       settingRow('settings.theme','settings.themeHint',settingSelect('theme',[['light','settings.light'],['dark','settings.dark'],['system','settings.system']],'theme')),
     ]),
-    h('section',{class:'settings-section'},[h('h2',t('community.language')),
+    h('section',{class:'settings-section'},[h('h2',t('preset.language')),
       settingRow('settings.language','settings.languageHint',settingSelect('appLanguage',[['en-US','settings.english'],['zh-CN','settings.chinese']],'app-language')),
       settingRow('settings.agentLanguage','settings.agentLanguageHint',settingSelect('agentLanguage',[['follow-app','settings.followApp'],['auto','settings.auto'],['en-US','settings.english'],['zh-CN','settings.chinese']],'agent-language')),
     ]),
-    h('section',{class:'settings-section'},[h('h2',t('community.privacy')),settingRow('security.scoped','settings.securityHint',button('settings.openSecurity',()=>state.route='security',{class:'button secondary'}))]),
-    legacyAcceptance ? AISettingsPanel() : h('details',{class:'settings-section community-advanced','data-testid':'community-advanced'},[h('summary',t('community.advanced')), AISettingsPanel(), h(ConfigurationPanel)]),
+    h('section',{class:'settings-section'},[h('h2',t('preset.privacy')),settingRow('security.scoped','settings.securityHint',button('settings.openSecurity',()=>state.route='security',{class:'button secondary'}))]),
+    legacyAcceptance ? AISettingsPanel() : h('details',{class:'settings-section preset-advanced','data-testid':'preset-advanced'},[h('summary',t('preset.advanced')), AISettingsPanel(), h(ConfigurationPanel)]),
     h('section',{class:'settings-section about-section'},[h('div',{class:'about-brand'},[h('div',{class:'welcome-mark small'},icon('logo',24)),h('div',[h('h2',t('settings.about')),h('p',t('app.description'))])]),h('dl',{class:'about-details'},[detail('settings.version',state.info?.version||t('common.unknown')),detail('settings.go',state.info?.goVersion||t('common.unknown')),detail('settings.wails',state.info?.wailsVersion||t('common.unknown')),detail('security.dataDir',state.info?.dataDir||t('common.unknown'),true)])]),
   ]));
 }

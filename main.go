@@ -21,11 +21,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	backend "deskpilot/internal/app"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/tools"
-	"deskpilot/validation/phase2c/screenfixture"
-	"deskpilot/validation/v02/providerprobe"
+	backend "asimi/internal/app"
+	"asimi/internal/domain"
+	"asimi/internal/tools"
+	"asimi/validation/phase2c/screenfixture"
+	"asimi/validation/v02/providerprobe"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"golang.org/x/sys/windows"
@@ -56,10 +56,10 @@ var mvpAcceptanceScript []byte
 var agent02AcceptanceScript []byte
 
 //go:embed validation/v021/acceptance.js
-var communityAcceptanceScript []byte
+var presetAcceptanceScript []byte
 
 //go:embed validation/v021/soak.js
-var communitySoakScript []byte
+var presetSoakScript []byte
 
 const pendingCloseStage = 4
 const screenAcceptanceStage = 7
@@ -69,13 +69,13 @@ const productDescription = "Asimi is a local-first AI desktop assistant for deve
 // DesktopService exposes only the explicitly allowlisted business dispatcher.
 // No native file, shell, Windows, network, key retrieval or state setter is bound.
 type DesktopService struct {
-	service                 *backend.Service
-	connectCommunityFixture func(string) (domain.Reply, bool)
+	service              *backend.Service
+	connectPresetFixture func(string) (domain.Reply, bool)
 }
 
 func (s *DesktopService) Call(method, payload string) domain.Reply {
-	if method == "ConnectCommunityProvider" && s.connectCommunityFixture != nil {
-		if reply, handled := s.connectCommunityFixture(payload); handled {
+	if method == "ConnectPresetProvider" && s.connectPresetFixture != nil {
+		if reply, handled := s.connectPresetFixture(payload); handled {
 			return reply
 		}
 	}
@@ -130,7 +130,7 @@ func isScreenFixtureURL(raw string) bool {
 
 func run() int {
 	var dataDir, report, fixtureURL, providerReport string
-	var acceptance, liveAgent, liveCommunity, gitFixture, communityProfileAgent bool
+	var acceptance, liveAgent, livePreset, gitFixture, presetProfileAgent bool
 	var debugPort, acceptanceStage, soakSeconds int
 	flag.StringVar(&dataDir, "data-dir", "", "Application-owned data directory")
 	flag.BoolVar(&acceptance, "acceptance", false, "Enable own-WebView acceptance driver")
@@ -140,9 +140,9 @@ func run() int {
 	flag.StringVar(&fixtureURL, "acceptance-fixture", "", "Local provider fixture, acceptance only")
 	flag.StringVar(&providerReport, "acceptance-provider", "", "Run the bounded official DeepSeek acceptance and write its redacted report")
 	flag.BoolVar(&liveAgent, "acceptance-live-agent", false, "Enable bounded DeepSeek planning for the isolated Stage 12 project")
-	flag.BoolVar(&liveCommunity, "acceptance-community-live", false, "Enable one DeepSeek connection check for the isolated Stage 16 profile")
+	flag.BoolVar(&livePreset, "acceptance-preset-live", false, "Enable one DeepSeek connection check for the isolated Stage 16 profile")
 	flag.BoolVar(&gitFixture, "acceptance-git-fixture", false, "Check dirty Git context in the isolated Agent acceptance fixture")
-	flag.BoolVar(&communityProfileAgent, "acceptance-community-profile-agent", false, "Use the isolated verified Community profile for Stage 12")
+	flag.BoolVar(&presetProfileAgent, "acceptance-preset-profile-agent", false, "Use the isolated verified Preset profile for Stage 12")
 	flag.IntVar(&soakSeconds, "acceptance-soak-seconds", 0, "Duration of isolated loopback stability acceptance")
 	flag.Parse()
 	if providerReport != "" {
@@ -158,19 +158,19 @@ func run() int {
 	if liveAgent && (!acceptance || acceptanceStage != 12 || dataDir == "") {
 		return 1
 	}
-	if communityProfileAgent && (!acceptance || acceptanceStage != 12 || dataDir == "" || !gitFixture || liveAgent) {
+	if presetProfileAgent && (!acceptance || acceptanceStage != 12 || dataDir == "" || !gitFixture || liveAgent) {
 		return 1
 	}
-	if acceptance && acceptanceStage == 12 && !liveAgent && !communityProfileAgent {
+	if acceptance && acceptanceStage == 12 && !liveAgent && !presetProfileAgent {
 		return 1
 	}
 	if gitFixture && (!acceptance || acceptanceStage < 11 || acceptanceStage > 13 || dataDir == "") {
 		return 1
 	}
-	if liveCommunity != (acceptance && acceptanceStage == 16) || liveCommunity && dataDir == "" {
+	if livePreset != (acceptance && acceptanceStage == 16) || livePreset && dataDir == "" {
 		return 1
 	}
-	communityAcceptance := acceptance && acceptanceStage >= 14 && acceptanceStage <= 18
+	presetAcceptance := acceptance && acceptanceStage >= 14 && acceptanceStage <= 18
 	soakAcceptance := acceptance && acceptanceStage == 19
 	if soakAcceptance && (dataDir == "" || !isScreenFixtureURL(fixtureURL) || soakSeconds < 120 || soakSeconds > 14400) ||
 		!soakAcceptance && soakSeconds != 0 {
@@ -194,8 +194,8 @@ func run() int {
 			slog.Error("startup.local_data_unavailable")
 			return 1
 		}
-		// Keep the established profile path for in-place upgrades.
-		dataDir = filepath.Join(base, "DeskPilotAI")
+		// New installations use the product-named profile directory.
+		dataDir = filepath.Join(base, "Asimi")
 	}
 	var err error
 	dataDir, err = filepath.Abs(dataDir)
@@ -244,7 +244,7 @@ func run() int {
 	}
 	defer service.Close()
 	desktopService := &DesktopService{service: service}
-	if liveCommunity {
+	if livePreset {
 		key := []byte(os.Getenv("DEEPSEEK_API_KEY"))
 		_ = os.Unsetenv("DEEPSEEK_API_KEY")
 		defer clear(key)
@@ -254,20 +254,20 @@ func run() int {
 		}
 		var connectOnce sync.Once
 		var connectErr error
-		desktopService.connectCommunityFixture = func(payload string) (domain.Reply, bool) {
-			if payload != `{"presetId":"deepseek","secret":"community-native-acceptance-placeholder"}` {
+		desktopService.connectPresetFixture = func(payload string) (domain.Reply, bool) {
+			if payload != `{"presetId":"deepseek","secret":"preset-native-acceptance-placeholder"}` {
 				return domain.Reply{}, false
 			}
 			connectOnce.Do(func() {
 				defer clear(key)
-				if connectErr = service.ConnectCommunityAcceptance(key); connectErr != nil {
-					slog.Error("acceptance.community_connect_failed")
+				if connectErr = service.ConnectPresetAcceptance(key); connectErr != nil {
+					slog.Error("acceptance.preset_connect_failed")
 				}
 			})
 			if connectErr != nil {
 				return domain.Reply{Error: &domain.Error{Code: "PROVIDER_UNAVAILABLE"}}, true
 			}
-			return service.Call("GetCommunityProvider", "{}"), true
+			return service.Call("GetPresetProvider", "{}"), true
 		}
 	}
 	if liveAgent {
@@ -314,11 +314,11 @@ func run() int {
 			if acceptanceStage == 11 || acceptanceStage == 12 || acceptanceStage == 13 {
 				script = agent02AcceptanceScript
 			}
-			if communityAcceptance {
-				script = communityAcceptanceScript
+			if presetAcceptance {
+				script = presetAcceptanceScript
 			}
 			if soakAcceptance {
-				script = communitySoakScript
+				script = presetSoakScript
 			}
 			_, _ = w.Write(script)
 			return
@@ -444,8 +444,8 @@ func run() int {
 		if gitFixture {
 			url += "&gitFixture=1"
 		}
-		if communityProfileAgent {
-			url += "&communityProfileAgent=1"
+		if presetProfileAgent {
+			url += "&presetProfileAgent=1"
 		}
 		if soakAcceptance {
 			url += fmt.Sprintf("&seconds=%d", soakSeconds)
@@ -458,7 +458,7 @@ func run() int {
 		if ctx.Err() != nil || stopping.Load() {
 			return "", context.Canceled
 		}
-		if acceptance && (acceptanceStage >= 9 && acceptanceStage <= 13 || communityAcceptance || soakAcceptance) {
+		if acceptance && (acceptanceStage >= 9 && acceptanceStage <= 13 || presetAcceptance || soakAcceptance) {
 			// Test fixture lives in the explicitly isolated launcher profile.
 			return filepath.Join(dataDir, "mvp-fixture"), nil
 		}

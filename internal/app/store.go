@@ -8,11 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/provider"
+	"asimi/internal/domain"
+	"asimi/internal/provider"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -23,7 +22,10 @@ type querier interface {
 }
 
 func openStore(dir string) (*sql.DB, error) {
-	path := filepath.Join(dir, "deskpilot.db")
+	path, err := resolveStorePath(dir)
+	if err != nil {
+		return nil, err
+	}
 	if info, err := os.Lstat(path); err == nil {
 		if !info.Mode().IsRegular() || info.Size() < 100 {
 			return nil, codedError("STORAGE_CORRUPT")

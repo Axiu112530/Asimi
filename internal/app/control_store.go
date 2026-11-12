@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"deskpilot/internal/computer"
+	"asimi/internal/computer"
 )
 
 // Computer actions use a separate journal so desktop effects cannot acquire

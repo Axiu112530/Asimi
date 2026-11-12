@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/configuration"
-	"deskpilot/internal/credential"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/screen"
+	"asimi/internal/ai"
+	"asimi/internal/configuration"
+	"asimi/internal/credential"
+	"asimi/internal/domain"
+	"asimi/internal/screen"
 )
 
 func (s *Service) startChatLocked(in ChatInput, test bool) (map[string]string, error) {

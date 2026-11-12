@@ -376,8 +376,8 @@
       "libraryNote": "Discover reusable task sequences.",
       "saved": "Saved workflows",
       "savedNote": "Keep trusted processes close at hand.",
-      "community": "Community workflows",
-      "communityNote": "Review shared workflows before use.",
+      "preset": "Shared workflows",
+      "presetNote": "Review shared workflows before use.",
       "create": "Create workflow",
       "createNote": "Define a process with explicit permission boundaries."
     }
@@ -1091,7 +1091,7 @@
       "AGENT_ACTION_REVIEW": "The proposed action is ready for your approval."
     }
   },
-  "community": {
+  "preset": {
     "edition": "Asimi",
     "offlineMode": "Offline",
     "providers": "AI providers",

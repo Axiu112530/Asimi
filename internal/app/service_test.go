@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/tools"
+	"asimi/internal/domain"
+	"asimi/internal/tools"
 )
 
 func fixture(t *testing.T) (*Service, string, *atomic.Int32) {
@@ -23,7 +23,7 @@ func fixture(t *testing.T) (*Service, string, *atomic.Int32) {
 	}
 	events := &atomic.Int32{}
 	s, e := New(dir, r, func(name string, _ any) {
-		if name == "deskpilot:changed" {
+		if name == "asimi:changed" {
 			events.Add(1)
 		}
 	})

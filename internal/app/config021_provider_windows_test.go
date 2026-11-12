@@ -8,20 +8,20 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/credential"
+	"asimi/internal/ai"
+	"asimi/internal/credential"
 )
 
-func TestCommunityProviderConnectPreservesExistingConfiguration(t *testing.T) {
+func TestPresetProviderConnectPreservesExistingConfiguration(t *testing.T) {
 	s := aiFixture(t, nil)
-	preset := communityDeepSeek()
+	preset := presetDeepSeek()
 	custom := aiTestProfile("existing", "https://example.com/v1")
 	mustCall(t, s, "SaveAIProfile", map[string]any{"profile": custom})
 	old := mustCall(t, s, "GetAISettings", struct{}{}).(ai.Selection)
 	old.DefaultProviderID, old.DefaultModelID = custom.ID, custom.Models[0].ID
 	old.MaxOutputTokens = 73
 	mustCall(t, s, "SaveAISettings", old)
-	initial := mustCall(t, s, "GetCommunityProvider", struct{}{}).(communityProviderState)
+	initial := mustCall(t, s, "GetPresetProvider", struct{}{}).(presetProviderState)
 	if initial.DefaultModelID != old.DefaultModelID || initial.HasCredential || initial.VerifiedAt != "" {
 		t.Fatalf("unexpected initial state: %+v", initial)
 	}
@@ -35,16 +35,16 @@ func TestCommunityProviderConnectPreservesExistingConfiguration(t *testing.T) {
 		}
 		return nil
 	}
-	connected, err := s.connectCommunityProvider([]byte(originalKey), accept)
+	connected, err := s.connectPresetProvider([]byte(originalKey), accept)
 	if err != nil || !connected.HasCredential || connected.VerifiedAt == "" || connected.DefaultModelID != preset.Profile.Models[0].ID {
 		t.Fatalf("unexpected connection state: %+v, %v", connected, err)
 	}
-	reloaded := mustCall(t, s, "GetCommunityProvider", struct{}{}).(communityProviderState)
+	reloaded := mustCall(t, s, "GetPresetProvider", struct{}{}).(presetProviderState)
 	if reloaded.VerifiedAt != connected.VerifiedAt {
 		t.Fatal("verification did not persist")
 	}
 	deny := func(context.Context, ai.Profile, []byte) error { return ai.Error("INVALID_API_KEY") }
-	if _, err = s.connectCommunityProvider([]byte("fixture-invalid-credential"), deny); err != ai.Error("INVALID_API_KEY") {
+	if _, err = s.connectPresetProvider([]byte("fixture-invalid-credential"), deny); err != ai.Error("INVALID_API_KEY") {
 		t.Fatalf("unexpected failed-connection result: %v", err)
 	}
 	secret, err := (credential.Vault{DB: s.db}).GetCredential(connected.DefaultProviderID)
@@ -56,7 +56,7 @@ func TestCommunityProviderConnectPreservesExistingConfiguration(t *testing.T) {
 	if settings.DefaultProviderID != connected.DefaultProviderID || settings.MaxOutputTokens != old.MaxOutputTokens {
 		t.Fatalf("existing settings were overwritten: %+v", settings)
 	}
-	if _, err := s.connectCommunityProvider(nil, accept); err != nil {
+	if _, err := s.connectPresetProvider(nil, accept); err != nil {
 		t.Fatalf("stored key could not be reused: %v", err)
 	}
 	profile, err := s.aiProfileLocked(connected.DefaultProviderID)
@@ -65,21 +65,21 @@ func TestCommunityProviderConnectPreservesExistingConfiguration(t *testing.T) {
 	}
 	profile.Models[0].Capabilities.Vision = ai.Unsupported
 	mustCall(t, s, "SaveAIProfile", map[string]any{"profile": profile})
-	edited := mustCall(t, s, "GetCommunityProvider", struct{}{}).(communityProviderState)
+	edited := mustCall(t, s, "GetPresetProvider", struct{}{}).(presetProviderState)
 	if !edited.HasCredential || edited.VerifiedAt != "" || edited.ConfiguredModel.Capabilities.Vision != ai.Unsupported {
 		t.Fatal("advanced edits did not invalidate verification or preserve capability overrides")
 	}
-	if retested, err := s.connectCommunityProvider(nil, accept); err != nil || retested.ConfiguredModel.Capabilities.Vision != ai.Unsupported {
+	if retested, err := s.connectPresetProvider(nil, accept); err != nil || retested.ConfiguredModel.Capabilities.Vision != ai.Unsupported {
 		t.Fatal("retest did not preserve advanced model capabilities")
 	}
 	mustCall(t, s, "DeleteCredential", map[string]string{"providerId": connected.DefaultProviderID})
-	removed := mustCall(t, s, "GetCommunityProvider", struct{}{}).(communityProviderState)
+	removed := mustCall(t, s, "GetPresetProvider", struct{}{}).(presetProviderState)
 	if removed.HasCredential || removed.VerifiedAt != "" {
 		t.Fatal("removed key is still shown as verified")
 	}
 }
 
-func TestCommunityProviderRejectsChangesMadeDuringProbe(t *testing.T) {
+func TestPresetProviderRejectsChangesMadeDuringProbe(t *testing.T) {
 	s := aiFixture(t, nil)
 	old := aiTestProfile("existing", "http://127.0.0.1:9")
 	mustCall(t, s, "SaveAIProfile", map[string]any{"profile": old})
@@ -89,7 +89,7 @@ func TestCommunityProviderRejectsChangesMadeDuringProbe(t *testing.T) {
 		mustCall(t, s, "SaveAISettings", settings)
 		return nil
 	}
-	if _, err := s.connectCommunityProvider([]byte("temporary-key"), probe); err != codedError("COMMUNITY_PROVIDER_CHANGED") {
+	if _, err := s.connectPresetProvider([]byte("temporary-key"), probe); err != codedError("PRESET_PROVIDER_CHANGED") {
 		t.Fatalf("concurrent provider change was not detected: %v", err)
 	}
 	profiles := mustCall(t, s, "ListAIProfiles", struct{}{}).([]ai.Profile)
@@ -98,7 +98,7 @@ func TestCommunityProviderRejectsChangesMadeDuringProbe(t *testing.T) {
 	}
 }
 
-func TestCommunityProviderProbeLoopback(t *testing.T) {
+func TestPresetProviderProbeLoopback(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" || r.URL.Path != "/v1/chat/completions" {
 			t.Error("unexpected connection test route")
@@ -113,18 +113,34 @@ func TestCommunityProviderProbeLoopback(t *testing.T) {
 				Role string `json:"role"`
 			} `json:"messages"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Model != communityDeepSeekModel ||
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Model != presetDeepSeekModel ||
 			body.MaxTokens != 128 || len(body.Messages) != 1 || body.Messages[0].Role != "user" {
 			t.Errorf("unexpected probe payload shape: %+v, %v", body, err)
 		}
 		jsonFixture(w)
 	}))
 	defer server.Close()
-	p := communityDeepSeek().Profile
+	p := presetDeepSeek().Profile
 	p.ID, p.BaseURL = "loopback-test", server.URL
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if err := probeCommunityProvider(ctx, p, []byte("loopback-test")); err != nil {
+	if err := probePresetProvider(ctx, p, []byte("loopback-test")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPresetProviderReadsLegacyVerificationMetadata(t *testing.T) {
+	s := aiFixture(t, nil)
+	accept := func(context.Context, ai.Profile, []byte) error { return nil }
+	connected, err := s.connectPresetProvider([]byte("fixture-legacy-metadata"), accept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec("UPDATE ai_profiles SET json=json_set(json_remove(json,'$.presetVerifiedAt'),'$.communityVerifiedAt',?) WHERE id=?", connected.VerifiedAt, connected.DefaultProviderID); err != nil {
+		t.Fatal(err)
+	}
+	restored := mustCall(t, s, "GetPresetProvider", struct{}{}).(presetProviderState)
+	if !restored.HasCredential || restored.VerifiedAt != connected.VerifiedAt || !restored.DefaultUsable {
+		t.Fatalf("legacy verification metadata lost: %+v", restored)
 	}
 }

@@ -5,11 +5,11 @@ $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 . "$Repo/validation/phase0/env.ps1"
 $Notice = Join-Path $Repo 'docs/0.2.1/THIRD-PARTY-NOTICES.txt'
 $Sections = [Collections.Generic.List[string]]::new()
-$Sections.Add("Third-party notices for the DeskPilot Community 0.2.1 Windows x64 candidate.`nThese notices cover bundled dependencies. The application license remains an owner decision.")
+$Sections.Add("Third-party notices for the Asimi Preset 0.2.1 Windows x64 candidate.`nThese notices cover bundled dependencies. The application license remains an owner decision.")
 $LicensePattern = '^(LICEN[CS]E|COPYING|NOTICE|UNLICENSE|PATENTS)'
 Push-Location $Repo
 try {
-    $GoModules = @(go list -deps -f '{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}' . | Where-Object { $_ -and $_ -notlike 'deskpilot|*' } | Sort-Object -Unique)
+    $GoModules = @(go list -deps -f '{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}' . | Where-Object { $_ -and $_ -notlike 'asimi|*' } | Sort-Object -Unique)
     if ($LASTEXITCODE -or !$GoModules.Count) { throw 'Go dependency discovery failed' }
     $GoVersion = go env GOVERSION
     $GoRoot = go env GOROOT

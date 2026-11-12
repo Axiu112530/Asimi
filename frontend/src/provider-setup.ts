@@ -4,16 +4,16 @@ import { ai, refreshAI, selectModel, selectProvider } from './ai-store';
 import type { AIModel, AIProfile } from './ai-types';
 import { call, ServiceError } from './bridge';
 import { i18n, t } from './i18n';
-import en from './locales/community-setup-en.json';
-import zh from './locales/community-setup-zh.json';
+import en from './locales/provider-setup-en.json';
+import zh from './locales/provider-setup-zh.json';
 import { product, refreshProduct, selectWorkspace } from './product-store';
 import type { Workspace } from './product-types';
 import { fail, saveSettings, state } from './store';
 import { button, errorText, icon } from './ui';
-import './community-setup.css';
+import './provider-setup.css';
 
-i18n.global.mergeLocaleMessage('en-US', { communitySetup: en });
-i18n.global.mergeLocaleMessage('zh-CN', { communitySetup: zh });
+i18n.global.mergeLocaleMessage('en-US', { presetSetup: en });
+i18n.global.mergeLocaleMessage('zh-CN', { presetSetup: zh });
 
 interface ProviderStatus {
   preset: { id: string; profile: AIProfile };
@@ -27,12 +27,12 @@ interface ProviderStatus {
 }
 
 type Message = keyof typeof en;
-const label = (key: Message, params?: Record<string, string>) => t('communitySetup.' + key, params);
+const label = (key: Message, params?: Record<string, string>) => t('presetSetup.' + key, params);
 
 function action(key: Message, id: string, work: () => unknown, disabled = false, primary = false) {
-  return button('communitySetup.' + key, work, {
+  return button('presetSetup.' + key, work, {
     class: ['button', primary ? 'primary' : 'secondary'],
-    disabled, 'data-testid': 'community-' + id,
+    disabled, 'data-testid': 'preset-' + id,
   });
 }
 
@@ -44,10 +44,10 @@ const connectionErrors: Record<string, Message> = {
   NETWORK_ERROR: 'errorNetwork',
   TLS_ERROR: 'errorNetwork',
   RATE_LIMITED: 'errorRate',
-  COMMUNITY_PROVIDER_BALANCE: 'errorBalance',
+  PRESET_PROVIDER_BALANCE: 'errorBalance',
   MODEL_NOT_FOUND: 'errorModel',
   PROVIDER_UNAVAILABLE: 'errorUnavailable',
-  COMMUNITY_PROVIDER_CHANGED: 'errorChanged',
+  PRESET_PROVIDER_CHANGED: 'errorChanged',
   RESPONSE_INCOMPLETE: 'errorIncomplete',
   INVALID_RESPONSE: 'errorIncomplete',
   REQUEST_OUTCOME_UNKNOWN: 'errorOutcome',
@@ -86,7 +86,7 @@ const ProviderConnection = defineComponent({
       loading.value = true;
       if (!preserveError) error.value = '';
       try {
-        const result = await call<ProviderStatus>('GetCommunityProvider');
+        const result = await call<ProviderStatus>('GetPresetProvider');
         if (alive) setStatus(result);
       } catch (cause) {
         if (alive) error.value = codeOf(cause);
@@ -103,7 +103,7 @@ const ProviderConnection = defineComponent({
       emit('busy', true);
       error.value = '';
       try {
-        const request = call<ProviderStatus>('ConnectCommunityProvider', {
+        const request = call<ProviderStatus>('ConnectPresetProvider', {
           presetId: selected.value, secret: password.value,
         });
         password.value = '';
@@ -123,7 +123,7 @@ const ProviderConnection = defineComponent({
         pending.value = false;
         if (alive) {
           emit('busy', false);
-          if (error.value === 'COMMUNITY_PROVIDER_CHANGED') void load(true);
+          if (error.value === 'PRESET_PROVIDER_CHANGED') void load(true);
         }
       }
     }
@@ -135,54 +135,54 @@ const ProviderConnection = defineComponent({
       const preset = current?.preset.profile;
       const model = current?.configuredModel ?? preset?.models[0];
       const capabilityKeys = ['text', 'streaming', 'vision', 'structuredOutput', 'toolCalling', 'computerUse'] as const;
-      return h('div', { class: 'community-connection', 'aria-busy': pending.value || loading.value }, [
+      return h('div', { class: 'preset-connection', 'aria-busy': pending.value || loading.value }, [
         loading.value && !current ? h('p', { role: 'status' }, label('loading')) : null,
-        !props.wizard && current ? h('dl', { class: 'community-default' }, [
+        !props.wizard && current ? h('dl', { class: 'preset-default' }, [
           h('dt', label('defaultModel')),
-          h('dd', { 'data-testid': 'community-default-model' }, current.defaultModelId
+          h('dd', { 'data-testid': 'preset-default-model' }, current.defaultModelId
             ? [current.defaultProviderName ? current.defaultProviderName + ' · ' : '', h('code', current.defaultModelId)]
             : label('offline')),
         ]) : null,
-        current && preset && model ? h('form', { class: 'community-form', onSubmit: connect }, [
+        current && preset && model ? h('form', { class: 'preset-form', onSubmit: connect }, [
           h('div', { class: 'ai-form-grid' }, [
             h('label', { class: 'ai-field' }, [
               h('span', label('provider')),
               h('select', {
                 value: selected.value, disabled: pending.value || !state.connected,
                 onChange: (event: Event) => { selected.value = (event.target as HTMLSelectElement).value; },
-                'data-testid': 'community-provider',
+                'data-testid': 'preset-provider',
               }, [h('option', { value: current.preset.id }, preset.name)]),
             ]),
-            h('dl', { class: 'community-default' }, [h('dt', label('recommended')), h('dd', h('code', model.id))]),
+            h('dl', { class: 'preset-default' }, [h('dt', label('recommended')), h('dd', h('code', model.id))]),
           ]),
           h('label', { class: 'ai-field' }, [
             h('span', label('key')),
             h('input', {
               ref: input, type: 'password', autocomplete: 'off', spellcheck: false,
               disabled: pending.value || !state.connected, maxlength: 8192,
-              'aria-describedby': 'community-key-description', 'data-testid': 'community-api-key',
+              'aria-describedby': 'preset-key-description', 'data-testid': 'preset-api-key',
               onInput: (event: Event) => { entered.value = !!(event.target as HTMLInputElement).value; },
             }),
           ]),
-          h('p', { class: 'muted micro', id: 'community-key-description' }, label(current.hasCredential ? 'keyStored' : 'keyPrivacy')),
+          h('p', { class: 'muted micro', id: 'preset-key-description' }, label(current.hasCredential ? 'keyStored' : 'keyPrivacy')),
           h('p', { class: 'muted micro' }, label('testNote')),
-          h('div', { class: 'community-actions' }, [
+          h('div', { class: 'preset-actions' }, [
             h('button', {
               type: 'submit', class: 'button primary',
               disabled: pending.value || !state.connected || !selected.value || (!entered.value && !current.hasCredential),
-              'data-testid': 'community-connect',
+              'data-testid': 'preset-connect',
             }, label(error.value ? 'retry' : 'connect')),
             pending.value ? h('span', { role: 'status' }, label('testing')) : null,
           ]),
           error.value ? null : current.verifiedAt
-            ? h('p', { class: 'community-verified', role: 'status', 'data-testid': 'community-connected' }, [
+            ? h('p', { class: 'preset-verified', role: 'status', 'data-testid': 'preset-connected' }, [
                 icon('check', 16), label('verified', { model: model.id }),
               ])
             : !pending.value ? h('p', { class: 'muted' }, label(current.hasCredential ? 'unverified' : 'noKey')) : null,
           error.value ? h('p', {
-            role: 'alert', class: 'ai-error', 'data-testid': 'community-connection-error',
+            role: 'alert', class: 'ai-error', 'data-testid': 'preset-connection-error',
           }, connectionErrors[error.value] ? label(connectionErrors[error.value]) : errorText(error.value)) : null,
-          h('details', { class: 'community-capabilities', open: !!current.verifiedAt }, [
+          h('details', { class: 'preset-capabilities', open: !!current.verifiedAt }, [
             h('summary', label(current.configuredModel ? 'configuredCapabilities' : 'capabilities')),
             h('dl', { class: 'ai-capabilities' }, capabilityKeys.map(key => h('div', [
               h('dt', t('ai.' + key)), h('dd', t('ai.' + model.capabilities[key])),
@@ -190,7 +190,7 @@ const ProviderConnection = defineComponent({
             h('p', { class: 'muted micro' }, label(current.configuredModel ? 'configuredTestScope' : 'testScope')),
           ]),
         ]) : error.value ? h('div', [
-          h('p', { role: 'alert', class: 'ai-error', 'data-testid': 'community-connection-error' }, errorText(error.value)),
+          h('p', { role: 'alert', class: 'ai-error', 'data-testid': 'preset-connection-error' }, errorText(error.value)),
           action('retry', 'reload-provider', () => load(), loading.value || !state.connected),
         ]) : null,
       ]);
@@ -198,14 +198,14 @@ const ProviderConnection = defineComponent({
   },
 });
 
-export const CommunityProviders = defineComponent({
+export const PresetProviders = defineComponent({
   setup() {
     const loadedAdvanced = ref(false);
-    return () => h('div', { class: 'page-scroll' }, h('div', { class: 'page community-provider-page' }, [
+    return () => h('div', { class: 'page-scroll' }, h('div', { class: 'page preset-provider-page' }, [
       h('header', { class: 'page-heading' }, h('h1', t('ai.providers'))),
       h('section', { class: 'settings-section' }, h(ProviderConnection)),
       h('details', {
-        class: 'settings-section community-advanced', 'data-testid': 'community-provider-advanced',
+        class: 'settings-section preset-advanced', 'data-testid': 'preset-provider-advanced',
         onToggle: (event: Event) => { if ((event.currentTarget as HTMLDetailsElement).open) loadedAdvanced.value = true; },
       }, [
         h('summary', label('advanced')),
@@ -285,9 +285,9 @@ const SetupWizard = defineComponent({
 
     return () => h('div', {
       class: 'product-overlay', role: 'dialog', 'aria-modal': 'true',
-      'aria-labelledby': 'community-setup-title', 'data-testid': 'community-onboarding', onKeydown: keepFocus,
-    }, h('section', { class: 'product-onboarding community-wizard' }, [
-      h('h1', { id: 'community-setup-title', ref: title, tabindex: -1 }, label(step.value)),
+      'aria-labelledby': 'provider-setup-title', 'data-testid': 'preset-onboarding', onKeydown: keepFocus,
+    }, h('section', { class: 'product-onboarding preset-wizard' }, [
+      h('h1', { id: 'provider-setup-title', ref: title, tabindex: -1 }, label(step.value)),
       step.value === 'welcome' ? [
         h('p', label('intro')),
         h('p', { class: 'muted' }, label('privacy')),
@@ -295,36 +295,36 @@ const SetupWizard = defineComponent({
           h('span', t('settings.language')),
           h('select', {
             value: state.settings.appLanguage, disabled: state.saving || !state.connected,
-            'data-testid': 'community-language',
+            'data-testid': 'preset-language',
             onChange: (event: Event) => saveSettings({ appLanguage: (event.target as HTMLSelectElement).value as 'en-US' | 'zh-CN' }),
           }, [
             h('option', { value: 'en-US' }, t('settings.english')),
             h('option', { value: 'zh-CN' }, t('settings.chinese')),
           ]),
         ]),
-        h('div', { class: 'community-actions' }, action('continue', 'continue', () => { step.value = 'connection'; }, false, true)),
+        h('div', { class: 'preset-actions' }, action('continue', 'continue', () => { step.value = 'connection'; }, false, true)),
       ] : step.value === 'connection' ? [
         h(ProviderConnection, {
           wizard: true,
           onStatus: (result: ProviderStatus) => { provider.value = result; },
           onBusy: (value: boolean) => { connecting.value = value; },
         }),
-        h('div', { class: 'community-actions' }, [
+        h('div', { class: 'preset-actions' }, [
           action('back', 'back', () => { step.value = 'welcome'; }, connecting.value),
           provider.value?.defaultUsable
             ? action('nextReady', 'next-ready', () => { step.value = 'ready'; }, connecting.value, true)
             : action('skipAI', 'skip-ai', () => { step.value = 'ready'; }, connecting.value),
         ]),
       ] : [
-        h('p', { 'data-testid': 'community-ready-status' }, provider.value?.defaultUsable
+        h('p', { 'data-testid': 'preset-ready-status' }, provider.value?.defaultUsable
           ? label('readyAI', { provider: provider.value.defaultProviderName, model: provider.value.defaultModelId })
           : label('readyOffline')),
         h('p', { class: 'muted' }, label('project')),
-        workspace() ? h('dl', { class: 'community-default' }, [
-          h('dt', label('selectedProject')), h('dd', { 'data-testid': 'community-selected-project' }, workspace()?.name),
+        workspace() ? h('dl', { class: 'preset-default' }, [
+          h('dt', label('selectedProject')), h('dd', { 'data-testid': 'preset-selected-project' }, workspace()?.name),
         ]) : null,
         error.value ? h('p', { role: 'alert', class: 'ai-error' }, errorText(error.value)) : null,
-        h('div', { class: 'community-actions' }, [
+        h('div', { class: 'preset-actions' }, [
           action('back', 'back', () => { step.value = 'connection'; }, busy.value),
           action('pickProject', 'pick-project', pick, busy.value || !state.connected),
           action(workspace() ? 'openProject' : 'finish', 'finish', finish, busy.value || !state.connected, true),
@@ -334,7 +334,7 @@ const SetupWizard = defineComponent({
   },
 });
 
-export const CommunityOnboarding = defineComponent({
+export const PresetOnboarding = defineComponent({
   props: { openWorkspace: Function },
   setup(props) {
     return () => product.showOnboarding ? h(SetupWizard, { openWorkspace: props.openWorkspace }) : null;

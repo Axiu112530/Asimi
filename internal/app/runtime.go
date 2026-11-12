@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/provider"
-	"deskpilot/internal/tools"
+	"asimi/internal/domain"
+	"asimi/internal/provider"
+	"asimi/internal/tools"
 )
 
 var transitions = map[string]map[string]bool{

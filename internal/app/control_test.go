@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/computer"
-	"deskpilot/internal/screen"
+	"asimi/internal/computer"
+	"asimi/internal/screen"
 )
 
 type controlFixtureDriver struct {
@@ -56,7 +56,7 @@ func TestControlPolicyRejectsUnsafeTargetsAndInputs(t *testing.T) {
 			t.Fatalf("unsafe input accepted %q", text)
 		}
 	}
-	for _, text := range []string{"Hello DeskPilot", "你好，测试。", "A simple line 123!"} {
+	for _, text := range []string{"Hello Asimi", "你好，测试。", "A simple line 123!"} {
 		if !computer.ValidateText(text) {
 			t.Fatalf("plain line rejected %q", text)
 		}
@@ -162,7 +162,7 @@ func TestControlConcurrentApprovalAndV4Rollback(t *testing.T) {
 		t.Fatalf("approval dispatched %d times", d.calls)
 	}
 	dir := t.TempDir()
-	db, e := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, e := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -179,7 +179,7 @@ func TestControlConcurrentApprovalAndV4Rollback(t *testing.T) {
 		opened.Close()
 		t.Fatal("conflicting v4 migration succeeded")
 	}
-	db, e = sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, e = sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -205,11 +205,11 @@ func TestControlConcurrentApprovalAndV4Rollback(t *testing.T) {
 }
 
 func TestControlCrashFixture(t *testing.T) {
-	boundary := os.Getenv("DESKPILOT_CONTROL_CRASH")
+	boundary := os.Getenv("ASIMI_CONTROL_CRASH")
 	if boundary == "" {
 		t.Skip("subprocess fixture")
 	}
-	db, e := openStore(os.Getenv("DESKPILOT_CONTROL_PROFILE"))
+	db, e := openStore(os.Getenv("ASIMI_CONTROL_PROFILE"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -236,7 +236,7 @@ func TestControlProcessCrashDoesNotReplay(t *testing.T) {
 				t.Fatal(e)
 			}
 			cmd := exec.Command(exe, "-test.run=^TestControlCrashFixture$")
-			cmd.Env = append(os.Environ(), "DESKPILOT_CONTROL_CRASH="+boundary, "DESKPILOT_CONTROL_PROFILE="+dir)
+			cmd.Env = append(os.Environ(), "ASIMI_CONTROL_CRASH="+boundary, "ASIMI_CONTROL_PROFILE="+dir)
 			output, e := cmd.CombinedOutput()
 			var exit *exec.ExitError
 			if !errors.As(e, &exit) || exit.ExitCode() != 83 {
@@ -326,7 +326,7 @@ func proposeFixtureText(t *testing.T, s *Service) computer.Proposal {
 	tree := observeControlFixture(t, s)
 	return mustCall(t, s, "ProposeControlAction", map[string]string{
 		"type": string(computer.TypeText), "observationId": tree.ID,
-		"elementId": tree.Elements[0].ID, "text": "Hello DeskPilot",
+		"elementId": tree.Elements[0].ID, "text": "Hello Asimi",
 	}).(computer.Proposal)
 }
 func controlApproval(p computer.Proposal) map[string]string {
@@ -338,7 +338,7 @@ func TestControlApprovalConsumesExactlyOnceAndRequiresVerification(t *testing.T)
 	driver := newControlFixtureDriver()
 	s.desktopControl.driver = driver
 	p := proposeFixtureText(t, s)
-	if p.Status != "AWAITING_APPROVAL" || p.Hash == "" || p.Text != "Hello DeskPilot" || driver.calls != 0 {
+	if p.Status != "AWAITING_APPROVAL" || p.Hash == "" || p.Text != "Hello Asimi" || driver.calls != 0 {
 		t.Fatal("invalid proposal or premature dispatch")
 	}
 	bad := controlApproval(p)
@@ -356,7 +356,7 @@ func TestControlApprovalConsumesExactlyOnceAndRequiresVerification(t *testing.T)
 		t.Fatalf("unverified action completed: %+v", unverified)
 	}
 	rows := mustCall(t, s, "ListControlJournal", struct{}{}).([]computer.Record)
-	if len(rows) < 2 || strings.Contains(encode(rows), "Hello DeskPilot") {
+	if len(rows) < 2 || strings.Contains(encode(rows), "Hello Asimi") {
 		t.Fatal("missing history or literal input leaked into journal")
 	}
 }

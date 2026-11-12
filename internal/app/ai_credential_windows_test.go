@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"deskpilot/internal/ai"
+	"asimi/internal/ai"
 )
 
 func TestAICredentialSnapshotEndpointInvalidationCorruptionAndDeletion(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"deskpilot/internal/developer"
+	"asimi/internal/developer"
 )
 
 type RuntimeDiagnostic struct {

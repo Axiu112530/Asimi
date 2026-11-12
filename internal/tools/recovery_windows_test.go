@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 )
 
 func executeWitness(t *testing.T, r *Registry, op domain.Operation) domain.FileWitness {
@@ -162,5 +162,19 @@ func TestConsumeStorageFailurePreventsFileEffects(t *testing.T) {
 				t.Fatalf("approval transaction failure left files: %v %v", entries, err)
 			}
 		})
+	}
+}
+
+func TestWitnessAcceptsCurrentAndLegacyTemporaryNames(t *testing.T) {
+	witness := domain.FileWitness{VolumeSerial: 1, FileID: [16]byte{1}, CreationTime: 1}
+	for _, prefix := range []string{".asimi-", ".deskpilot-"} {
+		witness.TempName = prefix + "0123456789abcdef0123456789abcdef.tmp"
+		if !validWitness(witness) {
+			t.Fatalf("valid temporary name rejected: %s", witness.TempName)
+		}
+		witness.TempName = prefix + "../0123456789abcdef0123456789abcdef.tmp"
+		if validWitness(witness) {
+			t.Fatalf("unsafe temporary name accepted: %s", witness.TempName)
+		}
 	}
 }

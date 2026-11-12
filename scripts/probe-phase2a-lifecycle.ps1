@@ -16,7 +16,7 @@ $evidence = Join-Path $Phase2ARoot "docs/phase2a-evidence/lifecycle-$runKey"
 $dataRoot = Join-Path $binRoot "runs/$runKey"
 New-Item -ItemType Directory -Force -Path $binRoot, $evidence, $dataRoot | Out-Null
 if (!$AppPath) {
-    if ($Variant -eq 'phase1') { $AppPath = Join-Path $binRoot 'DeskPilotAI-phase1.exe' }
+    if ($Variant -eq 'phase1') { $AppPath = Join-Path $binRoot 'Asimi-phase1.exe' }
     else { $AppPath = Join-Path $Phase2ARoot 'build/bin/asimi-0.2.1/Asimi.exe' }
 }
 
@@ -92,7 +92,7 @@ try {
     if ($LASTEXITCODE) { throw 'Cannot read executable build metadata' }
     $buildInfo | Set-Content -LiteralPath "$evidence/build-info.txt"
     if ($Variant -eq 'app-pending') {
-        $inspect = Join-Path $binRoot "DeskPilotLifecycleDB-$runKey.exe"
+        $inspect = Join-Path $binRoot "AsimiLifecycleDB-$runKey.exe"
         & go build -trimpath -o $inspect ./validation/phase2a/lifecycledb
         if ($LASTEXITCODE) { throw 'Lifecycle SQLite inspector build failed' }
     }
@@ -156,7 +156,7 @@ try {
             $orderedShutdown = Test-LifecycleOrder "$evidence/run-$i.runtime.log"
             $shutdownLog = Select-String -LiteralPath "$evidence/run-$i.runtime.log" -Pattern '"msg":"lifecycle.shutdown_requested"' | Select-Object -First 1
             if ($shutdownLog) { $shutdownReason = ($shutdownLog.Line | ConvertFrom-Json).reason }
-            $dbPath = Join-Path $data 'deskpilot.db'
+            $dbPath = Join-Path $data 'asimi.db'
             try {
                 $dbHandle = [IO.File]::Open($dbPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
                 $dbHandle.Dispose()

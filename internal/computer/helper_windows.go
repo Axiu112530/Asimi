@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	hostFile       = "DeskPilotControlHost.exe"
-	workerFile     = "DeskPilotUIAWorker.exe"
+	hostFile       = "AsimiControlHost.exe"
+	workerFile     = "AsimiUIAWorker.exe"
 	helperConfig   = "<configuration/>"
 	maxWorkerBytes = 256 << 10
 	maxHelperImage = 8 << 20

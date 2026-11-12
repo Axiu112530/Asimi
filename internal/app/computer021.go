@@ -10,9 +10,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"deskpilot/internal/computer"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/screen"
+	"asimi/internal/computer"
+	"asimi/internal/domain"
+	"asimi/internal/screen"
 )
 
 const computerSuggestionTTL = time.Minute

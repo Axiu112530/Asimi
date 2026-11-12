@@ -10,10 +10,10 @@ import (
 	"strings"
 	"unicode"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/credential"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/screen"
+	"asimi/internal/ai"
+	"asimi/internal/credential"
+	"asimi/internal/domain"
+	"asimi/internal/screen"
 )
 
 type chatControl struct {
@@ -296,8 +296,8 @@ func (s *Service) cancelAllChatsLocked() int {
 
 func (s *Service) callAI(method, payload string) (domain.Reply, bool) {
 	switch method {
-	case "GetCommunityProvider", "ConnectCommunityProvider":
-		return s.callCommunityProvider(method, payload), true
+	case "GetPresetProvider", "ConnectPresetProvider":
+		return s.callPresetProvider(method, payload), true
 	case "ListAIProfiles", "SaveAIProfile", "DeleteAIProfile", "StoreCredential", "DeleteCredential", "GetAISettings", "SaveAISettings", "StartChat", "TestAIConnection", "CancelChat", "GetUsage", "ImportAttachment", "GetAttachment", "DeleteAttachment", "ClearChatConversation", "DeleteChatConversation":
 	default:
 		return domain.Reply{}, false

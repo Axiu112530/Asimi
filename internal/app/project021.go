@@ -1,8 +1,8 @@
 package app
 
 import (
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
+	"asimi/internal/command"
+	"asimi/internal/developer"
 )
 
 type DeveloperProjectInspection struct {

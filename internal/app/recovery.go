@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/provider"
+	"asimi/internal/domain"
+	"asimi/internal/provider"
 )
 
 type recoveryIntent struct {

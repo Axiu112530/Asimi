@@ -4,7 +4,7 @@ package configuration
 import (
 	"math"
 
-	"deskpilot/internal/ai"
+	"asimi/internal/ai"
 )
 
 type Source string

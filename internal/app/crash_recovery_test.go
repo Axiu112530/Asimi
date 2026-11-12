@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/domain"
-	"deskpilot/internal/provider"
-	"deskpilot/internal/tools"
+	"asimi/internal/domain"
+	"asimi/internal/provider"
+	"asimi/internal/tools"
 )
 
-const crashProfile = "DESKPILOT_CRASH_FIXTURE"
-const crashBoundary = "DESKPILOT_CRASH_BOUNDARY"
+const crashProfile = "ASIMI_CRASH_FIXTURE"
+const crashBoundary = "ASIMI_CRASH_BOUNDARY"
 const crashContent = "Phase 2A crash fixture\n实际内容"
 
 func crashFixture(t *testing.T, dir string) (*Service, func()) {
@@ -121,7 +121,7 @@ func TestCrashRecoveryBoundaries(t *testing.T) {
 				assertAbsent(t, path)
 			}
 			if fixture.point == "temp-written" {
-				pattern := filepath.Join(dir, "workspace", ".deskpilot-*.tmp")
+				pattern := filepath.Join(dir, "workspace", ".asimi-*.tmp")
 				if files, err := filepath.Glob(pattern); err != nil || len(files) != 1 {
 					t.Fatalf("temporary-write injection did not leave its staged file: %v %v", files, err)
 				}
@@ -196,7 +196,7 @@ func TestCrashRecoveryKeepsAmbiguousResults(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "legacy-v1":
-				db, err := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+				db, err := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -305,7 +305,7 @@ func TestShutdownDrainsActiveExecutionBeforeClosingSQLite(t *testing.T) {
 			} else {
 				assertAbsent(t, path)
 			}
-			files, err := filepath.Glob(filepath.Join(dir, "workspace", ".deskpilot-*.tmp"))
+			files, err := filepath.Glob(filepath.Join(dir, "workspace", ".asimi-*.tmp"))
 			if err != nil || len(files) != 0 {
 				t.Fatalf("graceful cancel left staged files: %v %v", files, err)
 			}

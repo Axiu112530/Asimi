@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/domain"
-	"deskpilot/internal/screen"
+	"asimi/internal/ai"
+	"asimi/internal/domain"
+	"asimi/internal/screen"
 )
 
 type fakeScreen struct{ captures atomic.Int32 }
@@ -144,7 +144,7 @@ func TestScreenRequiresUserCaptureAndOneShotReviewedUpload(t *testing.T) {
 	if u := awaitAI(t, s, next["requestId"]); u.Status != "COMPLETED" || requests.Load() != 2 {
 		t.Fatalf("followup failed %+v", u)
 	}
-	for _, name := range []string{"deskpilot.db", "deskpilot.db-wal"} {
+	for _, name := range []string{"asimi.db", "asimi.db-wal"} {
 		data, e := os.ReadFile(filepath.Join(s.dataDir, name))
 		if e != nil && !os.IsNotExist(e) {
 			t.Fatal(e)

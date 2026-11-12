@@ -123,7 +123,7 @@ func capture(r rect) map[string]any {
 }
 func dpapi() map[string]any {
 	data := []byte("phase0-dummy-key-not-a-real-secret")
-	entropy := []byte("DeskPilot/phase0")
+	entropy := []byte("Asimi/phase0")
 	in := blob{uint32(len(data)), &data[0]}
 	ent := blob{uint32(len(entropy)), &entropy[0]}
 	var out blob
@@ -175,7 +175,7 @@ func main() {
 	must(json.Unmarshal(raw, &f) == nil, "decode fixture")
 	var pid uint32
 	u("GetWindowThreadProcessId", f.Window, uintptr(unsafe.Pointer(&pid)))
-	must(pid == f.PID && pid != 0 && title(f.Window) == "DeskPilot Phase0 Fixture", "fixture identity")
+	must(pid == f.PID && pid != 0 && title(f.Window) == "Asimi Phase0 Fixture", "fixture identity")
 	must(u("IsChild", f.Window, f.Edit) != 0 && u("IsChild", f.Window, f.Button) != 0, "fixture children")
 	var monitors []rect
 	cb := syscall.NewCallback(func(_ uintptr, _ uintptr, r *rect, _ uintptr) uintptr { monitors = append(monitors, *r); return 1 })
@@ -217,12 +217,12 @@ func main() {
 	time.Sleep(50 * time.Millisecond)
 	must(u("GetForegroundWindow") == f.Window, "focus before text")
 	send([]input{mouse(2, 0, 0), mouse(4, 0, 0)})
-	for _, c := range utf16.Encode([]rune("DeskPilot验证")) {
+	for _, c := range utf16.Encode([]rune("Asimi验证")) {
 		must(u("GetForegroundWindow") == f.Window, "focus during text")
 		send([]input{key(c, 4), key(c, 4|2)})
 	}
 	time.Sleep(100 * time.Millisecond)
-	must(controlText(f.Edit) == "DeskPilot验证", "unicode input postcondition")
+	must(controlText(f.Edit) == "Asimi验证", "unicode input postcondition")
 	var scale uint32
 	monitor := u("MonitorFromWindow", f.Window, 2)
 	scaleHR, _, _ := syscall.NewLazyDLL("shcore.dll").NewProc("GetScaleFactorForMonitor").Call(monitor, uintptr(unsafe.Pointer(&scale)))

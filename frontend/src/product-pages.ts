@@ -44,7 +44,7 @@ function fileTree(entries:ProjectFile[],selected:string,open:(f:ProjectFile)=>vo
 const networkConsents=reactive(new Set<string>());
 function actionCard(a:ProductAction){const file=a.proposal.file;const cmd=a.proposal.command;const networkReview=a.proposal.policyVersion==='agent-02-v1'&&!!cmd?.network;return h('article',{class:'product-card product-approval','data-testid':'product-action','data-action-id':a.id},[
  h('div',{class:'split'},[h('h3',file?file.relativePath:cmd?.id||a.kind),badge(a.status)]),h('code',a.id),
- file?h('div',[h('p',t('product.fileRisk')),a.proposal.gitDirtyFile?h('p',{class:'product-warning','data-testid':'community-git-warning'},t('community.dirtyFile')):a.proposal.gitStatus&&['UNSUPPORTED','ERROR','PARTIAL'].includes(a.proposal.gitStatus)?h('p',{class:'product-warning'},t('community.gitUnknown')):null,h('pre',{class:'product-diff','data-testid':'product-diff'},file.diff),h('details',[h('summary',t('product.beforeAfter')),h('div',{class:'product-columns'},[h('pre',file.beforeContent||t('product.newFile')),h('pre',file.afterContent)])]),h('p',{class:'micro'},`${file.beforeHash} → ${file.afterHash}`)]):null,
+ file?h('div',[h('p',t('product.fileRisk')),a.proposal.gitDirtyFile?h('p',{class:'product-warning','data-testid':'preset-git-warning'},t('preset.dirtyFile')):a.proposal.gitStatus&&['UNSUPPORTED','ERROR','PARTIAL'].includes(a.proposal.gitStatus)?h('p',{class:'product-warning'},t('preset.gitUnknown')):null,h('pre',{class:'product-diff','data-testid':'product-diff'},file.diff),h('details',[h('summary',t('product.beforeAfter')),h('div',{class:'product-columns'},[h('pre',file.beforeContent||t('product.newFile')),h('pre',file.afterContent)])]),h('p',{class:'micro'},`${file.beforeHash} → ${file.afterHash}`)]):null,
  cmd?h('div',[h('dl',{class:'product-details'},[h('dt',t('product.executable')),h('dd',[h('code',cmd.executable)]),h('dt',t('product.arguments')),h('dd',[h('code',JSON.stringify(cmd.args))]),h('dt',t('product.directory')),h('dd',cmd.directory),h('dt',t('product.network')),h('dd',t(cmd.network?'product.networkAllowed':'product.networkNo')),h('dt',t('product.codeRisk')),h('dd',t(cmd.executesCode?'product.codeYes':'product.codeNo')),h('dt',t('product.limits')),h('dd',`${cmd.timeoutSeconds}s / ${cmd.maxOutputBytes} bytes`)]),cmd.executesCode?h('p',{class:'product-warning'},t('product.projectCodeWarning')):null]):null,
  h('p',{class:'micro'},t('product.expires',{at:date(a.expiresAt)})),h('code',{class:'product-hash'},a.hash),
  a.status==='PENDING'&&networkReview?h('label',{class:'product-check'},[h('input',{type:'checkbox','data-testid':'agent02-network-consent',checked:networkConsents.has(a.hash),onChange:(e:Event)=>{if((e.target as HTMLInputElement).checked)networkConsents.add(a.hash);else networkConsents.delete(a.hash);}}),t('product.networkConsent')]):null,
@@ -58,12 +58,12 @@ export const HomePage=defineComponent({setup(){useProduct();return()=>{
  const current=usableDefaultAI();
  return h('section',{class:'product-page','data-testid':'product-home'},[
  h('header',{class:'product-heading'},[h('h1',t('product.welcome')),h('p',t('product.homeIntro'))]),
- h('div',{class:'product-row'},[button(current?'product.chat':'community.offlineChat',()=>{ai.mode=current?'real':'mock';if(current){selectProvider(ai.assistant,current.id);selectModel(ai.assistant,ai.settings.defaultModelId);}return newConversation();},{class:'button primary',disabled:!state.connected,'data-testid':'product-chat'}),action('newTask',()=>state.route='workflows'),action('chooseWorkspace',pickWorkspace),action('setup',()=>product.showOnboarding=true)]),
+ h('div',{class:'product-row'},[button(current?'product.chat':'preset.offlineChat',()=>{ai.mode=current?'real':'mock';if(current){selectProvider(ai.assistant,current.id);selectModel(ai.assistant,ai.settings.defaultModelId);}return newConversation();},{class:'button primary',disabled:!state.connected,'data-testid':'product-chat'}),action('newTask',()=>state.route='workflows'),action('chooseWorkspace',pickWorkspace),action('setup',()=>product.showOnboarding=true)]),
  h('div',{class:'product-columns'},[
- panel('currentProvider',h('div',[h('strong',current?.name||t('product.offline')),h('p',current?t('community.activeModel',{model:ai.settings.defaultModelId}):t('community.offlineSummary')),action('configure',()=>state.route='models')])),
+ panel('currentProvider',h('div',[h('strong',current?.name||t('product.offline')),h('p',current?t('preset.activeModel',{model:ai.settings.defaultModelId}):t('preset.offlineSummary')),action('configure',()=>state.route='models')])),
  panel('workspaces',product.data.workspaces.length?product.data.workspaces.map(w=>h('button',{class:'product-list-button',onClick:()=>{selectWorkspace(w.id);state.route='developer';}},[h('strong',w.name),h('code',w.root)])):h('p',t('product.noWorkspace'))),
- panel('recentConversations',state.conversations.length?state.conversations.slice(0,5).map(c=>h('button',{class:'product-list-button',onClick:()=>openConversation(c.id)},[h('strong',c.title||t('assistant.newConversation')),h('time',date(c.updatedAt))])):h('p',t('community.noConversations'))),
- panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button',onClick:()=>state.route='workflows'},[h('strong',task.goal),badge(task.status)])):h('p',t('community.noTasks'))),
+ panel('recentConversations',state.conversations.length?state.conversations.slice(0,5).map(c=>h('button',{class:'product-list-button',onClick:()=>openConversation(c.id)},[h('strong',c.title||t('assistant.newConversation')),h('time',date(c.updatedAt))])):h('p',t('preset.noConversations'))),
+ panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button',onClick:()=>state.route='workflows'},[h('strong',task.goal),badge(task.status)])):h('p',t('preset.noTasks'))),
  ]),h('p',{class:'product-warning'},t('product.controlScope')),
  ]);};}});
 
@@ -102,7 +102,7 @@ export const DeveloperPage=defineComponent({setup(){useProduct();const query=ref
 
 export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),paths=ref(''),selected=ref(''),context=ref<{id:string;content:string;hash:string}|null>(null);
  let disconnect:(()=>void)|undefined;let refreshTimer:ReturnType<typeof setTimeout>|undefined;
- onMounted(()=>{if(state.connected)disconnect=subscribe('deskpilot:changed',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,120);});});
+ onMounted(()=>{if(state.connected)disconnect=subscribe('asimi:changed',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,120);});});
  onUnmounted(()=>{disconnect?.();clearTimeout(refreshTimer);});
  const previewAI=(id:string)=>productWork(async()=>{const p=await call<{content:string;hash:string}>('PreviewAgentTaskContext',{id});context.value={id,...p};});
  const create=()=>productWork(async()=>{const task=await call<AgentTask>('CreateAgentTask',{workspaceId:product.selectedWorkspace,goal:goal.value});selected.value=task.id;goal.value='';await refreshProduct();});
@@ -113,7 +113,7 @@ export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),
  h('header',{class:'product-heading'},[h('h1',t('product.tasks')),h('p',t('product.taskIntro'))]),
  h('div',{class:'product-row'},[workspaceSelect(),action('refresh',refresh)]),
  field('goal',area(goal.value,v=>goal.value=v,{'aria-label':t('product.goal')})),
- providerSelect(),h('details',{class:'community-task-sources'},[h('summary',t('community.taskSources')),h('p',{class:'micro muted'},t('community.taskSourcesHint')),h('label',{class:'product-field'},[h('span',t('agent02.paths')),area(paths.value,v=>paths.value=v,{rows:3,placeholder:'src/calc.go'})])]),
+ providerSelect(),h('details',{class:'preset-task-sources'},[h('summary',t('preset.taskSources')),h('p',{class:'micro muted'},t('preset.taskSourcesHint')),h('label',{class:'product-field'},[h('span',t('agent02.paths')),area(paths.value,v=>paths.value=v,{rows:3,placeholder:'src/calc.go'})])]),
  h('div',{class:'product-row'},[button('agent02.create',createModelRun,{class:'button primary',disabled:product.busy||!goal.value.trim()||!product.selectedWorkspace||model(ai.assistant)?.capabilities.text!=='SUPPORTED','data-testid':'agent02-create'}),action('createTask',create,!goal.value.trim()||!product.selectedWorkspace)]),
  ...product.data.agentTasks.map(task=>h('article',{class:'product-card','data-task-id':task.id},[
  h('div',{class:'split'},[h('button',{class:'text-button',onClick:()=>selected.value=task.id},task.goal),badge(task.status)]),h('p',{class:'micro'},date(task.updatedAt)),

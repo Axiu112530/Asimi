@@ -2,8 +2,8 @@
 package computer
 
 import (
+	"asimi/internal/screen"
 	"context"
-	"deskpilot/internal/screen"
 )
 
 type ActionType string

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
+	"asimi/internal/ai"
 )
 
 const (

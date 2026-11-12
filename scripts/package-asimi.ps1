@@ -5,7 +5,7 @@ $Portable = Join-Path $Output 'asimi-0.2.1'
 $Evidence = Join-Path $Repo 'docs/release/evidence'
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
-$Runtime = @('Asimi.exe','DeskPilotControlHost.exe','DeskPilotControlHost.exe.config','DeskPilotUIAWorker.exe','DeskPilotUIAWorker.exe.config')
+$Runtime = @('Asimi.exe','AsimiControlHost.exe','AsimiControlHost.exe.config','AsimiUIAWorker.exe','AsimiUIAWorker.exe.config')
 $Docs = @('INSTALLATION-GUIDE.md','USER-GUIDE.md','UPGRADE-GUIDE.md','KNOWN-LIMITATIONS.md','THIRD-PARTY-NOTICES.md')
 foreach ($Name in $Docs) {
     Copy-Item -LiteralPath (Join-Path $Repo "docs/release/$Name") -Destination (Join-Path $Portable $Name)

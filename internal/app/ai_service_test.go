@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/domain"
+	"asimi/internal/ai"
+	"asimi/internal/domain"
 )
 
 func aiFixture(t *testing.T, emit func(string, any)) *Service {
@@ -311,7 +311,7 @@ func TestAIRequestStartupUnknownAndV3MigrationRollback(t *testing.T) {
 		opened.Close()
 		t.Fatal("v3 migration conflict accepted")
 	}
-	db, e = sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, e = sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if e != nil {
 		t.Fatal(e)
 	}

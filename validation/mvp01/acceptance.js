@@ -29,7 +29,7 @@ async function fresh(){
  await until('source displayed',()=>document.querySelector('.product-tree')?.textContent.includes('sample.txt'));check('explorerRendered',true);
  const report=await timed('workspaceAnalysisMs',()=>call('AnalyzeWorkspace',{workspaceId,query:'original'}));
  check('boundedSearch',report.matches.some(m=>m.path==='sample.txt')&&!report.entries.some(e=>e.path.includes('node_modules')));
- const escaped=await rpc('ReadWorkspaceFile',{workspaceId,path:'../deskpilot.db'});check('workspaceEscapeDenied',!!escaped.error);
+ const escaped=await rpc('ReadWorkspaceFile',{workspaceId,path:'../asimi.db'});check('workspaceEscapeDenied',!!escaped.error);
  const file=await call('PrepareFileChange',{workspaceId,path:'sample.txt',content:'updated by approved fixture\n'});
  check('exactDiff',file.proposal.file.diff.includes('-original')&&file.proposal.file.diff.includes('+updated by approved fixture'));
  check('hashMismatchRejected',!!(await rpc('ApproveProductAction',{id:file.id,hash:'incorrect'})).error);

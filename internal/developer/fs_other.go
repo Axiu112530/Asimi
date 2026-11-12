@@ -4,7 +4,7 @@ package developer
 
 import "context"
 
-// DeskPilot's filesystem boundary relies on native Windows directory pins and
+// Asimi's filesystem boundary relies on native Windows directory pins and
 // NT object-manager reparse rejection. Other platforms fail closed rather than
 // substituting a pathname check with weaker race guarantees.
 type workspace struct{ path, identity string }

@@ -358,7 +358,7 @@ internal static class UIAWorker
         string title = ReadString(window, "title", 512);
         if (fixture)
         {
-            var sibling = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DeskPilotControlHost.exe");
+            var sibling = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AsimiControlHost.exe");
             Need(String.Equals(path.ToString(), sibling, StringComparison.OrdinalIgnoreCase) &&
                 ReadString(window, "imageHash", 64) == ControlHostBuild.Sha256 &&
                 !window.ContainsKey("packageFamily") && !window.ContainsKey("appUserModelId") &&

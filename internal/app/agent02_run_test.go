@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/configuration"
+	"asimi/internal/configuration"
 )
 
 func agent02TestRun(t *testing.T, handler http.HandlerFunc) (*Service, Workspace, AgentTask) {
@@ -198,7 +198,7 @@ func TestV6MigrationRollbackAndUpgrade(t *testing.T) {
 		db.Close()
 		t.Fatal("conflicting v6 migration was accepted")
 	}
-	db, err = sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, err = sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

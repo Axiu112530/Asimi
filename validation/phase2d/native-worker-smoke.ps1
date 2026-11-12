@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Bin)
 $ErrorActionPreference = 'Stop'
-$hostPath = Join-Path $Bin 'DeskPilotControlHost.exe'
-$workerPath = Join-Path $Bin 'DeskPilotUIAWorker.exe'
+$hostPath = Join-Path $Bin 'AsimiControlHost.exe'
+$workerPath = Join-Path $Bin 'AsimiUIAWorker.exe'
 if (!(Test-Path $hostPath) -or !(Test-Path $workerPath)) { throw 'Expected fixture host and UIA worker executables' }
 Add-Type -TypeDefinition @"
 using System;

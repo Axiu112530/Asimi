@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"deskpilot/internal/computer"
+	"asimi/internal/computer"
 )
 
 func addComputerEvidenceTask(t *testing.T, s *Service) AgentTask {

@@ -53,7 +53,7 @@ try {
     $candidate = Get-Content -LiteralPath $ready -Raw
     if ($candidate -notmatch '^http://127\.0\.0\.1:[1-9]\d{0,4}/v1$') { throw 'Fixture URL must use loopback' }
     $fixtureURL = $candidate
-    $binary = Join-Path $root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
+    $binary = Join-Path $root $(if ($SkipBuild) { 'build/bin/Asimi.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $results = @()
     $evidenceFiles = @()
     $shutdownMarkers = @('lifecycle.navigation_completed', 'lifecycle.shutdown_requested', 'lifecycle.storage_closed',
@@ -97,7 +97,7 @@ try {
                 throw "Stage $stage failed (exit $($child.ExitCode)): $($result.error)"
             }
             if ($stage -eq 7) { $screenResult = $result }
-            $dbPath = Join-Path $profile 'deskpilot.db'
+            $dbPath = Join-Path $profile 'asimi.db'
             $handle = [IO.File]::Open($dbPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
             $handle.Dispose()
             $runtime = [IO.File]::ReadAllBytes($runtimePath)
@@ -143,7 +143,7 @@ try {
     }
     if (!$ScreenOnly) {
         $workspace = Join-Path $dataRoot 'phase1-regression/workspace'
-        $FixtureBrand = if ($SkipBuild) { 'DeskPilot' } else { 'Asimi' }
+        $FixtureBrand = if ($SkipBuild) { 'Asimi' } else { 'Asimi' }
         $expectedText = "$FixtureBrand Phase 1" + [char]10 + 'Verified locally. ' + [char]0x4E2D + [char]0x6587
         $actualText = [IO.File]::ReadAllText((Join-Path $workspace 'phase1-created.txt'))
         if ($actualText -cne $expectedText) { throw 'Phase 1 independent file oracle mismatch' }

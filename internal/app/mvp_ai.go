@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 )
 
 type taskContextPreview struct {

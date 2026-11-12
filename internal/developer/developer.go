@@ -22,7 +22,7 @@ func randomName(suffix string) (string, error) {
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", Error("FILE_IO")
 	}
-	return ".deskpilot-" + hex.EncodeToString(b[:]) + suffix, nil
+	return ".asimi-" + hex.EncodeToString(b[:]) + suffix, nil
 }
 func validName(name string) bool {
 	if name == "" || name == "." || name == ".." || !utf8.ValidString(name) || strings.ContainsAny(name, `\/:<>"|?*`) || strings.HasSuffix(name, ".") || strings.HasSuffix(name, " ") || len(utf16.Encode([]rune(name))) > 255 {
@@ -68,7 +68,7 @@ func excluded(name string, exclusions []string) bool {
 		case "node_modules", ".git", "bin", "obj", "build", "dist", "target", "vendor", ".npmrc", ".pypirc", ".ssh", ".aws":
 			return true
 		}
-		if part == ".env" || strings.HasPrefix(part, ".env.") || strings.HasPrefix(part, ".deskpilot-") || strings.HasSuffix(part, ".pfx") || strings.HasSuffix(part, ".pem") || strings.HasSuffix(part, ".key") {
+		if part == ".env" || strings.HasPrefix(part, ".env.") || (strings.HasPrefix(part, ".asimi-") || strings.HasPrefix(part, ".deskpilot-")) || strings.HasSuffix(part, ".pfx") || strings.HasSuffix(part, ".pem") || strings.HasSuffix(part, ".key") {
 			return true
 		}
 	}
@@ -249,7 +249,7 @@ func Apply(ctx context.Context, root string, c Change) (ChangeResult, error) {
 	}
 	if c.Operation == "replace" {
 		recovery, e := relativePath(c.RecoveryPath)
-		if e != nil || path.Dir(recovery) != path.Dir(relative) || !strings.HasPrefix(path.Base(recovery), ".deskpilot-") || !strings.HasSuffix(recovery, ".recovery") || c.BeforeHash != hash(c.BeforeContent) || len(c.BeforeContent) > MaxFileBytes || c.BeforeIdentity == "" {
+		if e != nil || path.Dir(recovery) != path.Dir(relative) || !(strings.HasPrefix(path.Base(recovery), ".asimi-") || strings.HasPrefix(path.Base(recovery), ".deskpilot-")) || !strings.HasSuffix(recovery, ".recovery") || c.BeforeHash != hash(c.BeforeContent) || len(c.BeforeContent) > MaxFileBytes || c.BeforeIdentity == "" {
 			return result, Error("INVALID_CHANGE")
 		}
 	} else if c.BeforeContent != "" || c.BeforeHash != "" || c.BeforeIdentity != "" || c.RecoveryPath != "" {

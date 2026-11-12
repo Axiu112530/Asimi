@@ -2,7 +2,7 @@
 import {Call,Events} from '/wails/runtime.js';
 const stage=Number(new URLSearchParams(location.search).get('stage')||1);
 const checks={},details={};let eventCount=0;
-const off=Events.On('deskpilot:changed',()=>eventCount++);
+const off=Events.On('asimi:changed',()=>eventCount++);
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label,timeout=6000){const end=Date.now()+timeout;while(Date.now()<end){const v=await fn();if(v)return v;await sleep(40)}throw new Error('timeout: '+label)}
 function check(name,value){checks[name]=!!value;if(!value)throw new Error(name)}
@@ -107,5 +107,5 @@ async function run(){
   await click('nav-assistant');
   details.eventCount=eventCount;
 }
-try {await run();if(new URLSearchParams(location.search).has('visual')){globalThis.__deskpilotAcceptanceReady={stage,checks};await until(()=>globalThis.__deskpilotAcceptanceContinue,'visual review',25000)}off();await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:true,checks,details}));}
+try {await run();if(new URLSearchParams(location.search).has('visual')){globalThis.__asimiAcceptanceReady={stage,checks};await until(()=>globalThis.__asimiAcceptanceContinue,'visual review',25000)}off();await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:true,checks,details}));}
 catch(e){off();await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:false,error:String(e),checks,details}));}

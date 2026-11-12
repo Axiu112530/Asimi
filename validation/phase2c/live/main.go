@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
+	"asimi/internal/ai"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
@@ -71,7 +71,7 @@ func main() {
 		return
 	}
 	defer client.Close()
-	parts := []ai.Content{{Type: "text", Text: "Reply with exactly DESKPILOT_STREAM_23."}}
+	parts := []ai.Content{{Type: "text", Text: "Reply with exactly ASIMI_STREAM_23."}}
 	run := func(name string, limit int, parts []ai.Content, validate func(string) map[string]bool) {
 		var id [16]byte
 		rand.Read(id[:])
@@ -96,7 +96,7 @@ func main() {
 		_ = encoder.Encode(evidence{Test: name, Provider: profile.Name, Model: req.ModelID, MaxOutputTokens: limit, Status: status, HTTPStatus: resp.HTTPStatus, RequestID: req.RequestID, ProviderRequestID: resp.ProviderRequestID, DurationMS: resp.DurationMS, FirstTokenMS: resp.FirstTokenLatencyMS, Usage: resp.Usage, DeltaCount: count, Checks: checks, ErrorCode: resp.ErrorCode})
 	}
 	run("text", 128, parts, func(s string) map[string]bool {
-		return map[string]bool{"expectedText": strings.TrimSpace(s) == "DESKPILOT_STREAM_23"}
+		return map[string]bool{"expectedText": strings.TrimSpace(s) == "ASIMI_STREAM_23"}
 	})
 	data, err := syntheticImage()
 	if err != nil {
@@ -109,7 +109,7 @@ func main() {
 	}
 	run("image", 256, parts, func(s string) map[string]bool {
 		s = strings.ToLower(s)
-		return map[string]bool{"heading": strings.Contains(s, "deskpilot vision 47"), "redCircle": strings.Contains(s, "red") && strings.Contains(s, "circle"), "blueTriangle": strings.Contains(s, "blue") && strings.Contains(s, "triangle")}
+		return map[string]bool{"heading": strings.Contains(s, "asimi vision 47"), "redCircle": strings.Contains(s, "red") && strings.Contains(s, "circle"), "blueTriangle": strings.Contains(s, "blue") && strings.Contains(s, "triangle")}
 	})
 }
 
@@ -117,7 +117,7 @@ func syntheticImage() ([]byte, error) {
 	small := image.NewRGBA(image.Rect(0, 0, 144, 24))
 	draw.Draw(small, small.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 	d := font.Drawer{Dst: small, Src: image.NewUniform(color.Black), Face: basicfont.Face7x13, Dot: fixed.P(5, 17)}
-	d.DrawString("DESKPILOT VISION 47")
+	d.DrawString("ASIMI VISION 47")
 	im := image.NewRGBA(image.Rect(0, 0, 720, 400))
 	draw.Draw(im, im.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 	for y := 0; y < 120; y++ {

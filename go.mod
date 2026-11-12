@@ -1,4 +1,4 @@
-module deskpilot
+module asimi
 
 go 1.26.0
 

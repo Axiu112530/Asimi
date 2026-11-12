@@ -1,6 +1,6 @@
 # DeskPilot AI — Roadmap and Gates
 
-The Community 0.2.1 candidate and its outstanding distribution and manual acceptance gates are tracked in [Community release preparation](0.2.1/COMMUNITY-RELEASE.md). The phase matrix below records the earlier roadmap.
+The Community 0.2.1 candidate and its outstanding distribution and manual acceptance gates are tracked in [Community release preparation](0.2.1/RELEASE-PREPARATION.md). The phase matrix below records the earlier roadmap.
 
 Phase 1 and Phase 2A were explicitly authorized and are implemented. Their
 statuses are recorded below. Phase 2B and later require explicit approval after
@@ -104,4 +104,4 @@ MVP 0.1 在已验收范围内为 CONDITIONAL GO。真实 Provider、Notepad、�
 ## DeskPilot 0.2
 
 0.2 完成真实 DeepSeek 驱动的 Go 修复闭环和逐动作审批。下一轮优先验收真实桌面视觉与 Notepad，扩大项目和运行时兼容矩阵，并评估受限电脑动作规划和 TxF 的安全替代。
-[0.2 产品报告](0.2/PRODUCT-REPORT.md) · [Community 发布准备](0.2/COMMUNITY-RELEASE.md)
+[0.2 产品报告](0.2/PRODUCT-REPORT.md) · [Community 发布准备](0.2/RELEASE-PREPARATION.md)

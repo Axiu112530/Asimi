@@ -12,8 +12,8 @@ for (const locale of ['en-US','zh-CN']) {
   old[locale] = flat(JSON.parse(fs.readFileSync(new URL(`../../docs/mvp01-evidence/locale-baseline-${locale}.json`,import.meta.url),'utf8')));
   current[locale] = flat(JSON.parse(fs.readFileSync(new URL(`../../frontend/src/locales/${locale}.json`,import.meta.url),'utf8')));
   for (const [key,value] of Object.entries(old[locale])) {
-    const branded = value.replaceAll('DeskPilot AI','Asimi').replaceAll('DeskPilot','Asimi');
-    assert.ok(current[locale][key] === value || current[locale][key] === branded, locale+' '+key);
+    const branded = value.replaceAll('DeskPilot AI','Asimi').replaceAll('DeskPilot','Asimi').replaceAll('Community workflows','Shared workflows').replaceAll('社区工作流','共享工作流');
+    assert.ok(current[locale][key.replaceAll('community','preset')] === value || current[locale][key.replaceAll('community','preset')] === branded, locale+' '+key);
   }
 }
 const keys = Object.keys(current['en-US']).sort();

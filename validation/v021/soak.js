@@ -2,7 +2,7 @@ import { Call } from '/wails/runtime.js';
 
 const params = new URLSearchParams(location.search);
 const duration = Number(params.get('seconds')) * 1000;
-const providerId = 'community-loopback';
+const providerId = 'preset-loopback';
 const modelId = 'soak-fixture';
 const counts = { completedTurns: 0, cancelledTurns: 0, completedTasks: 0, pauseResumeCycles: 0 };
 const samples = [];
@@ -71,7 +71,7 @@ try {
   await until('desktop', () => document.querySelector('[data-testid="nav-home"]'));
   await call('SaveAIProfile', {
     profile: {
-      id: providerId, name: 'Community loopback fixture', baseUrl: params.get('fixture'), protocol: 'chat-completions', enabled: true,
+      id: providerId, name: 'Preset loopback fixture', baseUrl: params.get('fixture'), protocol: 'chat-completions', enabled: true,
       models: [{
         id: modelId, displayName: modelId,
         capabilities: { text: 'SUPPORTED', streaming: 'SUPPORTED', structuredOutput: 'SUPPORTED', vision: 'UNSUPPORTED', contextLimit: 65536 },

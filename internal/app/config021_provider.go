@@ -9,39 +9,39 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/credential"
-	"deskpilot/internal/domain"
+	"asimi/internal/ai"
+	"asimi/internal/credential"
+	"asimi/internal/domain"
 )
 
 const (
-	communityDeepSeekID    = "deepseek"
-	communityDeepSeekModel = "deepseek-flash"
-	communityDeepSeekURL   = "https://api.deepseek.com"
-	communityTestTimeout   = 25 * time.Second
+	presetDeepSeekID    = "deepseek"
+	presetDeepSeekModel = "deepseek-flash"
+	presetDeepSeekURL   = "https://api.deepseek.com"
+	presetTestTimeout   = 25 * time.Second
 )
 
-type communityPreset struct {
+type presetPreset struct {
 	ID      string     `json:"id"`
 	Profile ai.Profile `json:"profile"`
 }
 
-type communityProviderState struct {
-	Preset              communityPreset `json:"preset"`
-	ConfiguredModel     *ai.Model       `json:"configuredModel,omitempty"`
-	HasCredential       bool            `json:"hasCredential"`
-	VerifiedAt          string          `json:"verifiedAt,omitempty"`
-	DefaultProviderID   string          `json:"defaultProviderId"`
-	DefaultProviderName string          `json:"defaultProviderName"`
-	DefaultModelID      string          `json:"defaultModelId"`
-	DefaultUsable       bool            `json:"defaultUsable"`
+type presetProviderState struct {
+	Preset              presetPreset `json:"preset"`
+	ConfiguredModel     *ai.Model    `json:"configuredModel,omitempty"`
+	HasCredential       bool         `json:"hasCredential"`
+	VerifiedAt          string       `json:"verifiedAt,omitempty"`
+	DefaultProviderID   string       `json:"defaultProviderId"`
+	DefaultProviderName string       `json:"defaultProviderName"`
+	DefaultModelID      string       `json:"defaultModelId"`
+	DefaultUsable       bool         `json:"defaultUsable"`
 }
 
-func communityDeepSeek() communityPreset {
+func presetDeepSeek() presetPreset {
 	contextLimit := int64(1048576)
 	cached := 0.006
 	model := ai.Model{
-		ID: communityDeepSeekModel, DisplayName: communityDeepSeekModel,
+		ID: presetDeepSeekModel, DisplayName: presetDeepSeekModel,
 		Capabilities: ai.Capabilities{
 			Text: ai.Supported, Vision: ai.Supported, Streaming: ai.Supported,
 			ToolCalling: ai.Unsupported, StructuredOutput: ai.Supported, ComputerUse: ai.Unsupported,
@@ -54,24 +54,24 @@ func communityDeepSeek() communityPreset {
 			Currency: "USD", EffectiveAt: "2026-11-11",
 		},
 	}
-	return communityPreset{
-		ID: communityDeepSeekID,
+	return presetPreset{
+		ID: presetDeepSeekID,
 		Profile: ai.Profile{
-			Name: "DeepSeek", Protocol: ai.ChatCompletions, BaseURL: communityDeepSeekURL,
+			Name: "DeepSeek", Protocol: ai.ChatCompletions, BaseURL: presetDeepSeekURL,
 			Enabled: true, Models: []ai.Model{model},
 		},
 	}
 }
 
-type communityProviderSnapshot struct {
-	state    communityProviderState
+type presetProviderSnapshot struct {
+	state    presetProviderState
 	profile  ai.Profile
 	revision string
 }
 
-func (s *Service) communityProviderLocked() (communityProviderSnapshot, error) {
-	preset := communityDeepSeek()
-	out := communityProviderSnapshot{state: communityProviderState{Preset: preset}}
+func (s *Service) presetProviderLocked() (presetProviderSnapshot, error) {
+	preset := presetDeepSeek()
+	out := presetProviderSnapshot{state: presetProviderState{Preset: preset}}
 	settings, err := s.aiSettingsLocked()
 	if err != nil {
 		return out, err
@@ -94,11 +94,11 @@ func (s *Service) communityProviderLocked() (communityProviderSnapshot, error) {
 				}
 			}
 		}
-		if !p.Enabled || !matchesCommunityEndpoint(p, preset.Profile) {
+		if !p.Enabled || !matchesPresetEndpoint(p, preset.Profile) {
 			continue
 		}
 		for _, model := range p.Models {
-			if model.ID == communityDeepSeekModel && model.Capabilities.Text == ai.Supported &&
+			if model.ID == presetDeepSeekModel && model.Capabilities.Text == ai.Supported &&
 				(out.profile.ID == "" || p.ID == settings.DefaultProviderID ||
 					out.profile.ID != settings.DefaultProviderID && !out.profile.HasCredential && p.HasCredential) {
 				out.profile = p
@@ -117,18 +117,22 @@ func (s *Service) communityProviderLocked() (communityProviderSnapshot, error) {
 		return out, err
 	}
 	var metadata struct {
-		VerifiedAt string `json:"communityVerifiedAt"`
+		VerifiedAt       string `json:"presetVerifiedAt"`
+		LegacyVerifiedAt string `json:"communityVerifiedAt"`
 	}
 	if err := json.Unmarshal([]byte(raw), &metadata); err != nil {
 		return out, err
 	}
 	if out.profile.HasCredential {
 		out.state.VerifiedAt = metadata.VerifiedAt
+		if out.state.VerifiedAt == "" {
+			out.state.VerifiedAt = metadata.LegacyVerifiedAt
+		}
 	}
 	return out, nil
 }
 
-func matchesCommunityEndpoint(profile, preset ai.Profile) bool {
+func matchesPresetEndpoint(profile, preset ai.Profile) bool {
 	if profile.Protocol != preset.Protocol {
 		return false
 	}
@@ -141,11 +145,11 @@ func matchesCommunityEndpoint(profile, preset ai.Profile) bool {
 }
 
 func isOfficialDeepSeek(profile ai.Profile) bool {
-	return profile.BaseURL == communityDeepSeekURL || strings.HasPrefix(profile.BaseURL, communityDeepSeekURL+"/")
+	return profile.BaseURL == presetDeepSeekURL || strings.HasPrefix(profile.BaseURL, presetDeepSeekURL+"/")
 }
 
-func (s *Service) callCommunityProvider(method, payload string) domain.Reply {
-	if method == "GetCommunityProvider" {
+func (s *Service) callPresetProvider(method, payload string) domain.Reply {
+	if method == "GetPresetProvider" {
 		if err := decode(payload, &struct{}{}); err != nil {
 			return result(nil, err)
 		}
@@ -154,7 +158,7 @@ func (s *Service) callCommunityProvider(method, payload string) domain.Reply {
 		if s.lifetime.Err() != nil {
 			return fail("SERVICE_CLOSED")
 		}
-		snapshot, err := s.communityProviderLocked()
+		snapshot, err := s.presetProviderLocked()
 		return result(snapshot.state, err)
 	}
 	var request struct {
@@ -164,31 +168,31 @@ func (s *Service) callCommunityProvider(method, payload string) domain.Reply {
 	if err := decode(payload, &request); err != nil {
 		return result(nil, err)
 	}
-	if request.PresetID != communityDeepSeekID {
+	if request.PresetID != presetDeepSeekID {
 		return fail("PROVIDER_UNAVAILABLE")
 	}
 	key := []byte(request.Secret)
 	request.Secret = ""
 	defer credential.Wipe(key)
-	state, err := s.connectCommunityProvider(key, probeCommunityProvider)
+	state, err := s.connectPresetProvider(key, probePresetProvider)
 	return result(state, err)
 }
 
-// ConnectCommunityAcceptance runs the production preset flow for native acceptance.
+// ConnectPresetAcceptance runs the production preset flow for native acceptance.
 // The acceptance runner owns profile isolation and wipes its input.
-func (s *Service) ConnectCommunityAcceptance(key []byte) error {
+func (s *Service) ConnectPresetAcceptance(key []byte) error {
 	if !s.beginCall() {
 		return codedError("SERVICE_CLOSED")
 	}
 	defer s.wg.Done()
-	_, err := s.connectCommunityProvider(key, probeCommunityProvider)
+	_, err := s.connectPresetProvider(key, probePresetProvider)
 	return err
 }
 
-type communityProbe func(context.Context, ai.Profile, []byte) error
+type presetProbe func(context.Context, ai.Profile, []byte) error
 
-func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (communityProviderState, error) {
-	var empty communityProviderState
+func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetProviderState, error) {
+	var empty presetProviderState
 	if len(key) > 8192 {
 		return empty, codedError("INVALID_API_KEY")
 	}
@@ -198,7 +202,7 @@ func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (co
 		}
 	}
 	replacingKey := len(key) > 0
-	snapshot, storedKey, err := s.communityProviderAttempt(replacingKey)
+	snapshot, storedKey, err := s.presetProviderAttempt(replacingKey)
 	if err != nil {
 		return empty, err
 	}
@@ -212,7 +216,7 @@ func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (co
 		profile.ID = newID()
 	}
 
-	ctx, cancel := context.WithTimeout(s.lifetime, communityTestTimeout)
+	ctx, cancel := context.WithTimeout(s.lifetime, presetTestTimeout)
 	defer cancel()
 	if err := probe(ctx, profile, key); err != nil {
 		return empty, err
@@ -223,14 +227,14 @@ func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (co
 	if s.lifetime.Err() != nil {
 		return empty, codedError("SERVICE_CLOSED")
 	}
-	current, err := s.communityProviderLocked()
+	current, err := s.presetProviderLocked()
 	if err != nil {
 		return empty, err
 	}
 	if current.profile.ID != snapshot.profile.ID || current.revision != snapshot.revision ||
 		current.state.DefaultProviderID != snapshot.state.DefaultProviderID ||
 		current.state.DefaultModelID != snapshot.state.DefaultModelID {
-		return empty, codedError("COMMUNITY_PROVIDER_CHANGED")
+		return empty, codedError("PRESET_PROVIDER_CHANGED")
 	}
 	if s.providerActiveLocked(profile.ID) {
 		return empty, codedError("REQUEST_ACTIVE")
@@ -238,14 +242,14 @@ func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (co
 
 	stamp := now()
 	err = s.transaction(func(tx *sql.Tx) error {
-		if err := persistCommunityProfile(tx, profile, current.profile.ID == "", key, replacingKey, stamp); err != nil {
+		if err := persistPresetProfile(tx, profile, current.profile.ID == "", key, replacingKey, stamp); err != nil {
 			return err
 		}
-		if err := setResolvedDefaultModelLocked(tx, profile.ID, communityDeepSeekModel); err != nil {
+		if err := setResolvedDefaultModelLocked(tx, profile.ID, presetDeepSeekModel); err != nil {
 			return err
 		}
-		return audit(tx, "", "COMMUNITY_PROVIDER_CONNECTED", map[string]string{
-			"providerId": profile.ID, "modelId": communityDeepSeekModel,
+		return audit(tx, "", "PRESET_PROVIDER_CONNECTED", map[string]string{
+			"providerId": profile.ID, "modelId": presetDeepSeekModel,
 		})
 	})
 	if err != nil {
@@ -256,17 +260,17 @@ func (s *Service) connectCommunityProvider(key []byte, probe communityProbe) (co
 		out.ConfiguredModel = &profile.Models[0]
 	}
 	out.HasCredential, out.DefaultUsable, out.VerifiedAt = true, true, stamp
-	out.DefaultProviderID, out.DefaultProviderName, out.DefaultModelID = profile.ID, profile.Name, communityDeepSeekModel
+	out.DefaultProviderID, out.DefaultProviderName, out.DefaultModelID = profile.ID, profile.Name, presetDeepSeekModel
 	return out, nil
 }
 
-func (s *Service) communityProviderAttempt(replacingKey bool) (communityProviderSnapshot, []byte, error) {
+func (s *Service) presetProviderAttempt(replacingKey bool) (presetProviderSnapshot, []byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.lifetime.Err() != nil {
-		return communityProviderSnapshot{}, nil, codedError("SERVICE_CLOSED")
+		return presetProviderSnapshot{}, nil, codedError("SERVICE_CLOSED")
 	}
-	snapshot, err := s.communityProviderLocked()
+	snapshot, err := s.presetProviderLocked()
 	if err != nil {
 		return snapshot, nil, err
 	}
@@ -286,7 +290,7 @@ func (s *Service) communityProviderAttempt(replacingKey bool) (communityProvider
 	return snapshot, key, err
 }
 
-func persistCommunityProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []byte, replacingKey bool, stamp string) error {
+func persistPresetProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []byte, replacingKey bool, stamp string) error {
 	if creating {
 		models := profile.Models
 		profile.Models = nil
@@ -310,24 +314,24 @@ func persistCommunityProfile(tx *sql.Tx, profile ai.Profile, creating bool, key 
 			return err
 		}
 	}
-	_, err := tx.Exec("UPDATE ai_profiles SET json=json_set(json,'$.credentialId',?,'$.communityVerifiedAt',?),updated_at=? WHERE id=?",
+	_, err := tx.Exec("UPDATE ai_profiles SET json=json_set(json,'$.credentialId',?,'$.presetVerifiedAt',?),updated_at=? WHERE id=?",
 		profile.CredentialID, stamp, stamp, profile.ID)
 	return err
 }
 
-func probeCommunityProvider(ctx context.Context, profile ai.Profile, key []byte) error {
+func probePresetProvider(ctx context.Context, profile ai.Profile, key []byte) error {
 	client, err := ai.NewClient(profile)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 	request := ai.Request{
-		RequestID: newID(), ProviderID: profile.ID, ModelID: communityDeepSeekModel, MaxOutputTokens: 128,
+		RequestID: newID(), ProviderID: profile.ID, ModelID: presetDeepSeekModel, MaxOutputTokens: 128,
 		Messages: []ai.Message{{Role: "user", Content: []ai.Content{{Type: "text", Text: "Reply with OK to test this connection."}}}},
 	}
 	response, err := client.TestConnection(ctx, request, key)
 	if response.HTTPStatus == http.StatusPaymentRequired {
-		return codedError("COMMUNITY_PROVIDER_BALANCE")
+		return codedError("PRESET_PROVIDER_BALANCE")
 	}
 	if err != nil {
 		return err

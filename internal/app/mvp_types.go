@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"deskpilot/internal/command"
-	"deskpilot/internal/developer"
+	"asimi/internal/command"
+	"asimi/internal/developer"
 )
 
 type Workspace struct {

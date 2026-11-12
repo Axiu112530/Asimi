@@ -11,7 +11,7 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  let id=0;const pending=new Map();socket.onmessage=e=>{const v=JSON.parse(e.data);const p=pending.get(v.id);if(p){pending.delete(v.id);v.error?p.reject(v.error):p.resolve(v.result)}};
  const send=(method,params={})=>new Promise((resolve,reject)=>{const key=++id;pending.set(key,{resolve,reject});socket.send(JSON.stringify({id:key,method,params}))});
  const evaluate=async expression=>(await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true})).result?.value;
- let ready;for(let attempt=0;attempt<180;attempt++){ready=await evaluate('globalThis.__deskpilotAcceptanceReady');if(ready)break;await pause(150)}
+ let ready;for(let attempt=0;attempt<180;attempt++){ready=await evaluate('globalThis.__asimiAcceptanceReady');if(ready)break;await pause(150)}
  if(!ready)throw new Error('Acceptance did not reach visual review');
  await fs.mkdir(output,{recursive:true});
  const metrics=[];
@@ -31,7 +31,7 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  metrics.push({label:'darkTheme',applied:dark});
  await send('Emulation.clearDeviceMetricsOverride');
  await fs.writeFile(path.join(output,`visual-stage${ready.stage}.json`),JSON.stringify(metrics,null,2));
- await evaluate('globalThis.__deskpilotAcceptanceContinue=true');socket.close();
+ await evaluate('globalThis.__asimiAcceptanceContinue=true');socket.close();
  console.log(JSON.stringify(metrics));
  if(metrics.some(x=>x.noHorizontalOverflow===false))process.exitCode=1;
 })().catch(e=>{console.error(e);process.exitCode=1});

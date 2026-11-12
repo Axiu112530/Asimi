@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/configuration"
+	"asimi/internal/ai"
+	"asimi/internal/configuration"
 	_ "golang.org/x/image/webp"
 )
 

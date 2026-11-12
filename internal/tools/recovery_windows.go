@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 	"golang.org/x/sys/windows"
 )
 
@@ -53,7 +53,10 @@ func setVerificationCode(v *domain.Verification, err error) {
 }
 
 func validWitness(witness domain.FileWitness) bool {
-	name, prefix := strings.CutPrefix(witness.TempName, ".deskpilot-")
+	name, prefix := strings.CutPrefix(witness.TempName, ".asimi-")
+	if !prefix {
+		name, prefix = strings.CutPrefix(witness.TempName, ".deskpilot-")
+	}
 	name, suffix := strings.CutSuffix(name, ".tmp")
 	if !prefix || !suffix || len(name) != 32 || name != strings.ToLower(name) {
 		return false

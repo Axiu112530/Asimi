@@ -4,7 +4,7 @@ $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . "$Repo/validation/phase0/env.ps1"
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
-$ExeName = if ($AsimiEvidence) { 'Asimi.exe' } else { 'DeskPilotAI.exe' }
+$ExeName = 'Asimi.exe'
 $Binary = Join-Path $Repo "$Bin/$ExeName"
 $RunID = [Guid]::NewGuid().ToString('N')
 $RunRoot = if ($AsimiEvidence) { '.local-validation/asimi' } else { '.local-validation/mvp01' }
@@ -65,7 +65,7 @@ try {
                 $Cursor = $RuntimeText.IndexOf(('"msg":"{0}"' -f $Marker),$Cursor+1,[StringComparison]::Ordinal)
                 if ($Cursor -lt 0) { throw "Stage $Stage lifecycle marker missing or out of order: $Marker" }
             }
-            $Db = [IO.File]::Open((Join-Path $Profile 'deskpilot.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+            $Db = [IO.File]::Open((Join-Path $Profile 'asimi.db'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
             $Db.Dispose()
             [IO.File]::WriteAllText((Join-Path $Evidence "stage-$Stage.runtime.log"),$RuntimeText)
             $Diagnostics1412 = [regex]::Matches($RuntimeText+(Get-Content -Raw -LiteralPath $Stderr),'Chrome_WidgetWin_0[^\r\n]*1412').Count

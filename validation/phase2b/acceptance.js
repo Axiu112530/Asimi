@@ -49,7 +49,7 @@ try {
   check('noRealTools',(await call('GetToolExecutions')).length===0);
   const settings=await call('GetSettings');await call('UpdateSettings',{...settings,appLanguage:'zh-CN'});await until(()=>document.documentElement.lang==='zh-CN');check('chineseSwitch',true);
  }
- if(params.has('visual')){globalThis.__deskpilotAcceptanceReady={stage};await until(()=>globalThis.__deskpilotAcceptanceContinue);}
+ if(params.has('visual')){globalThis.__asimiAcceptanceReady={stage};await until(()=>globalThis.__asimiAcceptanceContinue);}
 } catch(e){error=String(e);}
 for(const off of unsub)off();
 await Call.ByName('main.AcceptanceService.Report',JSON.stringify({stage,passed:!error,checks,error,eventCount:events.length}));

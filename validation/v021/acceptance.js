@@ -42,45 +42,45 @@ function checkBrand(surface, text) {
 }
 
 function checkWelcomeBrand(language) {
-  const heading = byId('community-onboarding').querySelector('h1');
+  const heading = byId('preset-onboarding').querySelector('h1');
   checkBrand(`welcomeBrand${language}`, heading?.textContent);
   checkBrand(`sidebarBrand${language}`, document.querySelector('.brand strong')?.textContent);
   checkBrand(`webViewTitle${language}`, document.title);
 }
 
 async function setup(live) {
-  await until('first run', () => byId('community-onboarding'));
-  check('accessibleWizard', byId('community-onboarding').getAttribute('aria-modal') === 'true');
+  await until('first run', () => byId('preset-onboarding'));
+  check('accessibleWizard', byId('preset-onboarding').getAttribute('aria-modal') === 'true');
   if (asimi) {
     check('englishByDefault', document.documentElement.lang === 'en-US');
     checkWelcomeBrand('EN');
   }
   if (!live) {
-    input('community-language', 'zh-CN', 'change');
+    input('preset-language', 'zh-CN', 'change');
     await until('onboarding locale', () => document.documentElement.lang === 'zh-CN');
     check('switchedInterfaceLanguage', true);
     if (asimi) checkWelcomeBrand('ZH');
   }
-  await click('community-continue');
-  const provider = await until('provider', () => byId('community-provider'));
+  await click('preset-continue');
+  const provider = await until('provider', () => byId('preset-provider'));
   check('onlyVerifiedPresetOffered', provider.options.length === 1 && provider.value === 'deepseek');
-  check('passwordField', byId('community-api-key').type === 'password' && byId('community-connect').disabled);
+  check('passwordField', byId('preset-api-key').type === 'password' && byId('preset-connect').disabled);
   if (live) {
-    input('community-api-key', 'community-native-acceptance-placeholder');
-    await click('community-connect');
-    await until('verified or error', () => byId('community-connected') || byId('community-connection-error'), 30);
-    check('actualConnectionVerified', !!byId('community-connected'));
-    check('keyInputCleared', !byId('community-api-key').value);
+    input('preset-api-key', 'preset-native-acceptance-placeholder');
+    await click('preset-connect');
+    await until('verified or error', () => byId('preset-connected') || byId('preset-connection-error'), 30);
+    check('actualConnectionVerified', !!byId('preset-connected'));
+    check('keyInputCleared', !byId('preset-api-key').value);
     check('presetSource', (await call('GetConfiguration')).sources['provider.selection'] === 'PRESET');
-    await click('community-next-ready');
+    await click('preset-next-ready');
   } else {
     check('offlineHasNoUsage', !(await call('GetUsage'))?.length);
-    await click('community-skip-ai');
+    await click('preset-skip-ai');
   }
-  await click('community-pick-project');
-  await until('selected project', () => byId('community-selected-project'));
-  await click('community-finish');
-  await until('developer page', () => byId('product-developer') && !byId('community-onboarding'));
+  await click('preset-pick-project');
+  await until('selected project', () => byId('preset-selected-project'));
+  await click('preset-finish');
+  await until('developer page', () => byId('product-developer') && !byId('preset-onboarding'));
   const state = await call('GetMVPState');
   const workspace = state.workspaces[0];
   check('onboardingAndWorkspacePersisted', state.onboarding.completed && state.workspaces.length === 1 && workspace.trustStatus === 'USER_SELECTED');
@@ -89,17 +89,17 @@ async function setup(live) {
   check('gitStatusAbsentIsExplicit', inspection.git.status === 'NOT_REPOSITORY');
   if (!live) {
     await click('nav-settings');
-    const advanced = await until('advanced settings', () => byId('community-advanced'));
+    const advanced = await until('advanced settings', () => byId('preset-advanced'));
     if (asimi) {
       checkBrand('settingsAboutBrand', document.querySelector('.about-brand h2')?.textContent);
       checkBrand('settingsDescriptionBrand', document.querySelector('.about-brand p')?.textContent);
     }
     check('advancedCollapsed', !advanced.open);
     advanced.querySelector('summary').click();
-    await until('limit form', () => byId('community-limit-requests'));
-    input('community-limit-requests', '3');
-    input('community-limit-attachments', '2');
-    await click('community-save-limits');
+    await until('limit form', () => byId('preset-limit-requests'));
+    input('preset-limit-requests', '3');
+    input('preset-limit-attachments', '2');
+    await click('preset-save-limits');
     await until('saved override', async () => (await call('GetConfiguration')).agent.requests === 3);
     check('userOverrideHasProvenance', (await call('GetConfiguration')).sources['agent.requests'] === 'USER_DEFINED');
     check('mediaOverrideHasProvenance', (await call('GetConfiguration')).sources['media.attachments'] === 'USER_DEFINED');
@@ -111,16 +111,16 @@ async function setup(live) {
 async function restart(live) {
   await until('home', () => byId('product-home'));
   const state = await call('GetMVPState');
-  check('doesNotRepeatWizard', state.onboarding.completed && !byId('community-onboarding'));
+  check('doesNotRepeatWizard', state.onboarding.completed && !byId('preset-onboarding'));
   if (asimi) checkBrand('homeBrandAfterRestart', byId('product-home').textContent);
   check('workspaceSurvivesRestart', state.workspaces.length === 1);
   const settings = await call('GetSettings');
   check('languageSurvivesRestart', settings.appLanguage === (live ? 'en-US' : 'zh-CN'));
   if (live) {
     await click('nav-models');
-    const current = await until('current provider', () => byId('community-default-model'));
-    check('defaultShownAfterRestart', current.textContent.includes('deepseek-flash') && !!byId('community-connected'));
-    const provider = await call('GetCommunityProvider');
+    const current = await until('current provider', () => byId('preset-default-model'));
+    check('defaultShownAfterRestart', current.textContent.includes('deepseek-flash') && !!byId('preset-connected'));
+    const provider = await call('GetPresetProvider');
     check('credentialAndVerificationRestored', provider.hasCredential && provider.defaultUsable && !!provider.verifiedAt);
   } else {
     const config = await call('GetConfiguration');
@@ -164,8 +164,8 @@ async function upgrade() {
     check('oldTaskAndRoundHistoryPreserved', state.agentTasks.some(task => task.status === 'COMPLETED' && task.agent?.rounds.length >= 3));
     check('oldFileAndCommandApprovalsPreserved', ['file', 'command'].every(kind => state.actions.some(action => action.kind === kind && action.status === 'SUCCEEDED')));
     if (fixture === 'asimi-agent') {
-      const provider = await call('GetCommunityProvider');
-      check('communityCredentialAndModelPreserved', provider.hasCredential && provider.defaultUsable && !!provider.verifiedAt && provider.defaultModelId === 'deepseek-flash');
+      const provider = await call('GetPresetProvider');
+      check('presetCredentialAndModelPreserved', provider.hasCredential && provider.defaultUsable && !!provider.verifiedAt && provider.defaultModelId === 'deepseek-flash');
     }
   }
 }

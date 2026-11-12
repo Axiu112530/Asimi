@@ -50,7 +50,7 @@ func TestCommitFailureDoesNotPoisonConnection(t *testing.T) {
 
 func openV1(t *testing.T, dir string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, err := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,9 +62,9 @@ func openV1(t *testing.T, dir string) *sql.DB {
 }
 
 func TestV2MigrationFailureAndInterruptedDDL(t *testing.T) {
-	const fixtureKey = "DESKPILOT_MIGRATION_FIXTURE"
+	const fixtureKey = "ASIMI_MIGRATION_FIXTURE"
 	if dir := os.Getenv(fixtureKey); dir != "" {
-		db, err := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+		db, err := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -96,7 +96,7 @@ func TestV2MigrationFailureAndInterruptedDDL(t *testing.T) {
 			t.Fatalf("schema version = %d, want %d: %v", version, want, err)
 		}
 	}
-	db, err := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, err := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestV2MigrationFailureAndInterruptedDDL(t *testing.T) {
 	db.Close()
 
 	runInterruptedFixture(t, "^TestV2MigrationFailureAndInterruptedDDL$", fixtureKey+"="+dir)
-	db, err = sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	db, err = sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestSQLiteFaultClassification(t *testing.T) {
 	if _, err := db.Exec("CREATE TABLE fault_payload(value BLOB); PRAGMA busy_timeout=25"); err != nil {
 		t.Fatal(err)
 	}
-	writer, err := sql.Open("sqlite", filepath.Join(dir, "deskpilot.db"))
+	writer, err := sql.Open("sqlite", filepath.Join(dir, "asimi.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestSQLiteFaultClassification(t *testing.T) {
 func TestDamagedDatabaseIsPreserved(t *testing.T) {
 	for _, bytes := range [][]byte{nil, []byte("SQLite format 3\x00"), make([]byte, 256)} {
 		dir := t.TempDir()
-		path := filepath.Join(dir, "deskpilot.db")
+		path := filepath.Join(dir, "asimi.db")
 		if err := os.WriteFile(path, bytes, 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -232,7 +232,7 @@ func TestDamagedDatabaseIsPreserved(t *testing.T) {
 
 func TestReadOnlyDatabaseFileRejectsWrites(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "deskpilot.db")
+	path := filepath.Join(dir, "asimi.db")
 	db, err := openStore(dir)
 	if err != nil {
 		t.Fatal(err)

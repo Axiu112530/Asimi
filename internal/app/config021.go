@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/configuration"
-	"deskpilot/internal/domain"
+	"asimi/internal/ai"
+	"asimi/internal/configuration"
+	"asimi/internal/domain"
 )
 
 func (s *Service) configurationPreferences() (configuration.Preferences, error) {
@@ -100,13 +100,13 @@ func (s *Service) callConfig021(method, payload string) (domain.Reply, bool) {
 			}
 			if v.Selection.DefaultProviderID != "" {
 				var verifiedAt sql.NullString
-				if err := s.db.QueryRow("SELECT json_extract(json,'$.communityVerifiedAt') FROM ai_profiles WHERE id=? AND deleted=0",
-					v.Selection.DefaultProviderID).Scan(&verifiedAt); err == nil && verifiedAt.Valid && verifiedAt.String != "" && v.Selection.DefaultModelID == communityDeepSeekModel {
+				if err := s.db.QueryRow("SELECT COALESCE(json_extract(json,'$.presetVerifiedAt'),json_extract(json,'$.communityVerifiedAt')) FROM ai_profiles WHERE id=? AND deleted=0",
+					v.Selection.DefaultProviderID).Scan(&verifiedAt); err == nil && verifiedAt.Valid && verifiedAt.String != "" && v.Selection.DefaultModelID == presetDeepSeekModel {
 					v.Sources["provider.selection"] = configuration.Preset
 					profile, readErr := s.aiProfileLocked(v.Selection.DefaultProviderID)
 					if readErr == nil {
 						for _, model := range profile.Models {
-							if model.ID == v.Selection.DefaultModelID && encode(model.Capabilities) == encode(communityDeepSeek().Profile.Models[0].Capabilities) {
+							if model.ID == v.Selection.DefaultModelID && encode(model.Capabilities) == encode(presetDeepSeek().Profile.Models[0].Capabilities) {
 								v.Sources["model.capabilities"] = configuration.Preset
 							}
 						}

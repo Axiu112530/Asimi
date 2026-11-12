@@ -1,44 +1,48 @@
-# Asimi 隐私说明
+# Asimi privacy notice
 
-Asimi 默认将配置与运行记录保存在本机。配置外部 AI 服务后，模型请求会通过你选择的服务地址发送。请在发送前核对预览内容，并查看该服务的数据处理规则。
+[English](PRIVACY.md) · [简体中文](PRIVACY.zh-CN.md)
 
-## 本地保存的数据
+Asimi stores configuration and activity records locally by default. Configuring an external AI service enables requests to your selected service address. Review the outgoing content and the provider's data policies before sending it.
 
-| 内容 | 保存方式与用途 |
+## Local storage
+
+| Content | Storage and purpose |
 | --- | --- |
-| 语言、主题、供应商和模型配置 | 保存到本地配置及数据库，用于恢复使用状态 |
-| 会话和消息历史 | 保存到本地应用数据目录，用于继续对话 |
-| 工作区记录、任务、审批、执行、验证和审计记录 | 保存到本地数据库，用于展示进度及恢复 |
-| 导入附件与运行日志 | 保存到本地应用数据目录，可能含用户内容或诊断信息 |
-| API Key | 使用当前 Windows 账户的 DPAPI 保护保存的密钥 |
+| Language, theme, provider and model settings | Local configuration and database state |
+| Conversations and messages | Local history for continuing conversations |
+| Workspaces, tasks, approvals, execution, verification and audit records | Local records for progress and recovery |
+| Imported attachments and runtime logs | Local files that may contain user content or diagnostics |
+| Saved API keys | Protected with the current Windows account's DPAPI |
 
-默认数据目录为 %LOCALAPPDATA%\DeskPilotAI。可在「设置 → 关于」查看实际位置，或通过 --data-dir 指定独立配置目录。默认路径沿用早期版本，以兼容已有设置和记录。
+The default profile is `%LOCALAPPDATA%\Asimi`. The database is `asimi.db`, and the process lock is `asimi.lock`. Check **Settings → About** for the actual location, or use `--data-dir` for a separate profile.
 
-DPAPI 保护的是保存的凭据。会话、附件、日志等内容可能以可读形式保存在本机，其他具有相应文件访问权限的进程或账户可能访问它们。
+DPAPI protects saved credentials. Conversations, attachments and logs can contain readable data accessible to processes or accounts with the corresponding filesystem permissions.
 
-## 何时发送数据
+## Network transmission
 
-| 操作 | 发送内容与目标 |
+| Operation | Content and destination |
 | --- | --- |
-| 供应商连接测试 | 一条短提示词，发送给所配置供应商，可能消耗 API 额度 |
-| 真实 AI 对话 | 当前提示词、相关历史和所选附件，发送给会话选择的模型服务 |
-| Agent 任务 | 预览中选定的项目源文件、目标描述和相关测试输出，在用户确认后发送 |
-| 截图分析 | 所选屏幕或区域的截图，在预览、遮挡与单独确认后发送给支持图像的服务 |
+| Provider connection test | A short prompt sent to the configured provider, potentially consuming service credit |
+| Real AI conversation | The prompt, relevant history and selected attachments sent to the selected model service |
+| Agent task | Previewed project source, goals and relevant test output sent after confirmation |
+| Screenshot analysis | The selected display or region sent after preview, redaction and separate confirmation |
 
-离线体验使用本地功能。开启真实模型请求后，网络流量会发送到对应配置的服务。连接自定义服务地址前，请确认地址和服务运营者可信。
+Offline exercises use local features. Real model requests contact the configured service. Verify the service operator and address when using a custom endpoint.
 
-## 第三方服务
+## Third-party services
 
-供应商决定其服务的计费、模型能力、数据保留与处理规则。API Key 由用户自行申请和管理，API 使用费用由对应账户承担。使用自定义网关时，数据也会经过该网关。
+Providers govern their pricing, capabilities, retention and data handling. Users manage their own API keys and service charges. Requests to a custom gateway also pass through that gateway.
 
-应用依赖系统安装的 WebView2 与 Windows 运行时。相关组件与供应商的条款见第三方声明。[第三方声明](docs/release/THIRD-PARTY-NOTICES.md)
+Asimi depends on installed WebView2 and Windows runtimes. Applicable components and notices are documented with the release. [Third-party notices](docs/release/THIRD-PARTY-NOTICES.md)
 
-## 备份、迁移与清理
+## Backups, upgrades and deletion
 
-关闭所有使用该配置目录的 Asimi 实例，再完整备份数据目录。跨 Windows 账户或电脑恢复时，DPAPI 凭据可能需要重新输入。删除应用数据目录会移除其中保存的设置、历史、任务、日志和附件，操作前请确认备份及实际路径。[升级指南](docs/release/UPGRADE-GUIDE.md)
+Close all instances using a profile before backing it up. Restoring it under another Windows account or on another computer may require entering API keys again.
 
-源码目录下的 .local-validation、旧阶段测试数据与构建缓存用于本地开发。它们与日常应用数据有各自的保存位置，提交源码前应检查 Git 暂存清单。[贡献指南](CONTRIBUTING.md)
+For an older profile, back up and copy its contents into the new location before opening it. Asimi checks the legacy process lock, SQLite integrity and checkpoint state before renaming the old database file. When both database names exist, the current `asimi.db` is used. [Upgrade guide](docs/release/UPGRADE-GUIDE.md)
 
-## 反馈与安全报告
+Deleting a profile removes its settings, history, tasks, logs and attachments. Verify the actual path and backup before clearing it. Development fixtures and caches have their own locations under the source checkout. [Contributing](CONTRIBUTING.md)
 
-提交 Issues、日志或截图前，去除 API Key、私人代码、个人路径、会话内容及图片中的敏感信息。漏洞通过私密报告渠道提交，并使用隔离测试数据复现。[安全报告](SECURITY.md)
+## Feedback and security
+
+Redact credentials, private code, personal paths, conversations and sensitive image content before sharing diagnostics. Report vulnerabilities privately with isolated test data. [Security reporting](SECURITY.md)

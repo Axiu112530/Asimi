@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/computer"
+	"asimi/internal/computer"
 )
 
 func TestComputerSuggestionStrictResult(t *testing.T) {
@@ -17,7 +17,7 @@ func TestComputerSuggestionStrictResult(t *testing.T) {
 		name, raw string
 		valid     bool
 	}{
-		{"text", `{"summary":"Fixture input","action":{"type":"uia.set_value","text":"Hello DeskPilot"}}`, true},
+		{"text", `{"summary":"Fixture input","action":{"type":"uia.set_value","text":"Hello Asimi"}}`, true},
 		{"invoke", `{"summary":"Fixture button","action":{"type":"uia.invoke","text":""}}`, true},
 		{"abstain", `{"summary":"Control is unclear","action":null}`, true},
 		{"unwrapped", `{"type":"uia.invoke","text":""}`, false},
@@ -58,7 +58,7 @@ func TestComputerSuggestionRequiresReviewedVisionAndExactApproval(t *testing.T) 
 		task.ID, workspaceID, encode(task), stamp, stamp); err != nil {
 		t.Fatal(err)
 	}
-	const raw = `{"summary":"A fixture input","action":{"type":"uia.set_value","text":"Hello DeskPilot"}}`
+	const raw = `{"summary":"A fixture input","action":{"type":"uia.set_value","text":"Hello Asimi"}}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -120,7 +120,7 @@ func TestComputerSuggestionRequiresReviewedVisionAndExactApproval(t *testing.T) 
 	}
 	p := mustCall(t, s, "ProposeComputerSuggestion", stage(requestID)).(computer.Proposal)
 	if driver.calls != 0 || p.Status != "AWAITING_APPROVAL" || p.SourceRequestID != requestID ||
-		p.ObservationID != fresh.ID || p.Element.ID != fresh.Elements[0].ID || p.Text != "Hello DeskPilot" {
+		p.ObservationID != fresh.ID || p.Element.ID != fresh.Elements[0].ID || p.Text != "Hello Asimi" {
 		t.Fatalf("proposal lost its source, target, or exact parameters: %+v", p)
 	}
 	bad := controlApproval(p)

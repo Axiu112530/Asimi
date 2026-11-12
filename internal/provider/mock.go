@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 )
 
 type Draft struct {

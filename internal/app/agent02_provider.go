@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/credential"
+	"asimi/internal/ai"
+	"asimi/internal/credential"
 )
 
 const agent02LiveProvider = "deepseek-live-acceptance"

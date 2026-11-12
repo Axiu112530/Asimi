@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/domain"
+	"asimi/internal/domain"
 	"golang.org/x/sys/windows"
 )
 
@@ -263,7 +263,7 @@ func (c *cancelOnFile) Err() error {
 func TestCancellationCleansOnlyUncommittedTemp(t *testing.T) {
 	r := testRegistry(t)
 	op := prepare(t, r, "cancel-temp.txt", "content")
-	ctx := &cancelOnFile{Context: context.Background(), pattern: filepath.Join(r.Workspace(), ".deskpilot-*.tmp"), done: make(chan struct{})}
+	ctx := &cancelOnFile{Context: context.Background(), pattern: filepath.Join(r.Workspace(), ".asimi-*.tmp"), done: make(chan struct{})}
 	v, err := r.Execute(ctx, op, allow)
 	if code(err) != "CANCELLED" || v.Created {
 		t.Fatalf("%+v %v", v, err)

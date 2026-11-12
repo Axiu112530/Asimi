@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"deskpilot/internal/developer"
-	"deskpilot/internal/tools"
+	"asimi/internal/developer"
+	"asimi/internal/tools"
 )
 
 func mvpObject(t *testing.T, v any) map[string]any {

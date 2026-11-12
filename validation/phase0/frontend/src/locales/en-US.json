@@ -1,4 +1,4 @@
 {
-  "probe": {"title":"DeskPilot Phase 0 validation","language":"App Language","switch":"Switch language","notice":"Language updated","error":"The operation was denied","empty":"No tasks yet","loading":"Loading","approval":"Allow this operation?","hint":"This disposable window tests language changes and does not run an agent."},
+  "probe": {"title":"Asimi Phase 0 validation","language":"App Language","switch":"Switch language","notice":"Language updated","error":"The operation was denied","empty":"No tasks yet","loading":"Loading","approval":"Allow this operation?","hint":"This disposable window tests language changes and does not run an agent."},
   "language": {"en-US":"English","zh-CN":"简体中文"}
 }

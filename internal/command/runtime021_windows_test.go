@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"deskpilot/internal/developer"
+	"asimi/internal/developer"
 )
 
 func TestRuntimeInspectionUsesProjectAndLocalMetadata(t *testing.T) {

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"deskpilot/internal/ai"
-	"deskpilot/internal/command"
-	"deskpilot/internal/configuration"
-	"deskpilot/internal/developer"
+	"asimi/internal/ai"
+	"asimi/internal/command"
+	"asimi/internal/configuration"
+	"asimi/internal/developer"
 )
 
 type agent02Preview struct {

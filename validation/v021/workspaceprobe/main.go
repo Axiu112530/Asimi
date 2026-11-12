@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"time"
 
-	"deskpilot/internal/developer"
+	"asimi/internal/developer"
 )
 
 type scan struct {

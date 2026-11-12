@@ -35,7 +35,7 @@ $Regression = Get-Run 'regression-*'
 $Agent = Get-Run 'agent-loopback-*'
 if (!$Ordinary.run.passed -or !$Ordinary.run.nativeWindowIcon -or !$Ordinary.run.associatedIcon -or
     $Ordinary.run.nativeWindowTitle -cne 'Asimi' -or $Ordinary.run.productName -cne 'Asimi' -or
-    !$Ordinary.run.isolatedLocalAppData -or $Ordinary.run.defaultProfileDirectory -cne 'DeskPilotAI') { throw 'Ordinary launch check failed' }
+    !$Ordinary.run.isolatedLocalAppData -or $Ordinary.run.defaultProfileDirectory -cne 'Asimi') { throw 'Ordinary launch check failed' }
 if ($Native.run.legacySourceProfilesUnchanged -ne 3 -or @($Native.run.profileComparisons.PSObject.Properties).Count -ne 3) { throw 'Missing legacy profile checks' }
 foreach ($Comparison in $Native.run.profileComparisons.PSObject.Properties.Value) {
     if (!$Comparison.passed -or $Comparison.schemaBefore -ne 6 -or $Comparison.schemaAfter -ne 6 -or
@@ -55,7 +55,7 @@ if ((Get-Content -Raw -LiteralPath (Join-Path $Evidence 'native-worker-smoke.log
 $Secrets = Get-Content -Raw -LiteralPath (Join-Path $Evidence 'secret-scan.json') | ConvertFrom-Json
 if ($Secrets.scopes.archive.status -ne 'VERIFIED' -or $Secrets.scopes.archive.sha256 -ne $Package.archiveSha256) { throw 'Archive secret scan is missing or mismatched' }
 
-$Residue = @(Get-CimInstance Win32_Process -Filter "Name='Asimi.exe' OR Name='DeskPilotControlHost.exe' OR Name='DeskPilotUIAWorker.exe' OR Name='providerfixture.exe' OR Name='agentfixture.exe' OR Name='msedgewebview2.exe'" | Where-Object {
+$Residue = @(Get-CimInstance Win32_Process -Filter "Name='Asimi.exe' OR Name='AsimiControlHost.exe' OR Name='AsimiUIAWorker.exe' OR Name='providerfixture.exe' OR Name='agentfixture.exe' OR Name='msedgewebview2.exe'" | Where-Object {
     ($_.ExecutablePath -and $_.ExecutablePath.StartsWith($Repo + [IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) -or
     ($_.Name -eq 'msedgewebview2.exe' -and $_.CommandLine -match '\.local-validation[\\/]asimi[\\/]')
 })
@@ -76,9 +76,9 @@ try {
 } finally { Pop-Location }
 
 $Preserved = [ordered]@{
-    'DeskPilotAI-MVP-0.1-win-x64.zip' = 'docs/mvp01-evidence/package.json'
-    'DeskPilotAI-0.2-win-x64.zip' = 'docs/0.2/evidence/package.json'
-    'DeskPilot-Community-0.2.1-win-x64.zip' = 'docs/0.2.1/evidence/package.json'
+    'Asimi-MVP-0.1-win-x64.zip' = 'docs/mvp01-evidence/package.json'
+    'Asimi-0.2-win-x64.zip' = 'docs/0.2/evidence/package.json'
+    'Asimi-0.2.1-win-x64.zip' = 'docs/0.2.1/evidence/package.json'
 }
 foreach ($ArchiveName in $Preserved.Keys) {
     $Baseline = Get-Content -Raw -LiteralPath (Join-Path $Repo $Preserved[$ArchiveName]) | ConvertFrom-Json

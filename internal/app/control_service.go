@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"deskpilot/internal/computer"
-	"deskpilot/internal/domain"
+	"asimi/internal/computer"
+	"asimi/internal/domain"
 )
 
 type controlState struct {
