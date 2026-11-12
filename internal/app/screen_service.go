@@ -322,6 +322,9 @@ func (s *Service) prepareScreenUpload(in screenTarget) (screenReview, error) {
 	if model == nil {
 		return screenReview{}, codedError("MODEL_NOT_FOUND")
 	}
+	if model.Capabilities.Vision != ai.Supported {
+		return screenReview{}, codedError("MODEL_SCREENSHOT_UNSUPPORTED")
+	}
 	if !allowsScreen(model.Capabilities, in.ImageDetail) {
 		return screenReview{}, codedError("UNSUPPORTED_CAPABILITY")
 	}

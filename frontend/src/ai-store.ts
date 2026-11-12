@@ -185,7 +185,7 @@ export async function startScreenAnalysis(input: ScreenAnalysisInput) {
 export async function sendAI(s:ChatSession,playground=false,test=false){
   if(s.busy||s.starting||s.importing||!state.connected)return;
   const p=profile(s),m=model(s);if(!p?.enabled||!m||m.capabilities.text!=='SUPPORTED')return;
-  if(!test&&s.attachments.length&&m.capabilities.vision!=='SUPPORTED'){s.error='UNSUPPORTED_CAPABILITY';return;}
+  if(!test&&s.attachments.length&&m.capabilities.vision!=='SUPPORTED'){s.error='MODEL_IMAGE_UNSUPPORTED';return;}
   if(!test&&!s.draft.trim()&&!s.attachments.length)return;
   const conversation = playground ? s.conversation : screenConversation(s.conversation);
   const previous=conversation?.messages.filter(message=>message.providerId).at(-1)?.providerId;const switched=!!previous&&previous!==s.providerId;
@@ -215,6 +215,15 @@ export async function startAgentAnalysis(id:string,contextHash:string){
 }
 export async function importImages(s:ChatSession,input:HTMLInputElement){
   if(s.importing||s.busy)return;const files=Array.from(input.files||[]);input.value='';const scope=s.scope,generation=epoch;
+  if (!files.length) return;
+  if (files.some(file => file.type.startsWith('video/') || /\.(mp4|m4v|mov|avi|mkv|webm|mpeg|mpg|wmv|flv|3gp)$/i.test(file.name))) {
+    s.error = 'VIDEO_INPUT_UNAVAILABLE';
+    return;
+  }
+  if (model(s)?.capabilities.vision !== 'SUPPORTED') {
+    s.error = 'MODEL_IMAGE_UNSUPPORTED';
+    return;
+  }
   const current=()=>scope===s.scope&&generation===epoch;s.importing=true;s.error='';
   try{for(const file of files){
     if(!current())break;if(file.size>20*1024*1024)throw new ServiceError('ATTACHMENT_TOO_LARGE');

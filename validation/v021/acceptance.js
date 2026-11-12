@@ -69,12 +69,22 @@ async function setup(live) {
   }
   await click('preset-continue');
   const provider = await until('provider', () => byId('preset-provider'));
-  check('onlyVerifiedPresetOffered', provider.options.length === 1 && provider.value === 'deepseek');
+  check('allBuiltInProvidersOffered', [...provider.options].map(option => option.value).join(',') ===
+    'deepseek,kimi,glm,qwen,hy,openai,claude,gemini' && provider.value === 'deepseek');
   check('passwordField', byId('preset-api-key').type === 'password' && byId('preset-connect').disabled);
   check('setupUsesOpaqueSurface', getComputedStyle(byId('preset-onboarding')).visibility === 'visible' &&
     getComputedStyle(byId('preset-onboarding')).backgroundColor !== 'rgba(0, 0, 0, 0)' &&
     getComputedStyle(document.querySelector('.desktop-app')).visibility === 'hidden');
   await reviewVisual();
+  if (!live) {
+    input('preset-api-key', 'unused-key-fixture');
+    input('preset-provider', 'qwen', 'change');
+    await until('Qwen preset loaded', () => byId('preset-api-key') && byId('preset-onboarding').textContent.includes('qwen-plus'));
+    check('switchingPresetClearsKey', !byId('preset-api-key').value && byId('preset-connect').disabled);
+    check('setupUsesSelectedProviderName', byId('preset-onboarding').textContent.includes('Qwen'));
+    input('preset-provider', 'deepseek', 'change');
+    await until('DeepSeek preset restored', () => byId('preset-api-key') && byId('preset-onboarding').textContent.includes('deepseek-flash'));
+  }
   if (live) {
     input('preset-api-key', 'preset-native-acceptance-placeholder');
     await click('preset-connect');

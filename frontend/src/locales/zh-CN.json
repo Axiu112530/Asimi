@@ -449,6 +449,10 @@
     "UNSUPPORTED_REQUEST": "Phase 1 Mock 不支持此请求，未执行任何操作。",
     "INVALID_API_KEY": "API 密钥缺失、无效或被拒绝。",
     "MODEL_NOT_FOUND": "未找到所选模型。",
+    "MODEL_IMAGE_UNSUPPORTED": "当前模型无法识别图片。请在聊天设置中切换到支持图片的模型，再重试。",
+    "MODEL_HISTORY_IMAGE_UNSUPPORTED": "当前会话包含图片。请切换到支持图片的模型，或新建会话进行纯文字聊天。",
+    "MODEL_SCREENSHOT_UNSUPPORTED": "当前模型无法识别截图。请选择支持图片的模型后继续。",
+    "VIDEO_INPUT_UNAVAILABLE": "Asimi 目前只支持静态图片。请截取视频画面后以图片上传。",
     "UNSUPPORTED_CAPABILITY": "所选模型未确认支持此请求所需能力。",
     "RATE_LIMITED": "已达到供应商速率限制，请自行决定稍后重试。",
     "REQUEST_TIMEOUT": "请求超时，未自动重试。",
@@ -560,6 +564,7 @@
     "user": "用户请求"
   },
   "ai": {
+    "attachMedia": "添加附件",
     "attachImage": "添加图片附件",
     "deepSeekPreset": "使用 DeepSeek 预设",
     "assistantMode": "助手模式",
@@ -779,6 +784,7 @@
     "question": "关于此截图的问题",
     "questionExample": "这个报错是什么意思？",
     "noVisionProvider": "请在模型页面配置并启用已确认支持视觉的模型后再发送截图。",
+    "noConnectedVisionModel": "当前没有可识别截图的模型。请先在 AI 供应商页面连接支持图片的模型。",
     "credentialRequired": "请在模型页面填写所选供应商的 API 密钥后再发送截图。",
     "assistantBusy": "请等待助手当前的请求完成，或移除尚未发送的图片附件后再发送截图。",
     "newConversation": "本次分析将开启新的助手对话。",

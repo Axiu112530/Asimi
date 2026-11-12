@@ -103,11 +103,11 @@ function usageSource(source:string){const key='ai.source'+source;const value=t(k
 function composer(session: ChatSession, playground: boolean) {
   const selectedModel = model(session);
   const supportsImages = selectedModel?.capabilities.vision === 'SUPPORTED';
-  const cannotAttach = !supportsImages || session.busy || session.importing || !state.connected;
+  const cannotAttach = session.busy || session.starting || session.importing || !state.connected;
   const cannotSend = !state.connected || session.importing || session.starting || !profile(session)?.enabled ||
     selectedModel?.capabilities.text !== 'SUPPORTED' || (!session.draft.trim() && !session.attachments.length) ||
     (session.attachments.length > 0 && !supportsImages);
-  const attachmentLabel = t('ai.attachImage');
+  const attachmentLabel = t('ai.attachMedia');
   return h('form', {
     class: 'composer-wrap',
     onSubmit: (event: SubmitEvent) => {
@@ -131,7 +131,7 @@ function composer(session: ChatSession, playground: boolean) {
           icon('file', 15),
           h('span', attachmentLabel),
           h('input', {
-            type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true,
+            type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif,video/*,.mkv,.avi,.mov,.wmv,.flv', multiple: true,
             disabled: cannotAttach, 'aria-label': attachmentLabel,
             'data-testid': playground ? 'playground-images' : 'assistant-images',
             onChange: (event: Event) => importImages(session, event.target as HTMLInputElement),
@@ -145,7 +145,8 @@ function composer(session: ChatSession, playground: boolean) {
       ]),
     ]),
     session.importing ? h('p', { role: 'status' }, t('ai.importing')) : null,
-    session.error ? h('p', { class: 'ai-error', role: 'alert' }, errorText(session.error)) : null,
+    session.error || (session.attachments.length && !supportsImages) ? h('p', { class: 'ai-error', role: 'alert' },
+      errorText(session.error || 'MODEL_IMAGE_UNSUPPORTED')) : null,
   ]);
 }
 

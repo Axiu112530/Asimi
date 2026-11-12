@@ -449,6 +449,10 @@
     "UNSUPPORTED_REQUEST": "This request is not supported by the Phase 1 Mock. No operation was performed.",
     "INVALID_API_KEY": "The API key is missing, invalid or rejected.",
     "MODEL_NOT_FOUND": "The selected model was not found.",
+    "MODEL_IMAGE_UNSUPPORTED": "This model cannot read images. Choose a model with image support in Chat settings, then try again.",
+    "MODEL_HISTORY_IMAGE_UNSUPPORTED": "This conversation contains images. Choose a model with image support or start a new conversation for text only.",
+    "MODEL_SCREENSHOT_UNSUPPORTED": "The current model cannot read screenshots. Choose a model with image support to continue.",
+    "VIDEO_INPUT_UNAVAILABLE": "Asimi currently accepts still images. Attach screenshots or frames from the video instead.",
     "UNSUPPORTED_CAPABILITY": "The model does not have verified support for this request.",
     "RATE_LIMITED": "The provider rate limit was reached. Retry only when you choose.",
     "REQUEST_TIMEOUT": "The request timed out. No automatic retry was performed.",
@@ -560,6 +564,7 @@
     "user": "User request"
   },
   "ai": {
+    "attachMedia": "Add attachment",
     "attachImage": "Attach Image",
     "deepSeekPreset": "Use DeepSeek preset",
     "assistantMode": "Assistant mode",
@@ -779,6 +784,7 @@
     "question": "Question about this screenshot",
     "questionExample": "What does this error mean?",
     "noVisionProvider": "Configure an enabled model with verified vision support in Models to send screenshots.",
+    "noConnectedVisionModel": "No connected model can read screenshots. Connect a model with image support in AI Providers.",
     "credentialRequired": "Add the selected provider's API key in Models to send screenshots.",
     "assistantBusy": "Wait for the active Assistant request or remove unsent image attachments before sending a screenshot.",
     "newConversation": "This analysis will open a new Assistant conversation.",

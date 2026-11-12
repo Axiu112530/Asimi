@@ -14,7 +14,7 @@ Asimi is a local-first AI desktop assistant for developers. Review project conte
 
 | 功能 | 使用方式 |
 | --- | --- |
-| AI 对话 | 使用自己的 API Key 连接 DeepSeek，或在高级配置中添加兼容 Chat Completions、Responses 的服务。支持流式回复和本地会话历史。 |
+| AI 对话 | 使用自己的 API Key 连接内置供应商，也可在高级配置中添加兼容服务。支持流式回复和本地会话历史。 |
 | 理解本地项目 | 选择工作区，查看项目结构、相关源文件、Git 状态和运行环境。 |
 | Agent 任务 | 描述目标，核对将发送的上下文，审阅模型提出的计划、文件 Diff 和命令。 |
 | 审批后执行 | 文件修改和命令分别审批，执行后展示文件回读、测试结果和任务记录。 |
@@ -49,9 +49,9 @@ Asimi is a local-first AI desktop assistant for developers. Review project conte
 
 ### 连接 AI
 
-首次使用可选择 DeepSeek 预设，输入自己的 API Key，点击「测试连接并保存」。测试会发送一条短请求，可能消耗供应商额度。连接成功后会保存密钥并设置默认模型。
+首次使用或打开「AI 供应商」时，可选择 Kimi、GLM、DeepSeek、Qwen、腾讯混元（Hy）、OpenAI、Claude 或 Gemini。输入 API Key，点击「连接并保存」。测试会发送一条简短的文本请求，可能消耗供应商额度。连接成功后会保存密钥并设置默认模型。
 
-其他服务在「设置 → AI 供应商」的高级区域配置。请核对服务地址、协议、模型 ID 和能力声明，再测试连接。图像分析需要模型支持图像输入。
+在「聊天设置」中可以切换模型。发送图片或分析截图时请选择支持图片的模型。Asimi 目前接收静态图片。指定地区、工作空间或其他兼容服务的接口可在「AI 供应商 → 高级供应商设置」中配置。
 
 供应商费用由你的服务账户承担，价格、可用模型和数据保留规则以供应商为准。Asimi 使用 Windows DPAPI 保护保存的 API Key。[隐私说明](PRIVACY.zh-CN.md)
 

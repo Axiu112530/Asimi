@@ -47,6 +47,40 @@ func (f *fakeScreen) CaptureRegion(ctx context.Context, _ string, r screen.Rect)
 	return displays[0], im, nil
 }
 
+func TestTextOnlyModelRejectsImagesAndScreenshotsBeforeDispatch(t *testing.T) {
+	s := aiFixture(t, nil)
+	s.SetAcceptanceScreenDriver(&fakeScreen{})
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		jsonFixture(w)
+	}))
+	defer server.Close()
+
+	profile := aiTestProfile("text-only", server.URL)
+	profile.Models[0].Capabilities.Vision = ai.Unsupported
+	mustCall(t, s, "SaveAIProfile", map[string]any{"profile": profile})
+	in := ChatInput{ProviderID: profile.ID, ModelID: "fixture", Content: "Text question", ConfirmSend: true}
+	image := in
+	image.AttachmentIDs = []string{"unchecked-image"}
+	screenError(t, s, "StartChat", image, "MODEL_IMAGE_UNSUPPORTED")
+
+	preview := mustCall(t, s, "CaptureScreen", map[string]any{
+		"displayId": "synthetic", "confirmCapture": true,
+	}).(screenPreview)
+	screenError(t, s, "PrepareScreenUpload", screenTarget{
+		CaptureID: preview.CaptureID, ProviderID: profile.ID, ModelID: "fixture", ImageDetail: "auto",
+	}, "MODEL_SCREENSHOT_UNSUPPORTED")
+	if requests.Load() != 0 {
+		t.Fatal("a rejected request reached the model endpoint")
+	}
+	reply := aiSend(t, s, in)
+	awaitAI(t, s, reply["requestId"])
+	if requests.Load() != 1 {
+		t.Fatal("plain text should still be dispatched")
+	}
+}
+
 func TestScreenRequiresUserCaptureAndOneShotReviewedUpload(t *testing.T) {
 	f := &fakeScreen{}
 	s := aiFixture(t, nil)

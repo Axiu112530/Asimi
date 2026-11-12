@@ -194,6 +194,7 @@ func (c *Client) requestBody(r Request) ([]byte, error) {
 		return nil, Error("UNSUPPORTED_CAPABILITY")
 	}
 	var messages []any
+	glm := c.endpoint == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 	instruction := r.SystemInstruction
 	if r.ResponseLanguage != "" {
 		instruction += "\nRespond in language: " + r.ResponseLanguage
@@ -249,7 +250,12 @@ func (c *Client) requestBody(r Request) ([]byte, error) {
 				if c.profile.Protocol == Responses {
 					parts = append(parts, map[string]any{"type": "input_image", "image_url": v.DataURL, "detail": d})
 				} else {
-					parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": v.DataURL, "detail": d}})
+					image := map[string]any{"url": v.DataURL, "detail": d}
+					if glm {
+						_, encoded, _ := strings.Cut(v.DataURL, ",")
+						image = map[string]any{"url": encoded}
+					}
+					parts = append(parts, map[string]any{"type": "image_url", "image_url": image})
 				}
 			default:
 				return nil, Error("INVALID_REQUEST")
@@ -266,6 +272,8 @@ func (c *Client) requestBody(r Request) ([]byte, error) {
 				text.WriteString(v.Text)
 			}
 			messages = append(messages, map[string]any{"role": m.Role, "content": text.String()})
+		} else if c.profile.Protocol == ChatCompletions && len(m.Content) == 1 && m.Content[0].Type == "text" {
+			messages = append(messages, map[string]any{"role": m.Role, "content": m.Content[0].Text})
 		} else {
 			messages = append(messages, map[string]any{"role": m.Role, "content": parts})
 		}
@@ -289,6 +297,14 @@ func (c *Client) requestBody(r Request) ([]byte, error) {
 	} else {
 		body["messages"] = messages
 		body["max_tokens"] = r.MaxOutputTokens
+		switch {
+		case c.endpoint == "https://api.moonshot.cn/v1/chat/completions" && r.ModelID == "kimi-k3":
+			body["reasoning_effort"] = "low"
+		case c.endpoint == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" && r.ModelID == "gemini-2.5-flash-lite":
+			body["reasoning_effort"] = "none"
+		case glm && (r.ModelID == "glm-4.6" || r.ModelID == "glm-4.6v"):
+			body["thinking"] = map[string]string{"type": "disabled"}
+		}
 		if r.JSONOutput {
 			body["response_format"] = jsonObject
 		}

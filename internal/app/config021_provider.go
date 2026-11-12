@@ -27,14 +27,15 @@ type presetPreset struct {
 }
 
 type presetProviderState struct {
-	Preset              presetPreset `json:"preset"`
-	ConfiguredModel     *ai.Model    `json:"configuredModel,omitempty"`
-	HasCredential       bool         `json:"hasCredential"`
-	VerifiedAt          string       `json:"verifiedAt,omitempty"`
-	DefaultProviderID   string       `json:"defaultProviderId"`
-	DefaultProviderName string       `json:"defaultProviderName"`
-	DefaultModelID      string       `json:"defaultModelId"`
-	DefaultUsable       bool         `json:"defaultUsable"`
+	Preset              presetPreset   `json:"preset"`
+	Options             []presetOption `json:"options"`
+	ConfiguredModel     *ai.Model      `json:"configuredModel,omitempty"`
+	HasCredential       bool           `json:"hasCredential"`
+	VerifiedAt          string         `json:"verifiedAt,omitempty"`
+	DefaultProviderID   string         `json:"defaultProviderId"`
+	DefaultProviderName string         `json:"defaultProviderName"`
+	DefaultModelID      string         `json:"defaultModelId"`
+	DefaultUsable       bool           `json:"defaultUsable"`
 }
 
 func presetDeepSeek() presetPreset {
@@ -69,9 +70,12 @@ type presetProviderSnapshot struct {
 	revision string
 }
 
-func (s *Service) presetProviderLocked() (presetProviderSnapshot, error) {
-	preset := presetDeepSeek()
+func (s *Service) presetProviderLocked(preset presetPreset) (presetProviderSnapshot, error) {
 	out := presetProviderSnapshot{state: presetProviderState{Preset: preset}}
+	for _, item := range providerPresets() {
+		out.state.Options = append(out.state.Options, presetOption{ID: item.ID, Name: item.Profile.Name})
+	}
+	modelID := preset.Profile.Models[0].ID
 	settings, err := s.aiSettingsLocked()
 	if err != nil {
 		return out, err
@@ -89,7 +93,7 @@ func (s *Service) presetProviderLocked() (presetProviderSnapshot, error) {
 			for _, model := range p.Models {
 				if model.ID == settings.DefaultModelID {
 					out.state.DefaultUsable = p.Enabled && model.Capabilities.Text == ai.Supported &&
-						(p.HasCredential || !isOfficialDeepSeek(p))
+						(p.HasCredential || !requiresPresetCredential(p))
 					break
 				}
 			}
@@ -98,7 +102,7 @@ func (s *Service) presetProviderLocked() (presetProviderSnapshot, error) {
 			continue
 		}
 		for _, model := range p.Models {
-			if model.ID == presetDeepSeekModel && model.Capabilities.Text == ai.Supported &&
+			if model.ID == modelID && model.Capabilities.Text == ai.Supported &&
 				(out.profile.ID == "" || p.ID == settings.DefaultProviderID ||
 					out.profile.ID != settings.DefaultProviderID && !out.profile.HasCredential && p.HasCredential) {
 				out.profile = p
@@ -125,7 +129,7 @@ func (s *Service) presetProviderLocked() (presetProviderSnapshot, error) {
 	}
 	if out.profile.HasCredential {
 		out.state.VerifiedAt = metadata.VerifiedAt
-		if out.state.VerifiedAt == "" {
+		if out.state.VerifiedAt == "" && preset.ID == presetDeepSeekID {
 			out.state.VerifiedAt = metadata.LegacyVerifiedAt
 		}
 	}
@@ -136,31 +140,24 @@ func matchesPresetEndpoint(profile, preset ai.Profile) bool {
 	if profile.Protocol != preset.Protocol {
 		return false
 	}
-	switch strings.TrimRight(profile.BaseURL, "/") {
-	case preset.BaseURL, preset.BaseURL + "/v1", preset.BaseURL + "/chat/completions", preset.BaseURL + "/v1/chat/completions":
+	base := strings.TrimRight(profile.BaseURL, "/")
+	if base == preset.BaseURL || base == preset.BaseURL+"/chat/completions" {
 		return true
-	default:
-		return false
 	}
+	return preset.BaseURL == presetDeepSeekURL &&
+		(base == presetDeepSeekURL+"/v1" || base == presetDeepSeekURL+"/v1/chat/completions")
 }
 
-func isOfficialDeepSeek(profile ai.Profile) bool {
+func requiresPresetCredential(profile ai.Profile) bool {
+	for _, preset := range providerPresets() {
+		if matchesPresetEndpoint(profile, preset.Profile) {
+			return true
+		}
+	}
 	return profile.BaseURL == presetDeepSeekURL || strings.HasPrefix(profile.BaseURL, presetDeepSeekURL+"/")
 }
 
 func (s *Service) callPresetProvider(method, payload string) domain.Reply {
-	if method == "GetPresetProvider" {
-		if err := decode(payload, &struct{}{}); err != nil {
-			return result(nil, err)
-		}
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if s.lifetime.Err() != nil {
-			return fail("SERVICE_CLOSED")
-		}
-		snapshot, err := s.presetProviderLocked()
-		return result(snapshot.state, err)
-	}
 	var request struct {
 		PresetID string `json:"presetId"`
 		Secret   string `json:"secret,omitempty"`
@@ -168,13 +165,23 @@ func (s *Service) callPresetProvider(method, payload string) domain.Reply {
 	if err := decode(payload, &request); err != nil {
 		return result(nil, err)
 	}
-	if request.PresetID != presetDeepSeekID {
+	preset, ok := providerPreset(request.PresetID)
+	if !ok || (method == "ConnectPresetProvider" && request.PresetID == "") {
 		return fail("PROVIDER_UNAVAILABLE")
+	}
+	if method == "GetPresetProvider" {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.lifetime.Err() != nil {
+			return fail("SERVICE_CLOSED")
+		}
+		snapshot, err := s.presetProviderLocked(preset)
+		return result(snapshot.state, err)
 	}
 	key := []byte(request.Secret)
 	request.Secret = ""
 	defer credential.Wipe(key)
-	state, err := s.connectPresetProvider(key, probePresetProvider)
+	state, err := s.connectPresetProvider(preset, key, probePresetProvider)
 	return result(state, err)
 }
 
@@ -185,13 +192,13 @@ func (s *Service) ConnectPresetAcceptance(key []byte) error {
 		return codedError("SERVICE_CLOSED")
 	}
 	defer s.wg.Done()
-	_, err := s.connectPresetProvider(key, probePresetProvider)
+	_, err := s.connectPresetProvider(presetDeepSeek(), key, probePresetProvider)
 	return err
 }
 
-type presetProbe func(context.Context, ai.Profile, []byte) error
+type presetProbe func(context.Context, ai.Profile, string, []byte) error
 
-func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetProviderState, error) {
+func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe presetProbe) (presetProviderState, error) {
 	var empty presetProviderState
 	if len(key) > 8192 {
 		return empty, codedError("INVALID_API_KEY")
@@ -202,7 +209,7 @@ func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetPr
 		}
 	}
 	replacingKey := len(key) > 0
-	snapshot, storedKey, err := s.presetProviderAttempt(replacingKey)
+	snapshot, storedKey, err := s.presetProviderAttempt(preset, replacingKey)
 	if err != nil {
 		return empty, err
 	}
@@ -218,7 +225,8 @@ func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetPr
 
 	ctx, cancel := context.WithTimeout(s.lifetime, presetTestTimeout)
 	defer cancel()
-	if err := probe(ctx, profile, key); err != nil {
+	modelID := preset.Profile.Models[0].ID
+	if err := probe(ctx, profile, modelID, key); err != nil {
 		return empty, err
 	}
 
@@ -227,7 +235,7 @@ func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetPr
 	if s.lifetime.Err() != nil {
 		return empty, codedError("SERVICE_CLOSED")
 	}
-	current, err := s.presetProviderLocked()
+	current, err := s.presetProviderLocked(preset)
 	if err != nil {
 		return empty, err
 	}
@@ -245,11 +253,11 @@ func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetPr
 		if err := persistPresetProfile(tx, profile, current.profile.ID == "", key, replacingKey, stamp); err != nil {
 			return err
 		}
-		if err := setResolvedDefaultModelLocked(tx, profile.ID, presetDeepSeekModel); err != nil {
+		if err := setResolvedDefaultModelLocked(tx, profile.ID, modelID); err != nil {
 			return err
 		}
 		return audit(tx, "", "PRESET_PROVIDER_CONNECTED", map[string]string{
-			"providerId": profile.ID, "modelId": presetDeepSeekModel,
+			"providerId": profile.ID, "modelId": modelID,
 		})
 	})
 	if err != nil {
@@ -260,17 +268,17 @@ func (s *Service) connectPresetProvider(key []byte, probe presetProbe) (presetPr
 		out.ConfiguredModel = &profile.Models[0]
 	}
 	out.HasCredential, out.DefaultUsable, out.VerifiedAt = true, true, stamp
-	out.DefaultProviderID, out.DefaultProviderName, out.DefaultModelID = profile.ID, profile.Name, presetDeepSeekModel
+	out.DefaultProviderID, out.DefaultProviderName, out.DefaultModelID = profile.ID, profile.Name, modelID
 	return out, nil
 }
 
-func (s *Service) presetProviderAttempt(replacingKey bool) (presetProviderSnapshot, []byte, error) {
+func (s *Service) presetProviderAttempt(preset presetPreset, replacingKey bool) (presetProviderSnapshot, []byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.lifetime.Err() != nil {
 		return presetProviderSnapshot{}, nil, codedError("SERVICE_CLOSED")
 	}
-	snapshot, err := s.presetProviderLocked()
+	snapshot, err := s.presetProviderLocked(preset)
 	if err != nil {
 		return snapshot, nil, err
 	}
@@ -319,14 +327,18 @@ func persistPresetProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []b
 	return err
 }
 
-func probePresetProvider(ctx context.Context, profile ai.Profile, key []byte) error {
+func probePresetProvider(ctx context.Context, profile ai.Profile, modelID string, key []byte) error {
 	client, err := ai.NewClient(profile)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
+	maxTokens := 128
+	if modelID == "kimi-k3" {
+		maxTokens = 1024
+	}
 	request := ai.Request{
-		RequestID: newID(), ProviderID: profile.ID, ModelID: presetDeepSeekModel, MaxOutputTokens: 128,
+		RequestID: newID(), ProviderID: profile.ID, ModelID: modelID, MaxOutputTokens: maxTokens,
 		Messages: []ai.Message{{Role: "user", Content: []ai.Content{{Type: "text", Text: "Reply with OK to test this connection."}}}},
 	}
 	response, err := client.TestConnection(ctx, request, key)

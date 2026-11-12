@@ -59,7 +59,13 @@ func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *scr
 	}
 	caps := model.Capabilities
 	hasImages := len(in.AttachmentIDs) > 0 || upload != nil
-	if caps.Text != ai.Supported || in.Stream && caps.Streaming != ai.Supported || hasImages && caps.Vision != ai.Supported {
+	if hasImages && caps.Vision != ai.Supported {
+		if upload != nil {
+			return nil, codedError("MODEL_SCREENSHOT_UNSUPPORTED")
+		}
+		return nil, codedError("MODEL_IMAGE_UNSUPPORTED")
+	}
+	if caps.Text != ai.Supported || in.Stream && caps.Streaming != ai.Supported {
 		return nil, codedError("UNSUPPORTED_CAPABILITY")
 	}
 	if in.Temperature != nil && (caps.Temperature != ai.Supported || math.IsNaN(*in.Temperature) || math.IsInf(*in.Temperature, 0) || *in.Temperature < 0 || *in.Temperature > 2) {
@@ -170,7 +176,7 @@ func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *scr
 		}
 		for _, meta := range historicalImages {
 			if caps.Vision != ai.Supported {
-				return nil, codedError("UNSUPPORTED_CAPABILITY")
+				return nil, codedError("MODEL_HISTORY_IMAGE_UNSUPPORTED")
 			}
 			a, e := s.attachmentLocked(meta.ID, true)
 			if e != nil {

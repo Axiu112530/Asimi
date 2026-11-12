@@ -17,6 +17,7 @@ i18n.global.mergeLocaleMessage('zh-CN', { presetSetup: zh });
 
 interface ProviderStatus {
   preset: { id: string; profile: AIProfile };
+  options: { id: string; name: string }[];
   configuredModel?: AIModel;
   hasCredential: boolean;
   verifiedAt?: string;
@@ -86,7 +87,7 @@ const ProviderConnection = defineComponent({
       loading.value = true;
       if (!preserveError) error.value = '';
       try {
-        const result = await call<ProviderStatus>('GetPresetProvider');
+        const result = await call<ProviderStatus>('GetPresetProvider', { presetId: selected.value });
         if (alive) setStatus(result);
       } catch (cause) {
         if (alive) error.value = codeOf(cause);
@@ -95,10 +96,18 @@ const ProviderConnection = defineComponent({
       }
     }
 
+    function changeProvider(event: Event) {
+      selected.value = (event.target as HTMLSelectElement).value;
+      if (input.value) input.value.value = '';
+      entered.value = false;
+      void load();
+    }
+
     async function connect(event: Event) {
       event.preventDefault();
       const password = input.value;
-      if (!password || pending.value || !selected.value || (!entered.value && !status.value?.hasCredential)) return;
+      if (!password || loading.value || pending.value || selected.value !== status.value?.preset.id ||
+        (!entered.value && !status.value.hasCredential)) return;
       pending.value = true;
       emit('busy', true);
       error.value = '';
@@ -134,6 +143,8 @@ const ProviderConnection = defineComponent({
       const current = status.value;
       const preset = current?.preset.profile;
       const model = current?.configuredModel ?? preset?.models[0];
+      const selectionReady = !loading.value && selected.value === current?.preset.id;
+      const providerName = current?.options.find(item => item.id === selected.value)?.name ?? '';
       const capabilityKeys = ['text', 'streaming', 'vision', 'structuredOutput', 'toolCalling', 'computerUse'] as const;
       return h('div', { class: 'preset-connection', 'aria-busy': pending.value || loading.value }, [
         loading.value && !current ? h('p', { role: 'status' }, label('loading')) : null,
@@ -148,14 +159,17 @@ const ProviderConnection = defineComponent({
             h('label', { class: 'ai-field' }, [
               h('span', label('provider')),
               h('select', {
-                value: selected.value, disabled: pending.value || !state.connected,
-                onChange: (event: Event) => { selected.value = (event.target as HTMLSelectElement).value; },
+                value: selected.value, disabled: loading.value || pending.value || !state.connected,
+                onChange: changeProvider,
                 'data-testid': 'preset-provider',
-              }, [h('option', { value: current.preset.id }, preset.name)]),
+              }, current.options.map(item => h('option', { value: item.id, key: item.id }, item.name))),
             ]),
-            h('dl', { class: 'preset-default' }, [h('dt', label('recommended')), h('dd', h('code', model.id))]),
+            selectionReady ? h('dl', { class: 'preset-default' }, [h('dt', label('recommended')), h('dd', h('code', model.id))]) : null,
           ]),
-          h('label', { class: 'ai-field' }, [
+          !selectionReady ? (error.value ? h('div', [
+            h('p', { role: 'alert', class: 'ai-error' }, errorText(error.value)),
+            action('retry', 'reload-provider', () => load(), loading.value || !state.connected),
+          ]) : h('p', { role: 'status' }, label('loading'))) : [h('label', { class: 'ai-field' }, [
             h('span', label('key')),
             h('input', {
               ref: input, type: 'password', autocomplete: 'off', spellcheck: false,
@@ -165,7 +179,7 @@ const ProviderConnection = defineComponent({
             }),
           ]),
           h('p', { class: 'muted micro', id: 'preset-key-description' }, label(current.hasCredential ? 'keyStored' : 'keyPrivacy')),
-          h('p', { class: 'muted micro' }, label('testNote')),
+          h('p', { class: 'muted micro' }, label('testNote', { provider: providerName })),
           h('div', { class: 'preset-actions' }, [
             h('button', {
               type: 'submit', class: 'button primary',
@@ -189,6 +203,7 @@ const ProviderConnection = defineComponent({
             ]))),
             h('p', { class: 'muted micro' }, label(current.configuredModel ? 'configuredTestScope' : 'testScope')),
           ]),
+          ],
         ]) : error.value ? h('div', [
           h('p', { role: 'alert', class: 'ai-error', 'data-testid': 'preset-connection-error' }, errorText(error.value)),
           action('retry', 'reload-provider', () => load(), loading.value || !state.connected),

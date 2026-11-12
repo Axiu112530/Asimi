@@ -12,7 +12,7 @@ A local-first AI desktop assistant for developers. Asimi brings AI conversations
 
 | Capability | Workflow |
 | --- | --- |
-| AI conversations | Connect your own DeepSeek account or configure a compatible Chat Completions or Responses endpoint. Stream replies and keep conversation history locally. |
+| AI conversations | Connect a built-in provider with your own API key or configure a compatible endpoint. Stream replies and keep conversation history locally. |
 | Project understanding | Select a workspace and inspect its structure, relevant source files, Git status and available runtimes. |
 | Agent tasks | Describe a goal, review the context being sent to the model, then inspect the proposed plan, file diffs and commands. |
 | Approved execution | Approve file changes and commands individually. Review actual execution, file readback, test output and recovery status. |
@@ -45,9 +45,9 @@ The installer keeps program files and user data in separate directories. Uninsta
 
 ## Connect an AI provider
 
-The first-run setup offers a DeepSeek preset. Enter your API key and select **Test connection and save**. The test sends a short request and may consume provider credit. A successful check saves the key with Windows DPAPI and selects the default model.
+Choose Kimi, GLM, DeepSeek, Qwen, Tencent Hy, OpenAI, Claude, or Gemini in first-run setup or **AI providers**. Enter your API key and select **Connect and save**. The test sends a short text request and may consume provider credit. A successful check saves the key with Windows DPAPI and selects the default model.
 
-Configure other compatible services in the advanced section of **Settings → AI providers**. Verify the service address, protocol, model ID and capabilities before testing. Screenshot analysis requires a model with image-input support.
+Use **Chat settings** to switch models. Image attachments and screenshot analysis require a model with image input. Asimi currently accepts still images. For region-specific or other compatible endpoints, use **AI providers → Advanced provider settings**.
 
 Provider charges are billed to your service account. Available models, pricing and data-retention rules are governed by that provider. Local project browsing and history are available before you connect a model. [Privacy](PRIVACY.md)
 

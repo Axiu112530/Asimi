@@ -129,8 +129,11 @@ const ScreenCaptureDialog = defineComponent({
     const taskId = ref(props.suggestion?.taskId || '');
     const providers = computed(() => ai.profiles.filter(p => p.enabled && p.models.some(m =>
       m.capabilities.text === 'SUPPORTED' && m.capabilities.vision === 'SUPPORTED')));
-    const providerId = ref(providers.value.some(p => p.id === session.providerId) ? session.providerId :
-      providers.value.find(p => p.id === ai.settings.visionProviderId)?.id || providers.value[0]?.id || '');
+    const chatModel = ai.profiles.find(p => p.id === session.providerId)?.models.find(m => m.id === session.modelId);
+    const chatCannotAnalyze = !!chatModel && chatModel.capabilities.vision !== 'SUPPORTED';
+    const providerId = ref(!chatCannotAnalyze && providers.value.some(p => p.id === session.providerId) ? session.providerId :
+      providers.value.find(p => p.id === ai.settings.visionProviderId)?.id ||
+      (chatCannotAnalyze ? '' : providers.value[0]?.id || ''));
     const provider = computed(() => providers.value.find(p => p.id === providerId.value));
     const missingCredential = computed(() => {
       const p = provider.value;
@@ -381,7 +384,8 @@ const ScreenCaptureDialog = defineComponent({
           }, disabled),
           selectField('ai.imageDetail', 'screen-detail', imageDetail.value, details.value.map(value => [value, t('ai.detail' + value)]), value => imageDetail.value = value, disabled),
         ]),
-        !providers.value.length ? status('screen.noVisionProvider') : missingCredential.value ? status('screen.credentialRequired') : null,
+        !providers.value.length ? status('screen.noConnectedVisionModel') : missingCredential.value ? status('screen.credentialRequired') :
+          chatCannotAnalyze && !model.value ? status('errors.MODEL_SCREENSHOT_UNSUPPORTED') : null,
         screenAnalysisBlocked() && busy.value !== 'sending' ? status('screen.assistantBusy') : null,
         !screenConversation() ? h('p', { class: 'micro muted' }, t('screen.newConversation')) : null,
         h('p', { class: 'micro muted' }, t('screen.imageCost')),

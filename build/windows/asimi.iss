@@ -17,6 +17,7 @@ DefaultGroupName=Asimi
 LanguageDetectionMethod=none
 ShowLanguageDialog=yes
 WizardStyle=modern
+WizardSizePercent=130,120
 SetupIconFile={#SourcePath}asimi.ico
 UninstallDisplayIcon={app}\Asimi.exe
 VersionInfoDescription=Asimi Setup
@@ -32,6 +33,13 @@ OutputBaseFilename=Asimi-{#AppVersion}-Setup-x64
 Name: "english"; MessagesFile: "compiler:Default.isl"
 #ifdef IncludeChinese
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+#endif
+
+#ifdef IncludeChinese
+[Messages]
+chinesesimplified.SelectTasksLabel2=如需桌面快捷方式，请勾选下方选项。%n点击“下一步”继续。
+chinesesimplified.FinishedLabel=已安装 [name]。%n可从开始菜单打开。
+chinesesimplified.FinishedLabelNoIcons=已安装 [name]。
 #endif
 
 [Tasks]
