@@ -1,6 +1,11 @@
 # Changelog
 
-## Asimi Community 0.2.1
+## Asimi 0.2.1
+
+- Expanded the Chinese README with installation, provider setup, project tasks, local data, source builds and troubleshooting links.
+- Clarified MIT permissions, redistribution conditions, third-party terms and repository contribution permissions.
+- Standardized current product labels, Windows metadata and portable archive names as Asimi.
+- Updated the locale checker to include modular setup, project and computer-action translations.
 
 - Renamed the product to Asimi and the Windows portable launcher to `Asimi.exe`.
 - Updated installation, upgrade, privacy and release documentation.
@@ -8,7 +13,7 @@
 
 [Release report](docs/release/RELEASE-REPORT.md)
 
-## DeskPilot Community 0.2.1 archive
+## DeskPilot 0.2.1 archive
 
 - Three-step setup with a verified DeepSeek connection, DPAPI credential storage and an offline path.
 - Effective settings with provenance, lowerable limits and confirmed reset.

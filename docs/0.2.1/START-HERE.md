@@ -1,4 +1,4 @@
-# DeskPilot Community 0.2.1 · Windows 快速开始
+# DeskPilot 0.2.1 · Windows 快速开始
 
 1. 将 ZIP 解压到本地目录，保留两项 Helper 及其同名配置文件。需要 Windows x64、Microsoft Edge WebView2 Evergreen Runtime 和 Windows 的 .NET Framework 4.x 运行时。打开 `DeskPilotAI.exe`。此候选包的 Windows 验收结果见发布报告。
 2. 在欢迎页选择简体中文或英语。可选择 DeepSeek、粘贴自己的 API Key，然后选择「测试连接」。成功后默认使用 `deepseek-flash`。可跳过并离线使用聊天和项目浏览。其他兼容供应商可在「AI 供应商」的高级区域手动配置。

@@ -17,7 +17,7 @@ if ($AsimiEvidence) {
     $Data = Join-Path $LocalData 'DeskPilotAI'
     $ChildEnvironment.LOCALAPPDATA = $LocalData
     $Metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($Exe)
-    if ($Metadata.ProductName -cne 'Asimi Community' -or $Metadata.ProductVersion -notmatch '^0\.2\.1(?:\.0)?$') { throw 'Asimi Community PE identity mismatch' }
+    if ($Metadata.ProductName -cne 'Asimi' -or $Metadata.ProductVersion -notmatch '^0\.2\.1(?:\.0)?$') { throw 'Asimi PE identity mismatch' }
     Add-Type -AssemblyName System.Drawing
     $Icon = [Drawing.Icon]::ExtractAssociatedIcon($Exe)
     if (!$Icon) { throw 'Asimi EXE has no associated icon' }

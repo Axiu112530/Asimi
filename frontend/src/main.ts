@@ -26,7 +26,7 @@ const App=defineComponent({setup(){
   watchEffect(()=>{document.documentElement.lang=i18n.global.locale.value;document.title=t('app.title',{page:t(routeLabel(state.route))});});
   return ()=>!state.ready?h('div',{class:'boot-screen neutral-boot'},[h('span',{class:'welcome-mark'},icon('logo',36)),h('span',{class:'spinner'})]):h('div',{class:['desktop-app',{'inspector-visible':state.route==='assistant'&&state.inspectorOpen}]},[
     h('aside',{class:'sidebar'},[
-      h('div',{class:'brand'},[h('span',{class:'brand-mark'},icon('logo',29)),h('div',[h('strong',t('app.name')),h('span',t('community.edition'))])]),
+      h('div',{class:'brand'},[h('span',{class:'brand-mark'},icon('logo',29)),h('div',[h('strong',t('app.name'))])]),
       button('navigation.newTask',newConversation,{class:'new-task-button',disabled:!state.connected,'data-testid':'new-task',title:t('navigation.newTask')},[icon('plus',19),h('span',t('navigation.newTask'))]),
       h('nav',{'aria-label':t('accessibility.navigation')},[
         h('p',{class:'nav-group'},t('navigation.workspace')),
@@ -38,7 +38,7 @@ const App=defineComponent({setup(){
           ]),
         ])),
       ]),
-      h('div',{class:'sidebar-footer'},[h('div',{class:'local-indicator'},[icon('lock',15),h('span',t(realSurface()?'ai.localHistory':'app.local')),h('i',{class:['online-dot',{offline:!state.connected}]})]),h('p',t('app.tagline')),h('span',{class:'sidebar-version'},state.info?t('app.version',{version:state.info.version}):t('community.edition'))]),
+      h('div',{class:'sidebar-footer'},[h('div',{class:'local-indicator'},[icon('lock',15),h('span',t(realSurface()?'ai.localHistory':'app.local')),h('i',{class:['online-dot',{offline:!state.connected}]})]),h('p',t('app.tagline')),h('span',{class:'sidebar-version'},state.info?t('app.version',{version:state.info.version}) : '')]),
     ]),
     h('div',{class:'app-shell'},[
       h('header',{class:'topbar'},[

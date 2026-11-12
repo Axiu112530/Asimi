@@ -1,4 +1,4 @@
-# DeskPilot Community 发布准备
+# DeskPilot 发布准备
 
 DeskPilot 0.2 是 Windows 本地桌面与开发助手，提供 BYOK 聊天、工作区、模型计划、精确 Diff 和单动作审批。可离线使用项目浏览、已有固定工具及环境诊断。安全规则由本地后端执行，Community 版保留同样的审批、恢复、审计和隐私边界。
 

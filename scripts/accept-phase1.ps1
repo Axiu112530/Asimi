@@ -7,7 +7,7 @@ try {
     $evidence = Join-Path $Phase1Root "docs/release/evidence/phase1-$([Guid]::NewGuid().ToString('N'))"
     New-Item -ItemType Directory -Force -Path $evidence | Out-Null
     $data = Join-Path $Phase1Root ('.local-validation/phase1/acceptance-' + [Guid]::NewGuid().ToString('N'))
-    $binary = Join-Path $Phase1Root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-community-0.2.1/Asimi.exe' })
+    $binary = Join-Path $Phase1Root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $stages = @()
     foreach ($stage in @(1,2)) {
         $report = Join-Path $evidence "app-stage$stage.json"

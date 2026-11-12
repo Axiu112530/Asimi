@@ -2,8 +2,24 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {createI18n} from '../../frontend/node_modules/vue-i18n/dist/vue-i18n.mjs';
 const folder=new URL('../../frontend/src/',import.meta.url);
-const en=JSON.parse(await fs.readFile(new URL('locales/en-US.json',folder),'utf8'));
-const zh=JSON.parse(await fs.readFile(new URL('locales/zh-CN.json',folder),'utf8'));
+const readLocale = async name => JSON.parse(await fs.readFile(new URL('locales/' + name, folder), 'utf8'));
+const catalog = createI18n({ legacy: false, messages: {
+  'en-US': await readLocale('en-US.json'),
+  'zh-CN': await readLocale('zh-CN.json'),
+} });
+// Mirror the resources merged by i18n.ts, project021-panel.ts and community-setup.ts.
+for (const [namespace, englishFile, chineseFile] of [
+  [null, 'computer-suggestion.en-US.json', 'computer-suggestion.zh-CN.json'],
+  ['project021', 'project021.en-US.json', 'project021.zh-CN.json'],
+  ['communitySetup', 'community-setup-en.json', 'community-setup-zh.json'],
+]) {
+  const english = await readLocale(englishFile);
+  const chinese = await readLocale(chineseFile);
+  catalog.global.mergeLocaleMessage('en-US', namespace ? { [namespace]: english } : english);
+  catalog.global.mergeLocaleMessage('zh-CN', namespace ? { [namespace]: chinese } : chinese);
+}
+const en = catalog.global.getLocaleMessage('en-US');
+const zh = catalog.global.getLocaleMessage('zh-CN');
 const flatten=(obj,prefix='')=>Object.entries(obj).flatMap(([k,v])=>typeof v==='object'?flatten(v,prefix+k+'.'):[[prefix+k,v]]);
 const english=new Map(flatten(en)),chinese=new Map(flatten(zh));
 assert.deepEqual([...english.keys()].sort(),[...chinese.keys()].sort());

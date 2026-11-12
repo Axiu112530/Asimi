@@ -1,4 +1,4 @@
-# DeskPilot Community 0.2.1 实施计划
+# DeskPilot 0.2.1 实施计划
 
 基线为 `codex/phase2b-byok` 的 `4accd35e6b7a801274e034adc103f59df37e686c`，工作区含已经验收的未提交代码，暂存区为空。已检查 Wails 入口、SQLite v1～v6、现有 Provider、Agent、工作区、命令、设置、电脑审批和 0.2 便携包。复用现有安全执行链，保留历史 SQL、报告、测试和交付文件。
 

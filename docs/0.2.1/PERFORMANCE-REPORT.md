@@ -1,4 +1,4 @@
-# DeskPilot Community 0.2.1 performance
+# DeskPilot 0.2.1 performance
 
 The measurement host is Windows 11 25H2 x64. These are fixture measurements with warm local caches and concurrent validation activity. Other Windows versions and machine profiles require separate measurements.
 

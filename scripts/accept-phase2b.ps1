@@ -22,7 +22,7 @@ try {
     for ($i=0; $i -lt 100 -and !(Test-Path -LiteralPath $ready); $i++) { Start-Sleep -Milliseconds 50 }
     $fixtureURL = Get-Content -LiteralPath $ready -Raw
     if (!$fixtureURL.StartsWith('http://127.0.0.1:')) { throw 'Fixture must use loopback' }
-    $binary = Join-Path $Phase2BRoot $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-community-0.2.1/Asimi.exe' })
+    $binary = Join-Path $Phase2BRoot $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $results = @()
     foreach ($stage in @(5,6,1,2)) {
         $profile = if ($stage -ge 5) { Join-Path $dataRoot 'byok' } else { Join-Path $dataRoot 'phase1-regression' }

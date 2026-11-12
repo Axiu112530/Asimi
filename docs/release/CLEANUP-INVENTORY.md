@@ -1,4 +1,4 @@
-# Asimi Community 0.2.1 清理清单
+# Asimi 0.2.1 清理清单
 
 基线为 `codex/phase2b-byok` 的 `4accd35e6b7a801274e034adc103f59df37e686c`。工作区已有上一轮源码和文档，暂存区为空。按 Git 状态、构建输入、原生验收入口和发行包清单核对下列路径。
 

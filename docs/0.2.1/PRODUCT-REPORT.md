@@ -1,4 +1,4 @@
-# DeskPilot Community 0.2.1 产品报告
+# DeskPilot 0.2.1 产品报告
 
 ## 使用流程
 

@@ -1,4 +1,4 @@
-# Upgrade to Asimi Community 0.2.1
+# Upgrade to Asimi 0.2.1
 
 DeskPilot 0.2 and 0.2.1 profiles use the same default data directory, `%LOCALAPPDATA%\DeskPilotAI`. Keep the directory name so Asimi can reopen your settings, history, credentials and recovery records.
 

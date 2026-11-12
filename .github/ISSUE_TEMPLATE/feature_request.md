@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an improvement to Asimi Community
+about: Suggest an improvement to Asimi
 title: ""
 labels: ""
 assignees: ""

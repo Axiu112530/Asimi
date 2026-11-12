@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible problem in Asimi Community
+about: Report a reproducible problem in Asimi
 title: ""
 labels: ""
 assignees: ""

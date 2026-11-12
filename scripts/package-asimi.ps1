@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $Output = Join-Path $Repo 'build/bin'
-$Portable = Join-Path $Output 'asimi-community-0.2.1'
+$Portable = Join-Path $Output 'asimi-0.2.1'
 $Evidence = Join-Path $Repo 'docs/release/evidence'
 New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
 
@@ -18,7 +18,7 @@ $Manifest = foreach ($Name in $Files) {
 }
 $ManifestName = 'SHA256SUMS.txt'
 [IO.File]::WriteAllLines((Join-Path $Portable $ManifestName),$Manifest,[Text.UTF8Encoding]::new($false))
-$Archive = Join-Path $Output 'Asimi-Community-0.2.1-win-x64.zip'
+$Archive = Join-Path $Output 'Asimi-0.2.1-win-x64.zip'
 $Members = $Files + @($ManifestName)
 Compress-Archive -LiteralPath @($Members | ForEach-Object { Join-Path $Portable $_ }) -DestinationPath $Archive -Force
 $Extracted = Join-Path $Output "asimi-extracted-$([Guid]::NewGuid().ToString('N'))"
@@ -37,7 +37,7 @@ foreach ($Row in Get-Content -LiteralPath (Join-Path $Extracted $ManifestName)) 
 $ArchiveHash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash
 [IO.File]::WriteAllLines($Archive + '.sha256',@("$ArchiveHash  $(Split-Path -Leaf $Archive)"),[Text.UTF8Encoding]::new($false))
 $Version = (Get-Item -LiteralPath (Join-Path $Extracted 'Asimi.exe')).VersionInfo
-if ($Version.ProductName -cne 'Asimi Community' -or $Version.ProductVersion -cne '0.2.1' -or $Version.OriginalFilename -cne 'Asimi.exe') {
+if ($Version.ProductName -cne 'Asimi' -or $Version.ProductVersion -cne '0.2.1' -or $Version.OriginalFilename -cne 'Asimi.exe') {
     throw 'Unexpected executable branding or version'
 }
 [ordered]@{

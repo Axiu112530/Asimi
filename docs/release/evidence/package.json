@@ -1,10 +1,10 @@
 {
   "passed": true,
-  "product": "Asimi Community",
+  "product": "Asimi",
   "version": "0.2.1",
-  "archiveSha256": "CB0BA053C0A4477AA828C5FB94C38E0E46AD88C207630E4FC1C784C3CBC4018B",
-  "mainSha256": "70FB396958AC2432A7B478F41A5DFDAE20515EBA18866023D23CA10F11B98154",
-  "fileCount": 12,
+  "archiveSha256": "242EE30E000C75248AB53D01904F66D623BB4A8475EDFE0271ACDFA3DF4B5FF0",
+  "mainSha256": "1F3191247DE4E71C3F3D80348AEC1E4EB8FDF121F0CB60B604A64134DC1A3649",
+  "fileCount": 13,
   "members": [
     "Asimi.exe",
     "DeskPilotControlHost.exe",
@@ -17,7 +17,8 @@
     "KNOWN-LIMITATIONS.md",
     "THIRD-PARTY-NOTICES.md",
     "PRIVACY.md",
+    "LICENSE",
     "SHA256SUMS.txt"
   ],
-  "extracted": "asimi-extracted-f6c477b6d9a74b099eb985d659182025"
+  "extracted": "asimi-extracted-cd11dee0760b419c9e7f8eefe94c75d7"
 }

@@ -53,7 +53,7 @@ try {
     $candidate = Get-Content -LiteralPath $ready -Raw
     if ($candidate -notmatch '^http://127\.0\.0\.1:[1-9]\d{0,4}/v1$') { throw 'Fixture URL must use loopback' }
     $fixtureURL = $candidate
-    $binary = Join-Path $root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-community-0.2.1/Asimi.exe' })
+    $binary = Join-Path $root $(if ($SkipBuild) { 'build/bin/DeskPilotAI.exe' } else { 'build/bin/asimi-0.2.1/Asimi.exe' })
     $results = @()
     $evidenceFiles = @()
     $shutdownMarkers = @('lifecycle.navigation_completed', 'lifecycle.shutdown_requested', 'lifecycle.storage_closed',

@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $Evidence = Join-Path $Repo 'docs/release/evidence'
 $Package = Get-Content -Raw -LiteralPath (Join-Path $Evidence 'package.json') | ConvertFrom-Json
-$Archive = Join-Path $Repo 'build/bin/Asimi-Community-0.2.1-win-x64.zip'
-$Build = Join-Path $Repo 'build/bin/asimi-community-0.2.1'
+$Archive = Join-Path $Repo 'build/bin/Asimi-0.2.1-win-x64.zip'
+$Build = Join-Path $Repo 'build/bin/asimi-0.2.1'
 $Extracted = Join-Path $Repo ('build/bin/' + $Package.extracted)
 if ((Get-FileHash -LiteralPath $Archive).Hash -ne $Package.archiveSha256 -or
     ((Get-Content -Raw -LiteralPath ($Archive + '.sha256')).Trim() -ne "$($Package.archiveSha256)  $(Split-Path -Leaf $Archive)")) { throw 'Archive checksum mismatch' }
@@ -34,7 +34,7 @@ $Native = Get-Run 'native-*'
 $Regression = Get-Run 'regression-*'
 $Agent = Get-Run 'agent-loopback-*'
 if (!$Ordinary.run.passed -or !$Ordinary.run.nativeWindowIcon -or !$Ordinary.run.associatedIcon -or
-    $Ordinary.run.nativeWindowTitle -cne 'Asimi' -or $Ordinary.run.productName -cne 'Asimi Community' -or
+    $Ordinary.run.nativeWindowTitle -cne 'Asimi' -or $Ordinary.run.productName -cne 'Asimi' -or
     !$Ordinary.run.isolatedLocalAppData -or $Ordinary.run.defaultProfileDirectory -cne 'DeskPilotAI') { throw 'Ordinary launch check failed' }
 if ($Native.run.legacySourceProfilesUnchanged -ne 3 -or @($Native.run.profileComparisons.PSObject.Properties).Count -ne 3) { throw 'Missing legacy profile checks' }
 foreach ($Comparison in $Native.run.profileComparisons.PSObject.Properties.Value) {

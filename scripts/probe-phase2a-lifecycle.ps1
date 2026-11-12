@@ -17,7 +17,7 @@ $dataRoot = Join-Path $binRoot "runs/$runKey"
 New-Item -ItemType Directory -Force -Path $binRoot, $evidence, $dataRoot | Out-Null
 if (!$AppPath) {
     if ($Variant -eq 'phase1') { $AppPath = Join-Path $binRoot 'DeskPilotAI-phase1.exe' }
-    else { $AppPath = Join-Path $Phase2ARoot 'build/bin/asimi-community-0.2.1/Asimi.exe' }
+    else { $AppPath = Join-Path $Phase2ARoot 'build/bin/asimi-0.2.1/Asimi.exe' }
 }
 
 function Get-WebViewSnapshot {

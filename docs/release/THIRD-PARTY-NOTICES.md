@@ -1,6 +1,6 @@
-# Asimi Community 0.2.1 third-party notices
+# Asimi 0.2.1 third-party notices
 
-This file records the dependencies shipped in the Windows x64 portable candidate. The Asimi Community application is covered by the MIT License in the `LICENSE` file. The Community packaging script includes a copy of that license in new archives. The license and attribution text below applies to the named dependencies.
+This file records the dependencies shipped in the Windows x64 portable candidate. The Asimi application is covered by the MIT License in the `LICENSE` file. The Asimi packaging script includes a copy of that license in new archives. The license and attribution text below applies to the named dependencies.
 
 - The executable embeds the Go standard library and the Windows amd64 dependency graph. Direct application dependencies are Wails v3.1.0, golang.org/x/sys v0.48.0, golang.org/x/image v0.45.0 and modernc.org/sqlite v1.44.3. The linked modules and their notices follow below. The Go module and checksum files also record dependencies used by other targets and development workflows.
 - The embedded production frontend uses Vue 3.5.45, Vue I18n 11.4.18 and their bundled dependencies. The frontend notices follow the production build source-map inventory. The npm install tree, Vite, TypeScript and source maps stay in the development workspace. [Vue license](https://github.com/vuejs/core/blob/v3.5.45/LICENSE)

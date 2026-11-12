@@ -1,4 +1,4 @@
-# DeskPilot Community 0.2.1 验收报告
+# DeskPilot 0.2.1 验收报告
 
 验收主机为 Windows 11 Home 25H2 x64，Build 26200.9974，WebView2 157.0.4341.46。使用 Go 1.26.10、Wails 3.1.0 和现有锁定的 Vue 依赖。所有程序级验收从独立解压目录运行，使用专用数据目录与生成的测试项目。
 

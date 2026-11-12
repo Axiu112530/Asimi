@@ -1,5 +1,44 @@
-# Asimi privacy
+# Asimi 隐私说明
 
-Asimi stores preferences, history, audit records and imported attachments in the local profile. Stored provider credentials use DPAPI with the current Windows account. Offline usage runs locally. A provider connection test sends a short prompt. Real provider requests can send the current prompt and relevant conversation history. Agent previews disclose the selected project context before transmission. Screenshot requests require a separate preview and confirmation before sending.
+Asimi 默认将配置与运行记录保存在本机。配置外部 AI 服务后，模型请求会通过你选择的服务地址发送。请在发送前核对预览内容，并查看该服务的数据处理规则。
 
-Provider retention, pricing and account terms are governed by the service you configure. The app records execution and verification locally. Share only redacted diagnostics with maintainers. The data directory appears under Settings → About.
+## 本地保存的数据
+
+| 内容 | 保存方式与用途 |
+| --- | --- |
+| 语言、主题、供应商和模型配置 | 保存到本地配置及数据库，用于恢复使用状态 |
+| 会话和消息历史 | 保存到本地应用数据目录，用于继续对话 |
+| 工作区记录、任务、审批、执行、验证和审计记录 | 保存到本地数据库，用于展示进度及恢复 |
+| 导入附件与运行日志 | 保存到本地应用数据目录，可能含用户内容或诊断信息 |
+| API Key | 使用当前 Windows 账户的 DPAPI 保护保存的密钥 |
+
+默认数据目录为 %LOCALAPPDATA%\DeskPilotAI。可在「设置 → 关于」查看实际位置，或通过 --data-dir 指定独立配置目录。默认路径沿用早期版本，以兼容已有设置和记录。
+
+DPAPI 保护的是保存的凭据。会话、附件、日志等内容可能以可读形式保存在本机，其他具有相应文件访问权限的进程或账户可能访问它们。
+
+## 何时发送数据
+
+| 操作 | 发送内容与目标 |
+| --- | --- |
+| 供应商连接测试 | 一条短提示词，发送给所配置供应商，可能消耗 API 额度 |
+| 真实 AI 对话 | 当前提示词、相关历史和所选附件，发送给会话选择的模型服务 |
+| Agent 任务 | 预览中选定的项目源文件、目标描述和相关测试输出，在用户确认后发送 |
+| 截图分析 | 所选屏幕或区域的截图，在预览、遮挡与单独确认后发送给支持图像的服务 |
+
+离线体验使用本地功能。开启真实模型请求后，网络流量会发送到对应配置的服务。连接自定义服务地址前，请确认地址和服务运营者可信。
+
+## 第三方服务
+
+供应商决定其服务的计费、模型能力、数据保留与处理规则。API Key 由用户自行申请和管理，API 使用费用由对应账户承担。使用自定义网关时，数据也会经过该网关。
+
+应用依赖系统安装的 WebView2 与 Windows 运行时。相关组件与供应商的条款见第三方声明。[第三方声明](docs/release/THIRD-PARTY-NOTICES.md)
+
+## 备份、迁移与清理
+
+关闭所有使用该配置目录的 Asimi 实例，再完整备份数据目录。跨 Windows 账户或电脑恢复时，DPAPI 凭据可能需要重新输入。删除应用数据目录会移除其中保存的设置、历史、任务、日志和附件，操作前请确认备份及实际路径。[升级指南](docs/release/UPGRADE-GUIDE.md)
+
+源码目录下的 .local-validation、旧阶段测试数据与构建缓存用于本地开发。它们与日常应用数据有各自的保存位置，提交源码前应检查 Git 暂存清单。[贡献指南](CONTRIBUTING.md)
+
+## 反馈与安全报告
+
+提交 Issues、日志或截图前，去除 API Key、私人代码、个人路径、会话内容及图片中的敏感信息。漏洞通过私密报告渠道提交，并使用隔离测试数据复现。[安全报告](SECURITY.md)

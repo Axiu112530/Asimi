@@ -1,4 +1,4 @@
-# Use Asimi Community
+# Use Asimi
 
 Asimi is a local-first AI desktop assistant for developers, combining AI conversations, project understanding, code changes, controlled computer interaction, and secure local execution.
 
