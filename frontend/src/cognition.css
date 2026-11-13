@@ -1,0 +1,31 @@
+.product-row.cognition-toolbar {
+  align-items: flex-end;
+}
+
+.cognition-toolbar > .product-field {
+  margin: 0;
+}
+
+.cognition-toolbar > .product-field > :is(select, input[type='search']),
+.cognition-toolbar > .button {
+  min-height: var(--form-control-height, 36px);
+}
+
+.cognition-toolbar > .product-field > :is(select, input[type='search']) {
+  padding-block: 0;
+}
+
+.product-page .cognition-check {
+  align-items: center;
+  min-height: 30px;
+}
+
+.product-page .cognition-check > input[type='checkbox'] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}

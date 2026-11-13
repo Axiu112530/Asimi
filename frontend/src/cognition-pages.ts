@@ -4,6 +4,7 @@ import { date, t } from './i18n';
 import { product } from './product-store';
 import { fail, state } from './store';
 import { button } from './ui';
+import './cognition.css';
 
 interface Settings {
   memory: boolean;
@@ -156,11 +157,11 @@ export const MemoryPage = defineComponent({
     }
     return () => h('section', { class: 'product-page', 'data-testid': 'cognition-memory' }, [
       h('header', { class: 'product-heading' }, [h('h1', t('cognition.memoryPage'))]),
-      h('div', { class: 'product-row' }, [projectPicker(), localButton('refresh', () => work(async () => {}), busy.value)]),
+      h('div', { class: 'product-row cognition-toolbar' }, [projectPicker(), localButton('refresh', () => work(async () => {}), busy.value)]),
       data.value && h('article', { class: 'product-card' }, [
         h('h2', t('cognition.learning')),
         h('p', t('cognition.providerNotice')),
-        ...settingsKeys.map(setting => h('label', { class: 'product-check', key: setting }, [
+        ...settingsKeys.map(setting => h('label', { class: 'product-check cognition-check', key: setting }, [
           h('input', {
             type: 'checkbox', checked: data.value?.settings[setting], disabled: busy.value,
             onChange: (event: Event) => {
@@ -168,7 +169,7 @@ export const MemoryPage = defineComponent({
               void work(() => call('SetCognitionSettings', { ...data.value?.settings, [setting]: checked }));
             },
           }),
-          t('cognition.' + setting),
+          h('span', t('cognition.' + setting)),
         ])),
         workspaceId.value && h('p', t('cognition.queue', {
           pending: data.value.pending, paused: data.value.paused, completed: data.value.completed,
@@ -230,7 +231,7 @@ export const GrowthPage = defineComponent({
     const {data,busy,projectPicker,work}=useCognition();
     return ()=>h('section',{class:'product-page','data-testid':'cognition-growth'},[
       h('header',{class:'product-heading'},[h('h1',t('cognition.growthPage'))]),
-      h('div',{class:'product-row'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
+      h('div',{class:'product-row cognition-toolbar'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
       data.value && h('article',{class:'product-card'},[
         h('p',t('cognition.queue',{pending:data.value.pending,paused:data.value.paused,completed:data.value.completed})),
         h('div',{class:'product-row'},[
@@ -257,7 +258,7 @@ export const LearningPage = defineComponent({
     }
     return ()=>h('section',{class:'product-page','data-testid':'cognition-learning'},[
       h('header',{class:'product-heading'},[h('h1',t('cognition.learningPage'))]),
-      h('div',{class:'product-row'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
+      h('div',{class:'product-row cognition-toolbar'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
       data.value && h('article',{class:'product-card'},[
         h('p',t('cognition.queue',{pending:data.value.pending,paused:data.value.paused,completed:data.value.completed})),
         h('div',{class:'product-row'},[
@@ -377,7 +378,7 @@ export const CognitionSkillsPanel = defineComponent({
         ]),
         h('article', { class: 'product-card' }, [
           h('h2', t('cognition.localSkills')),
-          h('div', { class: 'product-row' }, [
+          h('div', { class: 'product-row cognition-toolbar' }, [
             projectPicker(), label('search', h('input', { type: 'search', value: query.value, onInput: (event: Event) => { query.value = textValue(event); } })),
             localButton('refresh', () => work(async () => {}), busy.value),
           ]),

@@ -57,7 +57,20 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
      const workspace = document.querySelector('.workspace');
      const main = root.closest('.page-scroll') || root.closest('.product-page') || root;
      const scroller = root.closest('.cognition-skills-route') || main;
+     const checkPairs = [...root.querySelectorAll('.cognition-check')].map(row => {
+       const box = row.querySelector('input').getBoundingClientRect();
+       const text = row.querySelector('span').getBoundingClientRect();
+       return { centerDelta: Math.abs((box.top + box.bottom - text.top - text.bottom) / 2), boxHeight: box.height };
+     });
+     const toolbar = root.querySelector('.cognition-toolbar');
+     const select = toolbar?.querySelector('select')?.getBoundingClientRect();
+     const button = toolbar?.querySelector('button')?.getBoundingClientRect();
+     const toolbarAligned = !select || !button || (Math.abs(select.bottom - button.bottom) <= 1 &&
+       Math.abs(select.height - button.height) <= 1);
+     const controlsPresent = root.dataset.testid !== 'cognition-memory' || (checkPairs.length === 4 && select && button);
+     const alignment = !!controlsPresent && toolbarAligned && checkPairs.every(row => row.centerDelta <= 1 && row.boxHeight <= 18);
      return { width: innerWidth, pageWidth: main.clientWidth, pageScrollWidth: main.scrollWidth,
+       alignment, toolbarAligned, checkPairs,
        scrollContainerFits: scroller.scrollWidth <= scroller.clientWidth + 1,
        shellFits: workspace.scrollWidth <= workspace.clientWidth + 1 };
     })()`);
@@ -76,5 +89,5 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  await fs.writeFile(path.join(output,`visual-stage${ready.stage}.json`),JSON.stringify(metrics,null,2));
  await evaluate('globalThis.__asimiAcceptanceContinue=true');socket.close();
  console.log(JSON.stringify(metrics));
- if(metrics.some(x=>x.noHorizontalOverflow===false))process.exitCode=1;
+ if(metrics.some(x=>x.noHorizontalOverflow===false || x.alignment===false))process.exitCode=1;
 })().catch(e=>{console.error(e);process.exitCode=1});
