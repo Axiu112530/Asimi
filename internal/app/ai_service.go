@@ -95,7 +95,7 @@ func (s *Service) initializeAI() error {
 			}
 			m.Status = r.Status
 			m.ErrorCode = r.ErrorCode
-			m.Usage = &r.Usage
+			m.Usage = nil
 			if _, e = tx.Exec("UPDATE ai_message_metadata SET json=? WHERE message_id=?", encode(m), r.MessageID); e != nil {
 				return e
 			}
@@ -106,7 +106,12 @@ func (s *Service) initializeAI() error {
 func (s *Service) enrichMessagesLocked(messages []domain.Message) error {
 	for i := range messages {
 		var raw string
-		e := s.db.QueryRow("SELECT json FROM ai_message_metadata WHERE message_id=?", messages[i].ID).Scan(&raw)
+		var usage sql.NullString
+		e := s.db.QueryRow(`SELECT meta.json, json_extract(usage.json,'$.usage')
+FROM ai_message_metadata meta
+LEFT JOIN ai_requests req ON req.id=json_extract(meta.json,'$.requestId') AND req.message_id=meta.message_id
+LEFT JOIN ai_usage usage ON usage.request_id=req.id
+WHERE meta.message_id=?`, messages[i].ID).Scan(&raw, &usage)
 		if errors.Is(e, sql.ErrNoRows) {
 			continue
 		}
@@ -123,6 +128,11 @@ func (s *Service) enrichMessagesLocked(messages []domain.Message) error {
 		messages[i].Status = m.Status
 		messages[i].ErrorCode = m.ErrorCode
 		messages[i].Attachments = m.Attachments
+		if usage.Valid {
+			if e = json.Unmarshal([]byte(usage.String), &m.Usage); e != nil {
+				return e
+			}
+		}
 		messages[i].Usage = m.Usage
 		messages[i].ScreenCapture = m.ScreenCapture
 		messages[i].Vision = m.Vision

@@ -1,4 +1,4 @@
-import { defineComponent,h,onMounted,onUnmounted,ref,reactive,watch,type VNodeChild } from 'vue';
+import { defineComponent,h,nextTick,onMounted,onUnmounted,ref,reactive,watch,type VNodeChild } from 'vue';
 import { t,date,i18n } from './i18n';
 import { button,badge,errorText } from './ui';
 import { state,saveSettings,openConversation,newConversation } from './store';
@@ -7,7 +7,7 @@ import { ai,sendAI,startAgentAnalysis,selectProvider,selectModel,profile,model,u
 import { AIProfilesPage } from './ai-pages';
 import { Markdown } from './markdown';
 import { product,productWork,refreshProduct,selectWorkspace,pickWorkspace,analyzeWorkspace,readSource,approveProductAction,rejectProductAction,diagnoseEnvironment } from './product-store';
-import type { AgentTask,ProductAction,ProjectFile } from './product-types';
+import type { AgentTask,ProductAction,ProjectFile,Skill } from './product-types';
 import { Agent02Panel } from './agent02-panel';
 import { ComputerTaskEvidence } from './agent02-computer-evidence';
 import { DeveloperProjectPanel } from './project021-panel';
@@ -132,7 +132,72 @@ export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),
  context.value?panel('reviewContext',h('div',[h('pre',context.value.content),h('code',context.value.hash),providerSelect(),action('sendContext',()=>startAgentAnalysis(context.value!.id,context.value!.hash),model(ai.assistant)?.capabilities.text!=='SUPPORTED'||ai.assistant.busy),action('configure',()=>state.route='models'),ai.assistant.error?h('p',{role:'alert'},errorText(ai.assistant.error)):null])):null,
  ]);}});
 
-export const SkillsPage=defineComponent({setup(){useProduct();return()=>h('section',{class:'product-page','data-testid':'product-skills'},[h('header',{class:'product-heading'},[h('h1',t('product.skills')),h('p',t('product.skillBoundary'))]),...product.data.skills.map(s=>h('article',{class:'product-card'},[h('div',{class:'split'},[h('h2',t('product.skill.'+s.id)===('product.skill.'+s.id)?s.name:t('product.skill.'+s.id)),h('label',{class:'product-check'},[h('input',{type:'checkbox',checked:s.enabled,disabled:product.busy,onChange:(e:Event)=>productWork(async()=>{await call('SetSkillEnabled',{id:s.id,enabled:(e.target as HTMLInputElement).checked});await refreshProduct();})}),t('product.enabled')])]),h('p',t('product.skillDescription.'+s.id)),h('p',{class:'micro'},`${s.version||'0.1.0'} · ${s.risk}`),h('code',s.tools?.join(', ')),h('details',[h('summary',t('product.schemas')),h('pre',JSON.stringify({input:s.inputSchema||s.schema,output:s.outputSchema},null,2))])]))]);}});
+export const SkillsPage = defineComponent({
+  setup() {
+    useProduct();
+    const active = ref('');
+    const cards = new Map<string, HTMLButtonElement>();
+    const heading = ref<HTMLHeadingElement>();
+    const skillTitle = (skill: Skill) => i18n.global.te('product.skill.' + skill.id, 'en-US')
+      ? t('product.skill.' + skill.id) : skill.name;
+    const skillDescription = (skill: Skill) => i18n.global.te('product.skillIntro.' + skill.id, 'en-US')
+      ? t('product.skillIntro.' + skill.id) : skill.description;
+
+    async function open(id: string) {
+      active.value = id;
+      await nextTick();
+      heading.value?.focus();
+    }
+    async function back() {
+      const id = active.value;
+      active.value = '';
+      await nextTick();
+      cards.get(id)?.focus();
+    }
+    async function toggle(skill: Skill, event: Event) {
+      const input = event.target as HTMLInputElement;
+      await productWork(async () => {
+        await call('SetSkillEnabled', { id: skill.id, enabled: input.checked });
+        await refreshProduct();
+      });
+      input.checked = product.data.skills.find(item => item.id === skill.id)?.enabled ?? skill.enabled;
+    }
+
+    return () => {
+      const selected = product.data.skills.find(skill => skill.id === active.value);
+      return h('section', { class: 'product-page', 'data-testid': 'product-skills' }, [
+        selected ? [
+          action('skillBack', back),
+          h('article', { class: 'product-card skill-detail', 'data-testid': 'skill-detail' }, [
+            h('h1', { ref: heading, tabindex: -1 }, skillTitle(selected)),
+            h('p', skillDescription(selected)),
+            h('label', { class: 'product-check' }, [
+              h('input', {
+                type: 'checkbox', checked: selected.enabled, disabled: product.busy || !state.connected,
+                onChange: (event: Event) => toggle(selected, event),
+              }),
+              t('product.enabled'),
+            ]),
+            h('p', { class: 'muted micro' }, t('product.skillPermissionNote')),
+          ]),
+        ] : [
+          h('header', { class: 'product-heading' }, h('h1', t('product.skills'))),
+          h('ul', { class: 'skill-grid' }, product.data.skills.map(skill => h('li', { key: skill.id }, [
+            h('button', {
+              class: 'skill-tile', type: 'button', 'data-testid': 'skill-' + skill.id,
+              ref: (node: unknown) => { if (node instanceof HTMLButtonElement) cards.set(skill.id, node); },
+              onClick: () => open(skill.id),
+            }, [
+              h('strong', skillTitle(skill)),
+              h('span', { class: ['skill-state', { 'skill-state-enabled': skill.enabled }] },
+                t(skill.enabled ? 'product.skillOn' : 'product.skillOff')),
+            ]),
+          ]))),
+        ],
+      ]);
+    };
+  },
+});
 
 export const Onboarding=defineComponent({setup(){const step=ref(0);const labels=['welcome','language','providerSetup','connection','visionCheck','safety','workspace','finish'];const complete=()=>productWork(async()=>{await call('CompleteOnboarding',{completed:true});await refreshProduct();product.showOnboarding=false;});
  return()=>product.showOnboarding?h('div',{class:'product-overlay',role:'dialog','aria-modal':true,'aria-label':t('product.setup')},[h('section',{class:'product-onboarding'},[

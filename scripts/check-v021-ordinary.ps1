@@ -52,6 +52,31 @@ private static extern System.IntPtr SendMessageTimeout(System.IntPtr window, uin
 private static extern System.IntPtr GetWindowDpiAwarenessContext(System.IntPtr window);
 [System.Runtime.InteropServices.DllImport("user32.dll")]
 private static extern bool AreDpiAwarenessContextsEqual(System.IntPtr first, System.IntPtr second);
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+private struct Rect { public int Left, Top, Right, Bottom; }
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+private struct MonitorInfo { public int Size; public Rect Monitor, Work; public uint Flags; }
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+private static extern System.IntPtr MonitorFromWindow(System.IntPtr window, uint flags);
+[System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+private static extern bool GetMonitorInfo(System.IntPtr monitor, ref MonitorInfo info);
+[System.Runtime.InteropServices.DllImport("user32.dll")]
+private static extern System.IntPtr SetThreadDpiAwarenessContext(System.IntPtr context);
+[System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+private static extern int DwmGetWindowAttribute(System.IntPtr window, int attribute, out Rect bounds, int size);
+private static bool FitsWorkArea(System.IntPtr window) {
+    var previous = SetThreadDpiAwarenessContext(new System.IntPtr(-4));
+    if (previous == System.IntPtr.Zero) return false;
+    try {
+        var info = new MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MonitorInfo)) };
+        Rect bounds;
+        return DwmGetWindowAttribute(window, 9, out bounds, System.Runtime.InteropServices.Marshal.SizeOf(typeof(Rect))) == 0
+            && GetMonitorInfo(MonitorFromWindow(window, 2), ref info)
+            && bounds.Right > bounds.Left && bounds.Bottom > bounds.Top
+            && bounds.Left >= info.Work.Left && bounds.Top >= info.Work.Top
+            && bounds.Right <= info.Work.Right && bounds.Bottom <= info.Work.Bottom;
+    } finally { SetThreadDpiAwarenessContext(previous); }
+}
 public static bool Close(uint ownedProcessId, string expectedTitle, bool requireIcon) {
     System.IntPtr found = System.IntPtr.Zero;
     EnumWindows(delegate(System.IntPtr window, System.IntPtr state) {
@@ -69,6 +94,7 @@ public static bool Close(uint ownedProcessId, string expectedTitle, bool require
     if (found == System.IntPtr.Zero) return false;
     if (requireIcon) {
         if (!AreDpiAwarenessContextsEqual(GetWindowDpiAwarenessContext(found), new System.IntPtr(-4))) return false;
+        if (!FitsWorkArea(found)) throw new System.InvalidOperationException("The native window extends beyond the monitor work area.");
         System.UIntPtr icon;
         var sent = SendMessageTimeout(found, 0x007f, new System.UIntPtr(1u), System.IntPtr.Zero, 0x0002, 1500, out icon);
         if (sent == System.IntPtr.Zero || icon == System.UIntPtr.Zero) return false;
@@ -116,6 +142,7 @@ if ($AsimiEvidence) {
     $Result.associatedIcon = $true
     $Result.nativeWindowIcon = $true
     $Result.perMonitorV2 = $true
+    $Result.nativeWindowFitsWorkArea = $true
     $Result.defaultProfileDirectory = Split-Path $Data -Leaf
     $Result.isolatedLocalAppData = $true
 }

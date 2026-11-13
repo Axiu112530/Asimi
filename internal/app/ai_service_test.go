@@ -123,6 +123,10 @@ func TestAIOptionalCredentialContextIsolationSwitchAndUsage(t *testing.T) {
 	if len(c.Messages) != 6 || c.Messages[1].Usage == nil || c.Messages[1].ProviderID != "one" || c.Messages[5].ProviderID != "two" {
 		t.Fatalf("message metadata missing %#v", c.Messages)
 	}
+	var duplicateUsage int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM ai_message_metadata WHERE json_type(json,'$.usage') IS NOT NULL").Scan(&duplicateUsage); err != nil || duplicateUsage != 0 {
+		t.Fatalf("new messages duplicate usage data: %d, %v", duplicateUsage, err)
+	}
 	mustCall(t, s, "ClearChatConversation", map[string]any{"id": c.ID, "confirm": true, "deleteAttachments": true})
 	c = mustCall(t, s, "GetConversation", map[string]string{"id": c.ID}).(domain.Conversation)
 	if len(c.Messages) != 0 {

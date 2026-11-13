@@ -153,6 +153,17 @@ async function restart(live) {
     check('releaseHasNoDemoControls', !byId('ai-assistantMode') && !byId('composer') && !document.querySelector('.runtime-info,.local-indicator'));
     check('releaseRejectsDemoRequests', (await rpc('SendMessage')).error?.code === 'METHOD_NOT_ALLOWED');
     check('noUsageWithoutModel', !(await call('GetUsage'))?.length);
+    await click('nav-skills');
+    const skill = await until('skill tile', () => byId('skill-project-overview'));
+    check('skillsGridWithoutRawSchemas', !!skill.closest('.skill-grid') && !byId('product-skills').querySelector('pre, code'));
+    await click('skill-project-overview');
+    const skillDetail = await until('skill details', () => byId('skill-detail'));
+    check('skillDetailsAreLocalized', skillDetail.textContent.includes('查看所选项目的目录结构和依赖。'));
+    const enabled = skillDetail.querySelector('input[type=checkbox]');
+    enabled.click();
+    await until('skill disabled', () => !enabled.checked && !enabled.disabled);
+    await click('product-skillBack');
+    await until('updated skill card', () => byId('skill-project-overview')?.textContent.includes('已停用'));
     if (params.has('visual')) {
       await call('SaveAIProfile', { profile: {
         id: 'visual-fixture', name: 'Local fixture', protocol: 'chat-completions',
@@ -171,6 +182,28 @@ async function restart(live) {
       await click('nav-assistant');
       await until('configured composer', () => byId('ai-composer'));
       check('sendLabel', byId('real-send').textContent.trim() === '发送');
+      input('ai-composer', 'Keyboard fixture');
+      const composer = byId('ai-composer');
+      const previousConfirm = window.confirm;
+      let prompts = 0;
+      window.confirm = () => { prompts++; return false; };
+      try {
+        for (const modifiers of [{ shiftKey: true }, { isComposing: true }]) {
+          const key = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...modifiers });
+          composer.dispatchEvent(key);
+          check(modifiers.shiftKey ? 'shiftEnterKeepsDefault' : 'imeEnterKeepsDefault', !key.defaultPrevented);
+        }
+        check('draftRemainsBeforeSend', composer.value === 'Keyboard fixture');
+        const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        composer.dispatchEvent(enter);
+        check('enterSubmits', enter.defaultPrevented);
+        const usage = await until('keyboard request reaches backend', async () => (await call('GetUsage'))?.[0]);
+        check('textSentWithoutPrompt', prompts === 0 && usage.modelId === 'fixture-model');
+        await until('keyboard conversation loaded', () => document.querySelector('.message-user')?.textContent.includes('Keyboard fixture'));
+        check('chatHidesRequestMetadata', !document.querySelector('.message-user')?.textContent.includes(usage.requestId));
+      } finally {
+        window.confirm = previousConfirm;
+      }
       await reviewVisual();
     }
   }

@@ -564,6 +564,7 @@
     "user": "用户请求"
   },
   "ai": {
+    "keyboardHint": "Enter 发送 · Shift+Enter 换行",
     "attachMedia": "添加附件",
     "attachImage": "添加图片附件",
     "deepSeekPreset": "使用 DeepSeek 预设",
@@ -1066,6 +1067,20 @@
       "error-diagnosis": "错误诊断",
       "screen-analysis": "屏幕分析",
       "desktop-assistance": "记事本助手"
+    },
+    "skillBack": "全部技能",
+    "skillOn": "已启用",
+    "skillOff": "已停用",
+    "skillPermissionNote": "修改文件、运行命令或操作桌面前，仍需逐项确认。",
+    "skillIntro": {
+      "project-overview": "查看所选项目的目录结构和依赖。",
+      "code-explanation": "选取代码并检查待发送内容，让模型解释这段代码。",
+      "environment-diagnosis": "检查已安装的开发工具，并查看官方获取地址。",
+      "test-project": "查看并确认要运行的构建或测试命令。",
+      "file-edit": "预览某个文件的修改内容，确认后再应用。",
+      "error-diagnosis": "检查错误相关代码，让模型帮助定位原因。",
+      "screen-analysis": "截取屏幕或指定区域，预览并确认后交给模型分析。",
+      "desktop-assistance": "查看支持的记事本窗口，逐项确认要写入的内容。"
     },
     "skillDescription": {
       "project-overview": "有界检查项目结构和依赖文件。",

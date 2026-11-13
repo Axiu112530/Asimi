@@ -6,7 +6,24 @@ import (
 
 	backend "asimi/internal/app"
 	"asimi/internal/tools"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+func TestStartupWindowFitsScaledWorkArea(t *testing.T) {
+	for _, work := range []application.Rect{
+		{Width: 1920, Height: 1040},
+		{X: 24, Y: 30, Width: 1280, Height: 690},
+		{Width: 960, Height: 502},
+		{Width: 640, Height: 320},
+	} {
+		bounds, minimum := startupWindowBounds(work)
+		if bounds.X < work.X || bounds.Y < work.Y ||
+			bounds.X+bounds.Width > work.X+work.Width || bounds.Y+bounds.Height > work.Y+work.Height ||
+			bounds.Width < minimum.Width || bounds.Height < minimum.Height {
+			t.Errorf("work area %+v, window %+v, minimum %+v", work, bounds, minimum)
+		}
+	}
+}
 
 func TestReleaseDesktopServiceRejectsDemoRequests(t *testing.T) {
 	dir := t.TempDir()

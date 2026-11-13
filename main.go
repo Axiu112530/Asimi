@@ -28,6 +28,7 @@ import (
 	"asimi/validation/v02/providerprobe"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/w32"
 	"golang.org/x/sys/windows"
 )
 
@@ -471,9 +472,17 @@ func run() int {
 			url += fmt.Sprintf("&seconds=%d", soakSeconds)
 		}
 	}
-	window = desktop.Window.NewWithOptions(application.WebviewWindowOptions{Name: "main", Title: productName, URL: url, Width: 1400, Height: 900, MinWidth: 900, MinHeight: 620, BackgroundColour: application.NewRGB(247, 248, 250), DevToolsEnabled: acceptance, DefaultContextMenuDisabled: true, Permissions: map[application.PermissionType]application.Permission{
+	windowOptions := application.WebviewWindowOptions{Name: "main", Title: productName, URL: url, Width: 900, Height: 600, MinWidth: 640, MinHeight: 360, BackgroundColour: application.NewRGB(247, 248, 250), DevToolsEnabled: acceptance, DefaultContextMenuDisabled: true, Permissions: map[application.PermissionType]application.Permission{
 		application.PermissionCamera: application.PermissionDeny, application.PermissionMicrophone: application.PermissionDeny, application.PermissionGeolocation: application.PermissionDeny, application.PermissionNotifications: application.PermissionDeny, application.PermissionClipboardRead: application.PermissionDeny,
-	}})
+	}}
+	if workArea, ok := primaryWorkArea(); ok {
+		bounds, minimum := startupWindowBounds(workArea)
+		windowOptions.InitialPosition = application.WindowXY
+		windowOptions.X, windowOptions.Y = bounds.X, bounds.Y
+		windowOptions.Width, windowOptions.Height = bounds.Width, bounds.Height
+		windowOptions.MinWidth, windowOptions.MinHeight = minimum.Width, minimum.Height
+	}
+	window = desktop.Window.NewWithOptions(windowOptions)
 	service.SetWorkspacePicker(func(ctx context.Context) (string, error) {
 		if ctx.Err() != nil || stopping.Load() {
 			return "", context.Canceled
@@ -519,6 +528,39 @@ func run() int {
 		return 1
 	}
 	return 0
+}
+
+// Wails window options use device-independent pixels. The primary monitor
+// starts at the origin, including when a taskbar offsets its working area.
+func primaryWorkArea() (application.Rect, bool) {
+	screens, err := w32.GetAllScreens()
+	if err != nil {
+		return application.Rect{}, false
+	}
+	for _, screen := range screens {
+		if !screen.IsPrimary || screen.ScaleFactor <= 0 {
+			continue
+		}
+		area := screen.RcWork
+		if area.Right <= area.Left || area.Bottom <= area.Top {
+			continue
+		}
+		scale := float64(screen.ScaleFactor)
+		return application.Rect{
+			X: int(float64(area.Left) / scale), Y: int(float64(area.Top) / scale),
+			Width: int(float64(area.Right-area.Left) / scale), Height: int(float64(area.Bottom-area.Top) / scale),
+		}, true
+	}
+	return application.Rect{}, false
+}
+
+func startupWindowBounds(work application.Rect) (application.Rect, application.Size) {
+	width := min(1400, work.Width-2*min(20, work.Width/8))
+	height := min(900, work.Height-2*min(20, work.Height/8))
+	return application.Rect{
+		X: work.X + (work.Width-width)/2, Y: work.Y + (work.Height-height)/2,
+		Width: width, Height: height,
+	}, application.Size{Width: min(900, width), Height: min(620, height)}
 }
 
 // The window manager removes the window only after its native close finishes.

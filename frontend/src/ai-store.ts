@@ -193,8 +193,12 @@ export async function sendAI(s:ChatSession,playground=false,test=false){
   const outputCost=m.pricing?s.maxOutputTokens*m.pricing.outputPerMillion/1000000:null;
   const estimate=outputCost==null?t('ai.priceUnknown'):t('ai.outputEstimate',{cost:outputCost.toFixed(6),currency:m.pricing!.currency});
   const threshold=ai.settings.warningThreshold;const exceeded=threshold!==null&&outputCost!==null&&outputCost>threshold;
-  const warning=t(!test&&s.attachments.length?'ai.imageConfirm':'ai.sendConfirm',{provider:p.name,model:m.displayName||m.id})+'\n'+estimate+(exceeded?'\n'+t('ai.thresholdExceeded'):'')+'\n'+t('ai.thresholdNotice',{threshold:threshold??t('common.unknown')});
-  if(!window.confirm(warning))return;
+  if (test || s.attachments.length || exceeded) {
+    const warning = t(!test && s.attachments.length ? 'ai.imageConfirm' : 'ai.sendConfirm', {
+      provider: p.name, model: m.displayName || m.id,
+    }) + '\n' + estimate + (exceeded ? '\n' + t('ai.thresholdExceeded') : '');
+    if (!window.confirm(warning)) return;
+  }
   await admitChat(s,()=>call<AIReply>(test?'TestAIConnection':'StartChat',{
       conversationId:conversation?.id,providerId:s.providerId,modelId:s.modelId,content:test?t('ai.testPrompt'):s.draft.trim(),
       attachmentIds:test?[]:s.attachments.map(a=>a.id),stream:!test&&s.stream&&m.capabilities.streaming==='SUPPORTED',maxOutputTokens:s.maxOutputTokens,

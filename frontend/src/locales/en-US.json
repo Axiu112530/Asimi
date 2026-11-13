@@ -564,6 +564,7 @@
     "user": "User request"
   },
   "ai": {
+    "keyboardHint": "Enter to send · Shift+Enter for a new line",
     "attachMedia": "Add attachment",
     "attachImage": "Attach Image",
     "deepSeekPreset": "Use DeepSeek preset",
@@ -1066,6 +1067,20 @@
       "error-diagnosis": "Error Diagnosis",
       "screen-analysis": "Screen Analysis",
       "desktop-assistance": "Notepad Assistant"
+    },
+    "skillBack": "All skills",
+    "skillOn": "Enabled",
+    "skillOff": "Disabled",
+    "skillPermissionNote": "File changes, commands and desktop actions still require approval.",
+    "skillIntro": {
+      "project-overview": "Summarize a selected project’s folders and dependencies.",
+      "code-explanation": "Select code, review what will be shared, and get an explanation from your model.",
+      "environment-diagnosis": "Check which development tools are installed and find their official download links.",
+      "test-project": "Review and run a project build or test command.",
+      "file-edit": "Review the proposed changes to a file before applying them.",
+      "error-diagnosis": "Review relevant source code and get help understanding an error.",
+      "screen-analysis": "Capture a screen or region, preview it, and send it to a model for analysis.",
+      "desktop-assistance": "Review and approve text changes in a supported Notepad window."
     },
     "skillDescription": {
       "project-overview": "Inspect bounded project structure and manifests.",

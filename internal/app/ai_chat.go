@@ -414,7 +414,6 @@ func (s *Service) runChat(ctx context.Context, cancel context.CancelFunc, adapte
 	}
 	meta.Status = status
 	meta.ErrorCode = code
-	meta.Usage = &response.Usage
 	if screenAnalysis && status == "COMPLETED" {
 		var vision screen.VisionResult
 		if suggestion == nil {

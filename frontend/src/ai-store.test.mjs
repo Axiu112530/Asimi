@@ -43,7 +43,9 @@ await startAI();assert.equal(listeners.size,5);
 // A gateway may finish thousands of deltas before StartChat returns its IDs.
 fresh(ai.playground);
 override=(method)=>{if(method!=='StartChat')return;const content='x'.repeat(5000);conversations.set('early',conversation('early',true,content));emit('early','started',0);for(let i=1;i<=5000;i++)emit('early','delta',i,'x');emit('early','completed',5001);return {requestId:'r-early',messageId:'answer-early',conversationId:'early'};};
+window.confirm = () => { throw new Error('A plain text send opened a confirmation'); };
 await sendAI(ai.playground,true);
+window.confirm = () => true;
 assert.equal(ai.playground.busy,false);assert.equal(ai.playground.conversation.messages[0].content.length,5000);
 emit('early','delta',6000,'late duplicate');assert.equal(ai.playground.busy,false);assert.equal(ai.playground.conversation.messages[0].content.length,5000);
 console.log('PASS: 5000 early deltas retain terminal completion; late terminal duplicates ignored');

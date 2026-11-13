@@ -80,20 +80,15 @@ function messages(s: ChatSession) {
     const screenResult=message.role==='assistant'&&(message.vision||message.requestId&&
       (s.screenRequestId===message.requestId||screenRequests.has(message.requestId)));
     const pending=s.busy&&s.requestId===message.requestId;
-    const usage=message.usage;
-    const record=screenResult?ai.usage.find(entry=>entry.requestId===message.requestId):undefined;
     return h('article',{class:['message','message-'+message.role],key:message.id,'data-message-id':message.id},[
       h('div',{class:'message-body'},[
         h('header',[h('strong',t(message.role==='user'?'assistant.you':'assistant.agent')),h('time',date(message.createdAt))]),
-        h('p',{class:'micro muted'},[message.providerId||'',message.modelId?' · '+message.modelId:'',message.requestId?' · '+message.requestId:'']),
         message.attachments?.length?attachments(message.attachments):null,
         message.screenCapture?ScreenCaptureLabel(message.screenCapture):null,
         screenResult?(pending||message.vision||message.content?ScreenResult(message.vision,message.content,pending):null):h(Markdown,{content:message.content}),
-        message.status&&message.role==='assistant'?h('p',{class:'micro muted'},t('ai.status',{status:localizedStatus(message.status)})):null,
+        pending && message.role === 'assistant' && !message.content && !screenResult
+          ? h('p', { class: 'micro muted', role: 'status' }, localizedStatus(message.status || 'PENDING')) : null,
         message.errorCode?h('p',{class:'ai-error',role:'alert'},errorText(message.errorCode)):null,
-        screenResult&&message.status&&!pending?h('details',{class:'screen-result-usage'},[
-          h('summary',t('navigation.usage')),metrics(record,message.requestId===s.requestId?s:undefined),
-        ]):usage?h('p',{class:'micro muted'},t('ai.messageUsage',{input:measured(usage.inputTokens),output:measured(usage.outputTokens),source:usageSource(usage.source)})):null,
       ]),
     ]);
   });
@@ -104,7 +99,7 @@ function composer(session: ChatSession, playground: boolean) {
   const selectedModel = model(session);
   const supportsImages = selectedModel?.capabilities.vision === 'SUPPORTED';
   const cannotAttach = session.busy || session.starting || session.importing || !state.connected;
-  const cannotSend = !state.connected || session.importing || session.starting || !profile(session)?.enabled ||
+  const cannotSend = session.busy || !state.connected || session.importing || session.starting || !profile(session)?.enabled ||
     selectedModel?.capabilities.text !== 'SUPPORTED' || (!session.draft.trim() && !session.attachments.length) ||
     (session.attachments.length > 0 && !supportsImages);
   const attachmentLabel = t('ai.attachMedia');
@@ -124,7 +119,14 @@ function composer(session: ChatSession, playground: boolean) {
         'data-testid': 'ai-composer',
         placeholder: t('ai.prompt'),
         disabled: !state.connected || session.busy,
+        'aria-describedby': 'chat-keyboard-hint',
         onInput: (event: Event) => { session.draft = (event.target as HTMLTextAreaElement).value; },
+        onKeydown: (event: KeyboardEvent) => {
+          if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey ||
+              event.isComposing || event.keyCode === 229) return;
+          event.preventDefault();
+          if (!event.repeat) (event.currentTarget as HTMLTextAreaElement).form?.requestSubmit();
+        },
       }),
       h('div', { class: 'composer-bottom ai-row' }, [
         h('label', { class: ['button secondary attachment-trigger', { 'is-disabled': cannotAttach }] }, [
@@ -138,6 +140,7 @@ function composer(session: ChatSession, playground: boolean) {
           }),
         ]),
         playground ? null : h(ScreenCaptureActions, { source: 'assistant' }),
+        h('span', { class: 'chat-keyboard-hint', id: 'chat-keyboard-hint' }, t('ai.keyboardHint')),
         session.busy ? action('cancel', () => cancelAI(session), !session.requestId) : h('button', {
           type: 'submit', class: 'button primary', disabled: cannotSend,
           'data-testid': playground ? 'playground-send' : 'real-send',
