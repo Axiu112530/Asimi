@@ -2,7 +2,9 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-A local-first AI desktop assistant for developers. Asimi brings AI conversations, project understanding, reviewed code changes, test execution and controlled computer interaction into one Windows workspace.
+Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer.
+
+Use **Settings → General → Interface mode** to open developer tools for projects, code review and test runs.
 
 **Version 0.2.1 is a trial release candidate for Windows x64.** Native acceptance has been performed on Windows 11 25H2 x64. Other Windows versions require validation on the target machine.
 

@@ -50,7 +50,19 @@ func (s *Service) planAgent02(id, hash string) (AgentTask, error) {
 	t.CurrentStep = len(t.Steps) - 1
 	t.Summary = "AGENT_PLANNING"
 	t.UpdatedAt = now()
-	if err = s.transaction(func(tx *sql.Tx) error { return saveAgentTask(tx, t) }); err != nil {
+	if err = s.transaction(func(tx *sql.Tx) error {
+		current, err := cognitionRevision(tx)
+		if err != nil {
+			return err
+		}
+		if current != preview.knowledgeRevision {
+			return codedError("TASK_CONTEXT_CHANGED")
+		}
+		if err := saveAgentTask(tx, t); err != nil {
+			return err
+		}
+		return recordCognitionUsage(tx, t.ID, preview.matchedSkills)
+	}); err != nil {
 		return t, err
 	}
 	ctx, cancel := context.WithDeadline(s.lifetime, minTime(t.Agent.Deadline, time.Now().Add(time.Duration(preview.limits.TimeoutSeconds)*time.Second)))

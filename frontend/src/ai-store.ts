@@ -14,7 +14,7 @@ export interface ChatSession {
   screenRequestId?:string;
 }
 const session=():ChatSession=>({providerId:'',modelId:'',draft:'',attachments:[],importing:false,busy:false,starting:false,requestId:'',conversation:null,scope:0,stream:true,maxOutputTokens:1024,temperature:null,imageDetail:'auto',error:''});
-export const ai=reactive({profiles:[] as AIProfile[],settings:{defaultProviderId:'',defaultModelId:'',visionProviderId:'',visionModelId:'',maxOutputTokens:1024,maxContextBytes:65536,warningThreshold:null} as AISelection,usage:[] as AIUsageRecord[],mode:'mock',assistant:session(),playground:session(),loaded:false,saving:false});
+export const ai=reactive({profiles:[] as AIProfile[],settings:{defaultProviderId:'',defaultModelId:'',visionProviderId:'',visionModelId:'',maxOutputTokens:1024,maxContextBytes:65536,warningThreshold:null} as AISelection,usageRevision:0,playgroundUsage:undefined as AIUsageRecord|undefined,mode:'mock',assistant:session(),playground:session(),loaded:false,saving:false});
 export function profile(s:ChatSession){return ai.profiles.find(p=>p.id===s.providerId);}
 export function model(s:ChatSession){return profile(s)?.models.find(m=>m.id===s.modelId);}
 export function usableDefaultAI() {
@@ -28,14 +28,14 @@ export function selectModel(s:ChatSession,id:string){s.modelId=id;s.temperature=
 export async function refreshAI(){
   const firstLoad=!ai.loaded;
   const previousDefault = ai.settings;
-  const [profiles,settings,usage]=await Promise.all([call<AIProfile[]>('ListAIProfiles'),call<AISelection>('GetAISettings'),call<AIUsageRecord[]>('GetUsage')]);
-  ai.profiles=profiles||[];ai.settings=settings;ai.usage=usage||[];ai.loaded=true;
+  const [profiles,settings]=await Promise.all([call<AIProfile[]>('ListAIProfiles'),call<AISelection>('GetAISettings')]);
+  ai.profiles=profiles||[];ai.settings=settings;ai.loaded=true;
   for(const s of [ai.assistant,ai.playground]){
     const followsDefault = s.providerId === previousDefault.defaultProviderId &&
       s.modelId === previousDefault.defaultModelId;
     const defaultChanged = settings.defaultProviderId !== previousDefault.defaultProviderId ||
       settings.defaultModelId !== previousDefault.defaultModelId;
-    if (settings.defaultProviderId && (!profile(s)?.enabled || followsDefault && defaultChanged && !s.conversation?.messages.length)) {
+    if ((settings.defaultProviderId && !profile(s)?.enabled) || (followsDefault && defaultChanged && !s.conversation?.messages.length)) {
       selectProvider(s, settings.defaultProviderId);
       if (profile(s)?.models.some(m => m.id === settings.defaultModelId)) selectModel(s, settings.defaultModelId);
     }
@@ -72,6 +72,10 @@ export async function startAI(releaseMode = false){
     const previous=[...(c?.messages||[])].reverse().find(m=>m.providerId&&m.providerId!=='mock');
     if(previous){if(!c?.playground)ai.mode='real';target.providerId=previous.providerId!;target.modelId=previous.modelId||'';state.inspectorOpen=false;}
     else if(!releaseMode && c?.tasks?.length)ai.mode='mock';
+    else if (releaseMode && c && !c.playground && !c.messages.length && ai.loaded) {
+      selectProvider(target, ai.settings.defaultProviderId);
+      selectModel(target, ai.settings.defaultModelId);
+    }
     if(c?.playground)state.route='playground';
     if(c)void hydrateAttachments(c);
   },{immediate:true,flush:'sync'});
@@ -100,8 +104,8 @@ function bufferEvent(e:AIStreamEvent,kind:string){
   pendingEvents.set(e.requestId,queue);
 }
 async function refreshHistory(generation:number){
-  const version=++refreshVersion;const [usage,conversations]=await Promise.all([call<AIUsageRecord[]>('GetUsage'),call<Conversation[]>('ListConversations')]);
-  if(generation===epoch&&version===refreshVersion){ai.usage=usage||[];state.conversations=conversations||[];}
+  const version=++refreshVersion;const conversations=await call<Conversation[]>('ListConversations');
+  if(generation===epoch&&version===refreshVersion)state.conversations=conversations||[];
 }
 async function receive(e:AIStreamEvent,kind:string,generation:number){
   if(generation!==epoch||!e.requestId||!e.messageId||!e.conversationId||!Number.isFinite(e.sequence)||terminalRequests.has(e.requestId))return;
@@ -117,7 +121,15 @@ async function receive(e:AIStreamEvent,kind:string,generation:number){
   if(['completed','failed','cancelled'].includes(kind)){
     request.terminal=true;terminal(e.requestId);
     if(current){s.busy=false;s.error=e.errorCode||'';}
-    try{if(current)await loadConversation(s,e.conversationId,generation,e.requestId);await refreshHistory(generation);}catch(error){if(generation===epoch)fail(error);}
+    ai.usageRevision++;
+    try {
+      if (current && s === ai.playground) {
+        const [record] = await call<AIUsageRecord[]>('GetRequestUsage', { id: e.requestId });
+        if (generation === epoch && s.scope === request.scope && s.requestId === e.requestId) ai.playgroundUsage = record;
+      }
+      if (current) await loadConversation(s,e.conversationId,generation,e.requestId);
+      await refreshHistory(generation);
+    } catch(error) { if(generation===epoch)fail(error); }
   }
 }
 async function admitChat(

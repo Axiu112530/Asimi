@@ -1,14 +1,22 @@
 # Use Asimi
 
-Asimi is a local-first AI desktop assistant for developers, combining AI conversations, project understanding, code changes, controlled computer interaction, and secure local execution.
+Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer.
+
+Standard mode is the default. Choose **Settings → General → Interface mode → Developer** to open workspaces, workflows, the model playground, and advanced settings.
 
 ## Connect your own provider
 
-On the first launch, choose a language. English is the default. Choose Kimi, GLM, DeepSeek, Qwen, Tencent Hy, OpenAI, Claude, or Gemini, enter your API key, then select **Connect and save**. The test sends one short request to the provider and may use account credit. A successful test saves the key using Windows DPAPI and sets the default model. Select **Set up later** to browse projects and history. Open AI providers to connect a model when you want to chat. The advanced editor supports compatible Chat Completions and Responses endpoints.
+On the first launch, choose a language. English is the default. Choose Kimi, GLM, DeepSeek, Qwen, Tencent Hy, OpenAI, Claude, or Gemini, enter your API key, then select **Connect and save**. The test sends one short request to the provider and may use account credit. A successful test saves the key using Windows DPAPI and sets the default model. Select **Set up later** to browse projects and history. Open AI providers to connect a model when you want to chat. In Developer mode, **AI providers → Advanced provider settings** supports compatible Chat Completions and Responses endpoints.
 
 The Kimi, GLM, Qwen, and Tencent Hy presets use the China-region APIs. The Qwen preset uses the shared Beijing DashScope endpoint. For a workspace-specific Qwen key, use the endpoint shown in your Model Studio console in the advanced editor. The Claude preset accepts a workspace-scoped Anthropic API key. OpenAI, Claude, and Gemini require a supported region and an API account with model access. Asimi connects directly from your computer.
 
 Use **Chat settings** to switch models. When a model accepts text only, Asimi blocks image attachments and screenshot analysis before sending data. A conversation that already includes images requires an image-capable model to continue with that history. For video, attach still frames.
+
+## Review usage and costs
+
+Choose a time range to see requests, input and output tokens, total tokens, and estimated cost. Asimi groups usage by provider and model, keeps currencies separate, and flags missing values. Three days includes today and the previous two calendar days. The week starts on Monday in your local time zone.
+
+Developer mode can expand today’s latest 25 requests for diagnostics. The Model Playground shows the metrics for the request you just ran. The Usage page reads from local records and keeps conversation history separate.
 
 ## Work on a project
 

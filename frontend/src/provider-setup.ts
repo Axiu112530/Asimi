@@ -1,5 +1,5 @@
 import { defineComponent, h, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { AIProfilesPage, AISettingsPanel } from './ai-pages';
+import { AIProfilesPage } from './ai-pages';
 import { ai, refreshAI, selectModel, selectProvider } from './ai-store';
 import type { AIModel, AIProfile } from './ai-types';
 import { call, ServiceError } from './bridge';
@@ -219,14 +219,13 @@ export const PresetProviders = defineComponent({
     return () => h('div', { class: 'page-scroll' }, h('div', { class: 'page preset-provider-page' }, [
       h('header', { class: 'page-heading' }, h('h1', t('ai.providers'))),
       h('section', { class: 'settings-section' }, h(ProviderConnection)),
-      h('details', {
+      state.settings.interfaceMode === 'developer' ? h('details', {
         class: 'settings-section preset-advanced', 'data-testid': 'preset-provider-advanced',
         onToggle: (event: Event) => { if ((event.currentTarget as HTMLDetailsElement).open) loadedAdvanced.value = true; },
       }, [
         h('summary', label('advanced')),
         loadedAdvanced.value ? h(AIProfilesPage, { embedded: true }) : null,
-        loadedAdvanced.value ? AISettingsPanel() : null,
-      ]),
+      ]) : null,
     ]));
   },
 });
@@ -269,7 +268,7 @@ const SetupWizard = defineComponent({
         await call('CompleteOnboarding', { completed: true });
         await refreshProduct();
         product.showOnboarding = false;
-        if (workspace()) {
+        if (workspace() && state.settings.interfaceMode === 'developer') {
           if (props.openWorkspace) props.openWorkspace();
           else state.route = 'developer';
         } else {
@@ -303,7 +302,7 @@ const SetupWizard = defineComponent({
       'aria-labelledby': 'provider-setup-title', 'data-testid': 'preset-onboarding', onKeydown: keepFocus,
     }, h('section', { class: 'preset-wizard' }, [
       h('div', { class: 'setup-brand', 'aria-hidden': 'true' }, [icon('logo', 30)]),
-      h('h1', { id: 'provider-setup-title', ref: title, tabindex: -1 }, label(step.value)),
+      h('h1', { id: 'provider-setup-title', ref: title, tabindex: -1 }, label(step.value === 'ready' && state.settings.interfaceMode !== 'developer' ? 'finish' : step.value)),
       step.value === 'welcome' ? [
         h('p', label('intro')),
         h('label', { class: 'ai-field' }, [
@@ -317,7 +316,20 @@ const SetupWizard = defineComponent({
             h('option', { value: 'zh-CN' }, t('settings.chinese')),
           ]),
         ]),
-        h('div', { class: 'preset-actions' }, action('continue', 'continue', () => { step.value = 'connection'; }, false, true)),
+        h('label', { class: 'ai-field' }, [
+          h('span', t('settings.interfaceMode')),
+          h('select', {
+            value: state.settings.interfaceMode, disabled: state.saving || !state.connected,
+            'data-testid': 'preset-interface-mode',
+            onChange: (event: Event) => saveSettings({
+              interfaceMode: (event.target as HTMLSelectElement).value as 'standard' | 'developer',
+            }),
+          }, [
+            h('option', { value: 'standard' }, t('settings.standardMode')),
+            h('option', { value: 'developer' }, t('settings.developerMode')),
+          ]),
+        ]),
+        h('div', { class: 'preset-actions' }, action('continue', 'continue', () => { step.value = 'connection'; }, state.saving, true)),
       ] : step.value === 'connection' ? [
         h(ProviderConnection, {
           wizard: true,
@@ -331,15 +343,15 @@ const SetupWizard = defineComponent({
             : action('skipAI', 'skip-ai', () => { step.value = 'ready'; }, connecting.value),
         ]),
       ] : [
-        h('p', { class: 'muted' }, label('project')),
+        h('p', { class: 'muted' }, label(state.settings.interfaceMode === 'developer' ? 'project' : 'finishIntro')),
         workspace() ? h('dl', { class: 'preset-default' }, [
           h('dt', label('selectedProject')), h('dd', { 'data-testid': 'preset-selected-project' }, workspace()?.name),
         ]) : null,
         error.value ? h('p', { role: 'alert', class: 'ai-error' }, errorText(error.value)) : null,
         h('div', { class: 'preset-actions' }, [
           action('back', 'back', () => { step.value = 'connection'; }, busy.value),
-          action('pickProject', 'pick-project', pick, busy.value || !state.connected),
-          action(workspace() ? 'openProject' : 'finish', 'finish', finish, busy.value || !state.connected, true),
+          state.settings.interfaceMode === 'developer' ? action('pickProject', 'pick-project', pick, busy.value || !state.connected) : null,
+          action(workspace() && state.settings.interfaceMode === 'developer' ? 'openProject' : 'finish', 'finish', finish, busy.value || !state.connected, true),
         ]),
       ],
     ]));

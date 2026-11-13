@@ -278,24 +278,7 @@ func (s *Service) aiSettingsLocked() (ai.Selection, error) {
 	return v.Selection, err
 }
 func (s *Service) usageLocked() ([]ai.UsageRecord, error) {
-	rows, e := s.db.Query("SELECT json FROM ai_usage ORDER BY rowid DESC")
-	if e != nil {
-		return nil, e
-	}
-	defer rows.Close()
-	out := []ai.UsageRecord{}
-	for rows.Next() {
-		var raw string
-		var u ai.UsageRecord
-		if e = rows.Scan(&raw); e != nil {
-			return nil, e
-		}
-		if e = json.Unmarshal([]byte(raw), &u); e != nil {
-			return nil, e
-		}
-		out = append(out, u)
-	}
-	return out, rows.Err()
+	return s.queryUsageLocked("SELECT json FROM ai_usage ORDER BY rowid DESC")
 }
 func (s *Service) cancelAllChatsLocked() int {
 	for _, c := range s.chatControls {
@@ -308,7 +291,7 @@ func (s *Service) callAI(method, payload string) (domain.Reply, bool) {
 	switch method {
 	case "GetPresetProvider", "ConnectPresetProvider":
 		return s.callPresetProvider(method, payload), true
-	case "ListAIProfiles", "SaveAIProfile", "DeleteAIProfile", "StoreCredential", "DeleteCredential", "GetAISettings", "SaveAISettings", "StartChat", "TestAIConnection", "CancelChat", "GetUsage", "ImportAttachment", "GetAttachment", "DeleteAttachment", "ClearChatConversation", "DeleteChatConversation":
+	case "ListAIProfiles", "SaveAIProfile", "DeleteAIProfile", "StoreCredential", "DeleteCredential", "GetAISettings", "SaveAISettings", "StartChat", "TestAIConnection", "CancelChat", "GetUsage", "GetUsageSummary", "GetRecentUsage", "GetRequestUsage", "ImportAttachment", "GetAttachment", "DeleteAttachment", "ClearChatConversation", "DeleteChatConversation":
 	default:
 		return domain.Reply{}, false
 	}
@@ -335,6 +318,26 @@ func (s *Service) callAI(method, payload string) (domain.Reply, bool) {
 			return done(v, e)
 		}
 		v, e := s.usageLocked()
+		return done(v, e)
+	case "GetUsageSummary", "GetRecentUsage":
+		var q usageRange
+		if e := decode(payload, &q); e != nil {
+			return done(nil, e)
+		}
+		if method == "GetUsageSummary" {
+			v, e := s.usageSummaryLocked(q.From, q.Until)
+			return done(v, e)
+		}
+		v, e := s.recentUsageLocked(q)
+		return done(v, e)
+	case "GetRequestUsage":
+		var q struct {
+			ID string `json:"id"`
+		}
+		if e := decode(payload, &q); e != nil {
+			return done(nil, e)
+		}
+		v, e := s.requestUsageLocked(q.ID)
 		return done(v, e)
 	case "SaveAIProfile":
 		var q struct {

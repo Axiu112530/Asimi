@@ -29,6 +29,49 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  const darkShot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(output,`stage${ready.stage}-dark.png`),Buffer.from(darkShot.data,'base64'));
  await evaluate(`(async()=>{const {Call}=await import('/wails/runtime.js');const s=await Call.ByName('main.DesktopService.Call','GetSettings','{}');return Call.ByName('main.DesktopService.Call','UpdateSettings',JSON.stringify({...s.data,theme:'light'}))})()`);
  metrics.push({label:'darkTheme',applied:dark});
+ if (ready.stage === 15) {
+  for (const [page, selector] of [
+    ['home', '[data-testid="product-home"]'],
+    ['settings', '.settings-page'],
+    ['models', '.preset-provider-page'],
+    ['usage', '[data-testid="ai-usage"]'],
+    ['computer', '[data-testid="computer-page"]'],
+    ['skills', '[data-testid="cognition-skills"]'],
+    ['memory', '[data-testid="cognition-memory"]'],
+    ['learning', '[data-testid="cognition-learning"]'],
+    ['growth', '[data-testid="cognition-growth"]'],
+  ]) {
+   await evaluate(`document.querySelector('[data-testid="nav-${page}"]').click()`);
+   await pause(200);
+   if (page === 'settings') {
+    await evaluate("document.querySelector('[data-testid=preset-advanced]').open=true");
+    await pause(180);
+    await evaluate("document.querySelector('.preset-provenance').open=true");
+   }
+   for (const [label, width, height] of [['wide',1380,820],['compact',1000,700],['narrow',720,620]]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await pause(150);
+    const dimensions = await evaluate(`(() => {
+     const root = document.querySelector(${JSON.stringify(selector)});
+     if (!root) return null;
+     const workspace = document.querySelector('.workspace');
+     const main = root.closest('.page-scroll') || root.closest('.product-page') || root;
+     const scroller = root.closest('.cognition-skills-route') || main;
+     return { width: innerWidth, pageWidth: main.clientWidth, pageScrollWidth: main.scrollWidth,
+       scrollContainerFits: scroller.scrollWidth <= scroller.clientWidth + 1,
+       shellFits: workspace.scrollWidth <= workspace.clientWidth + 1 };
+    })()`);
+    if (!dimensions) throw new Error(`Page ${page} did not render`);
+    metrics.push({label:`${page}-${label}`,...dimensions,
+      noHorizontalOverflow:dimensions.shellFits && dimensions.scrollContainerFits && dimensions.pageScrollWidth<=dimensions.pageWidth+1});
+    if (page === 'settings' && label === 'narrow') {
+     await evaluate("document.querySelector('[data-testid=preset-limit-requests]').scrollIntoView({block:'center'})");
+    }
+    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    await fs.writeFile(path.join(output,`stage${ready.stage}-${page}-${label}.png`),Buffer.from(shot.data,'base64'));
+   }
+  }
+ }
  await send('Emulation.clearDeviceMetricsOverride');
  await fs.writeFile(path.join(output,`visual-stage${ready.stage}.json`),JSON.stringify(metrics,null,2));
  await evaluate('globalThis.__asimiAcceptanceContinue=true');socket.close();

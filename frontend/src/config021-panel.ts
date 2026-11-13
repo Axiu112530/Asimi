@@ -68,7 +68,7 @@ export const ConfigurationPanel = defineComponent({
       ]);
     }
 
-    return () => h('section', { class: 'settings-section', 'data-testid': 'preset-configuration' }, [
+    return () => h('section', { class: 'settings-section advanced-configuration', 'data-testid': 'preset-configuration' }, [
       h('h2', t('preset.limits')),
       h('p', { class: 'muted' }, t('preset.limitsHint')),
       error.value ? h('p', { class: 'ai-error', role: 'alert' }, errorText(error.value)) : null,
@@ -83,15 +83,17 @@ export const ConfigurationPanel = defineComponent({
         ...agentKeys.map(key => field(key, resolved.value!.agent[key], agentFields[key], resolved.value!.agentMaximum[key], resolved.value!.sources['agent.' + key])),
         h('h3', t('preset.mediaLimits')),
         ...mediaKeys.map(key => field(key, resolved.value!.media[key], mediaFields[key], resolved.value!.mediaMaximum[key], resolved.value!.sources['media.' + key])),
-        h('button', { type: 'submit', class: 'button primary', disabled: busy.value, 'data-testid': 'preset-save-limits' }, t('preset.saveLimits')),
+        h('div', { class: 'settings-actions' }, [
+          h('button', { type: 'button', class: 'button secondary', disabled: busy.value, 'data-testid': 'preset-reset-limits', onClick: () => {
+            if (window.confirm(t('preset.resetConfirm'))) void update('RestoreConfigurationDefaults', { confirm: true }, true).then(() => { if (!error.value) return update('GetConfiguration'); });
+          } }, t('preset.resetLimits')),
+          h('button', { type: 'submit', class: 'button primary', disabled: busy.value, 'data-testid': 'preset-save-limits' }, t('preset.saveLimits')),
+        ]),
         h('details', { class: 'preset-provenance' }, [
           h('summary', t('preset.provenance')),
-          h('dl', { class: 'about-details' }, Object.entries(resolved.value.sources).filter(([key]) => !key.startsWith('agent.') && !key.startsWith('media.')).flatMap(([key, source]) => [h('dt', t('preset.provenanceFields.' + key.replace('.', '-'))), h('dd', t('preset.sources.' + source))])),
+          h('dl', { class: 'preset-source-list' }, Object.entries(resolved.value.sources).filter(([key]) => !key.startsWith('agent.') && !key.startsWith('media.')).map(([key, source]) => h('div', { key, class: 'detail-row' }, [h('dt', t('preset.provenanceFields.' + key.replace('.', '-'))), h('dd', t('preset.sources.' + source))]))),
         ]),
       ]) : null,
-      h('button', { class: 'button secondary', disabled: busy.value, 'data-testid': 'preset-reset-limits', onClick: () => {
-        if (window.confirm(t('preset.resetConfirm'))) void update('RestoreConfigurationDefaults', { confirm: true }, true).then(() => { if (!error.value) return update('GetConfiguration'); });
-      } }, t('preset.resetLimits')),
     ]);
   },
 });

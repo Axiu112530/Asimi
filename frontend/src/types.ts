@@ -1,4 +1,4 @@
-export interface Settings { appLanguage: 'en-US'|'zh-CN'; agentLanguage: 'follow-app'|'auto'|'en-US'|'zh-CN'; theme: 'light'|'dark'|'system'; startup: 'welcome'|'last' }
+export interface Settings { appLanguage: 'en-US'|'zh-CN'; agentLanguage: 'follow-app'|'auto'|'en-US'|'zh-CN'; theme: 'light'|'dark'|'system'; startup: 'welcome'|'last'; interfaceMode: 'standard'|'developer' }
 export interface AppInfo { version: string; goVersion: string; wailsVersion: string; dataDir: string; workspace: string; mode?: string; provider?: string; model?: string }
 import type { ScreenMetadata, VisionResult } from './screen-types';
 export interface Message { id: string; conversationId: string; role: string; content: string; createdAt: string; taskId?: string; providerId?:string; modelId?:string; requestId?:string; status?:string; errorCode?:string; attachments?:import('./ai-types').AIAttachment[]; usage?:import('./ai-types').AIUsage; screenCapture?:ScreenMetadata; vision?:VisionResult }
@@ -13,4 +13,4 @@ export interface ToolExecution { id: string; taskId: string; toolName: string; p
 export interface Model { providerId: string; id: string; text: string; vision: string; toolCalling: string; streaming: string; computerUse: string; structuredOutput: string; contextLength: number; pricingMetadata: Record<string,unknown> }
 export interface ProviderProfile { id: string; name: string; baseUrl: string; enabled: boolean; status: string; models: Model[] }
 export interface SecurityStatus { workspace: string; maxFileBytes: number; toolNames: string[]; pendingApprovals: number; activeTasks: number; stopAvailable: boolean; externalNetwork: boolean; desktopControl: boolean }
-export type Route = 'home'|'assistant'|'computer'|'developer'|'workspaces'|'workflows'|'skills'|'models'|'security'|'history'|'settings'|'playground'|'usage';
+export type Route = 'home'|'assistant'|'computer'|'developer'|'workspaces'|'workflows'|'skills'|'memory'|'learning'|'growth'|'models'|'security'|'history'|'settings'|'playground'|'usage';

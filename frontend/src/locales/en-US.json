@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Asimi",
-    "description": "Asimi is a local-first AI desktop assistant for developers, combining AI conversations, project understanding, code changes, controlled computer interaction, and secure local execution.",
+    "description": "Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer.",
     "tagline": "Your Computer, Your AI, Your Control.",
     "edition": "LOCAL WORKSPACE",
     "phase": "Phase 1 · Functional prototype",
@@ -20,6 +20,7 @@
     "title": "{page} · Asimi"
   },
   "navigation": {
+    "newChat": "New chat",
     "assistant": "Assistant",
     "computer": "Computer",
     "developer": "Developer",
@@ -304,6 +305,13 @@
     "lastActivity": "Last activity"
   },
   "settings": {
+    "interfaceMode": "Interface mode",
+    "interfaceModeHint": "Choose which tools and menus appear in Asimi.",
+    "standardMode": "Standard",
+    "developerMode": "Developer",
+    "defaultModel": "Default model",
+    "defaultModelHint": "Choose a connected model for new chats.",
+    "requestLimits": "Request limits",
     "title": "Settings",
     "subtitle": "A workspace that works your way.",
     "general": "General",
@@ -562,6 +570,26 @@
       "created": "File created"
     },
     "user": "User request"
+  },
+  "usage": {
+    "subtitle": "See the requests, tokens, and estimated costs recorded on this device. Your provider bills the actual amount.",
+    "range": "Time range",
+    "breakdown": "By provider and model",
+    "loading": "Loading usage…",
+    "unavailable": "Usage is unavailable while disconnected.",
+    "emptyRange": "No requests in this period.",
+    "unknownProvider": "Unknown provider",
+    "partial": "{value} · {count} unknown",
+    "diagnostics": "Today’s request diagnostics",
+    "diagnosticsHint": "Up to 25 requests from today, newest first.",
+    "period": {
+      "today": "Today",
+      "threeDays": "Last 3 days",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "allTime": "All time"
+    }
   },
   "ai": {
     "keyboardHint": "Enter to send · Shift+Enter for a new line",

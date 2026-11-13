@@ -7,6 +7,8 @@ const paths: Record<string,string[]> = {
   workflows:['M3 3h6v6H3z','M15 15h6v6h-6z','M15 3h6v6h-6z','M9 6h6','M6 9v9h9'],
   models:['m12 3 9 5-9 5-9-5 9-5Z','m3 12 9 5 9-5','m3 16 9 5 9-5'], security:['m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z','m8 12 3 3 5-6'],
   history:['M3 11a9 9 0 1 1 2 7','M3 4v7h7','M12 7v5l3 2'], settings:['M9 3h6l1 4 4 1v8l-4 1-1 4H9l-1-4-4-1V8l4-1 1-4Z','M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z'],
+  memory:['M5 4h14v16H5z','M8 8h8','M8 12h8','M8 16h5'], skills:['M5 19v-2l10-10 2 2L7 19H5Z','m14 8 2 2','M17 4v3','M19 6h-3'],
+  learning:['M3 6h7l2 2 2-2h7v13h-7l-2 2-2-2H3z','M12 8v13'], growth:['M4 19h16','M6 16l4-5 4 2 5-7','M15 6h4v4'],
   plus:['M12 5v14','M5 12h14'], arrow:['M5 12h14','m13 6 6 6-6 6'], stop:['M6 6h12v12H6z'], chevron:['m9 5 7 7-7 7'], close:['m6 6 12 12','M18 6 6 18'],
   check:['m5 12 4 4L19 6'], clock:['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z','M12 7v5l3 2'], file:['M5 3h9l5 5v13H5z','M14 3v5h5','M8 13h8','M8 17h5'],
   lock:['M5 10h14v11H5z','M8 10V7a4 4 0 0 1 8 0v3'], globe:['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z','M3 12h18','M12 3c5 4 5 14 0 18-5-4-5-14 0-18Z'],

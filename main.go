@@ -65,7 +65,7 @@ var presetSoakScript []byte
 const pendingCloseStage = 4
 const screenAcceptanceStage = 7
 const productName = "Asimi"
-const productDescription = "Asimi is a local-first AI desktop assistant for developers, combining AI conversations, project understanding, code changes, controlled computer interaction, and secure local execution."
+const productDescription = "Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer."
 
 // DesktopService exposes only the explicitly allowlisted business dispatcher.
 // No native file, shell, Windows, network, key retrieval or state setter is bound.

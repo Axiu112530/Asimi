@@ -54,20 +54,21 @@ function actionCard(a:ProductAction){const file=a.proposal.file;const cmd=a.prop
  ['RECOVERY_REQUIRED','UNKNOWN_RESULT'].includes(a.status)?h('p',{class:'product-warning'},t('product.noReplay')):null,
  ]);}
 
-export const HomePage=defineComponent({setup(){useProduct();return()=>{
+export const HomePage=defineComponent({props:{developer:Boolean},setup(props){useProduct();return()=>{
  const current=usableDefaultAI();
+ const recent=state.conversations.filter(item => props.developer || !item.playground).slice(0,5);
  return h('section',{class:'product-page','data-testid':'product-home'},[
- h('header',{class:'product-heading'},[h('h1',t('product.welcome')),h('p',t('product.homeIntro'))]),
+ h('header',{class:'product-heading'},[h('h1',t('product.welcome')),h('p',t('app.description'))]),
  h('div',{class:'product-row'},[
    button('product.chat',()=>newConversation(),{class:'button primary',disabled:!state.connected,'data-testid':'product-chat'}),
-   action('newTask',()=>state.route='workflows'),
-   action('chooseWorkspace',pickWorkspace),
+   props.developer ? action('newTask',()=>state.route='workflows') : null,
+   props.developer ? action('chooseWorkspace',pickWorkspace) : null,
  ]),
  h('div',{class:'product-columns'},[
  panel('currentProvider',h('div',[h('strong',current?.name||t('product.offline')),h('p',current?t('preset.activeModel',{model:ai.settings.defaultModelId}):t('preset.offlineSummary')),action('configure',()=>state.route='models')])),
- panel('workspaces',product.data.workspaces.length?product.data.workspaces.map(w=>h('button',{class:'product-list-button',onClick:()=>{selectWorkspace(w.id);state.route='developer';}},[h('strong',w.name),h('code',w.root)])):h('p',t('product.noWorkspace'))),
- panel('recentConversations',state.conversations.length?state.conversations.slice(0,5).map(c=>h('button',{class:'product-list-button',onClick:()=>openConversation(c.id)},[h('strong',c.title||t('assistant.newConversation')),h('time',date(c.updatedAt))])):h('p',t('preset.noConversations'))),
- panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button',onClick:()=>state.route='workflows'},[h('strong',task.goal),badge(task.status)])):h('p',t('preset.noTasks'))),
+ props.developer ? panel('workspaces',product.data.workspaces.length?product.data.workspaces.map(w=>h('button',{class:'product-list-button',onClick:()=>{selectWorkspace(w.id);state.route='developer';}},[h('strong',w.name),h('code',w.root)])):h('p',t('product.noWorkspace'))) : null,
+ panel('recentConversations',recent.length?recent.map(c=>h('button',{class:'product-list-button',onClick:()=>openConversation(c.id)},[h('strong',c.title||t('assistant.newConversation')),h('time',date(c.updatedAt))])):h('p',t('preset.noConversations'))),
+ props.developer ? panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button',onClick:()=>state.route='workflows'},[h('strong',task.goal),badge(task.status)])):h('p',t('preset.noTasks'))) : null,
  ]),
  ]);};}});
 
@@ -133,7 +134,8 @@ export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),
  ]);}});
 
 export const SkillsPage = defineComponent({
-  setup() {
+  props: { developer: Boolean },
+  setup(props) {
     useProduct();
     const active = ref('');
     const cards = new Map<string, HTMLButtonElement>();
@@ -182,7 +184,7 @@ export const SkillsPage = defineComponent({
           ]),
         ] : [
           h('header', { class: 'product-heading' }, h('h1', t('product.skills'))),
-          h('ul', { class: 'skill-grid' }, product.data.skills.map(skill => h('li', { key: skill.id }, [
+          h('ul', { class: 'skill-grid' }, product.data.skills.filter(skill => props.developer || ['screen-analysis', 'desktop-assistance'].includes(skill.id)).map(skill => h('li', { key: skill.id }, [
             h('button', {
               class: 'skill-tile', type: 'button', 'data-testid': 'skill-' + skill.id,
               ref: (node: unknown) => { if (node instanceof HTMLButtonElement) cards.set(skill.id, node); },

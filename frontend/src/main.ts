@@ -8,33 +8,44 @@ import type { Route } from './types';
 import './style.css';
 import './ai.css';
 import './screen.css';
-import { ai, startAI, stopAI } from './ai-store';
-import { AIProfilesPage, AssistantSelection, RealAssistant, PlaygroundPage, UsagePage } from './ai-pages';
+import { ai, refreshAI, startAI, stopAI } from './ai-store';
+import { AIProfilesPage, AssistantSelection, RealAssistant, PlaygroundPage } from './ai-pages';
+import { UsagePage } from './usage-page';
 import { PresetOnboarding, PresetProviders } from './provider-setup';
 import { ComputerPage } from './screen-pages';
 import { HomePage, DeveloperPage, WorkspacesPage, TasksPage, SkillsPage, Onboarding } from './product-pages';
 import { product, refreshProduct } from './product-store';
 import './product.css';
 import './workspace.css';
-const routes: Route[]=['home','assistant','computer','developer','workspaces','workflows','models','playground','usage','skills','security','history','settings'];
+import { CognitionSkillsPanel, GrowthPage, LearningPage, MemoryPage } from './cognition-pages';
+const primaryRoutes: Route[] = ['home', 'assistant', 'computer'];
+const managementRoutes: Route[] = ['models', 'usage', 'memory', 'skills', 'learning', 'growth', 'security', 'history', 'settings'];
+const developerRoutes: Route[] = ['developer', 'workspaces', 'workflows', 'playground'];
 const params=new URLSearchParams(location.search);
 const stage=params.has('acceptance')?Number(params.get('stage')):0;
 const legacyAcceptance=stage>0&&stage<=13;
-const routeLabel=(route:Route)=>!legacyAcceptance&&route==='models'?'preset.providers':'navigation.'+route;
+const cognitionRoutes: Partial<Record<Route,string>> = { memory: 'memoryPage', learning: 'learningPage', growth: 'growthPage' };
+const routeLabel=(route:Route)=>cognitionRoutes[route] ? 'cognition.'+cognitionRoutes[route] : !legacyAcceptance&&route==='models'?'preset.providers':'navigation.'+route;
+const showDeveloper = () => legacyAcceptance || state.settings.interfaceMode === 'developer';
 function renderPage() {
   switch (state.route) {
-    case 'home': return h(HomePage);
+    case 'home': return h(HomePage, { developer: showDeveloper() });
     case 'developer': return h(DeveloperPage);
     case 'workspaces': return h(WorkspacesPage);
     case 'workflows': return h(TasksPage);
-    case 'skills': return h(SkillsPage);
+    case 'memory': return h(MemoryPage);
+    case 'learning': return h(LearningPage);
+    case 'growth': return h(GrowthPage);
+    case 'skills': return h('div',{class:'cognition-skills-route'},[
+      h(SkillsPage,{developer:showDeveloper()}),h(CognitionSkillsPanel),
+    ]);
     case 'assistant':
-      if (!legacyAcceptance) return h(RealAssistant);
+      if (!legacyAcceptance) return h(RealAssistant, { developer: showDeveloper() });
       return h('div', { class: 'ai-assistant-shell' }, [
         AssistantSelection(),
         ai.mode === 'mock' ? h(Assistant) : h(RealAssistant, { legacy: true }),
       ]);
-    case 'computer': return h(ComputerPage);
+    case 'computer': return h(ComputerPage, { developer: showDeveloper() });
     case 'settings': return SettingsPage(legacyAcceptance);
     case 'models':
       if (!legacyAcceptance) return h(PresetProviders);
@@ -46,14 +57,20 @@ function renderPage() {
         ]),
       ]);
     case 'playground': return PlaygroundPage();
-    case 'usage': return UsagePage();
+    case 'usage': return h(UsagePage, { developer: showDeveloper() });
     case 'security': return SecurityPage();
-    case 'history': return HistoryPage();
+    case 'history': return HistoryPage(showDeveloper());
     default: return FuturePage(state.route);
   }
 }
 
 const App=defineComponent({setup(){
+  watch(() => [showDeveloper(), state.route] as const, ([enabled, route]) => {
+    if (!enabled && developerRoutes.includes(route)) state.route = 'home';
+  });
+  watch(() => state.route, route => {
+    if (route === 'settings' && state.connected) void refreshAI().catch(fail);
+  });
   watchEffect(()=>{document.documentElement.lang=i18n.global.locale.value;document.title=t('app.title',{page:t(routeLabel(state.route))});});
   return ()=>!state.ready?h('div',{class:'boot-screen neutral-boot'},[h('span',{class:'welcome-mark'},icon('logo',36)),h('span',{class:'spinner'})]):h('div',{class: ['desktop-app', {
     'inspector-visible': legacyAcceptance && state.route === 'assistant' && state.inspectorOpen,
@@ -61,11 +78,11 @@ const App=defineComponent({setup(){
   }], inert: !legacyAcceptance && product.showOnboarding ? true : undefined},[
     h('aside',{class:'sidebar'},[
       h('div',{class:'brand'},[h('span',{class:'brand-mark'},icon('logo',29)),h('div',[h('strong',t('app.name'))])]),
-      button('navigation.newTask',newConversation,{class:'new-task-button',disabled:!state.connected,'data-testid':'new-task',title:t('navigation.newTask')},[icon('plus',19),h('span',t('navigation.newTask'))]),
+      button('navigation.newChat',newConversation,{class:'new-task-button',disabled:!state.connected,'data-testid':'new-task',title:t('navigation.newChat')},[icon('plus',19),h('span',t('navigation.newChat'))]),
       h('nav',{'aria-label':t('accessibility.navigation')},[
         h('p',{class:'nav-group'},t('navigation.workspace')),
-        ...routes.map((route,index)=>h('div',{class:'nav-item-wrap'},[
-          index===4?h('p',{class:'nav-group manage-label'},t('navigation.manage')):null,
+        ...[...primaryRoutes, ...(showDeveloper() ? developerRoutes : []), ...managementRoutes].map(route=>h('div',{class:'nav-item-wrap',key:route},[
+          route==='models'?h('p',{class:'nav-group manage-label'},t('navigation.manage')):null,
           button(routeLabel(route),()=>state.route=route,{class:['nav-item',{active:state.route===route}],title:t(routeLabel(route)),'aria-current':state.route===route?'page':undefined,'data-testid':'nav-'+route},[
             icon(route,19),h('span',t(routeLabel(route))),
             route==='security'&&state.approvals.length?h('span',{class:'nav-count'},String(state.approvals.length)):null,

@@ -92,7 +92,7 @@ func saveAgentTask(q querier, t AgentTask) error {
 			return e
 		}
 	}
-	return nil
+	return queueCognitionTask(q, t)
 }
 func loadAgentTask(q querier, id string) (AgentTask, error) {
 	var t AgentTask

@@ -6,6 +6,8 @@ import { approvalPreview, verificationDetails } from './inspector';
 import { Markdown } from './markdown';
 import type { Model, Settings, Task } from './types';
 import { AISettingsPanel } from './ai-pages';
+import { ai, refreshAI } from './ai-store';
+import { call } from './bridge';
 import { ScreenCaptureActions } from './screen-pages';
 import { ConfigurationPanel } from './config021-panel';
 export function pageHeading(title: string, subtitle: string, actions?: VNodeChild) { return h('header',{class:'page-heading'},[h('div',[h('h1',t(title)),h('p',t(subtitle))]),actions]); }
@@ -61,13 +63,58 @@ function settingSelect<K extends keyof Settings>(key:K, options: [Settings[K],st
   return h('select',{value:state.settings[key],disabled:state.saving||!state.connected,'aria-label':t('settings.'+(key==='appLanguage'?'language':key)),'data-testid':testid||key,onChange:(e:Event)=>saveSettings({[key]:(e.target as HTMLSelectElement).value})},options.map(([value,label])=>h('option',{value},t(label))));
 }
 function settingRow(label:string,hint:string,control:VNodeChild) { return h('div',{class:'settings-row'},[h('div',[h('h3',t(label)),h('p',t(hint))]),control]); }
+function defaultModelSelect() {
+  const selection = ai.settings;
+  const models = ai.profiles.filter(provider => provider.enabled).flatMap(provider =>
+    provider.models.filter(model => model.capabilities.text === 'SUPPORTED').map(model => ({
+      value: JSON.stringify([provider.id, model.id]),
+      label: provider.name + ' · ' + (model.displayName || model.id),
+      provider: provider.id,
+      model: model.id,
+    })),
+  );
+  const saved = JSON.stringify([selection.defaultProviderId, selection.defaultModelId]);
+  const active = models.some(item => item.value === saved) ? saved : '';
+  return h('select', {
+    value: active, disabled: ai.saving || !ai.loaded || !state.connected,
+    'aria-label': t('settings.defaultModel'), 'data-testid': 'settings-default-model',
+    onChange: (event: Event) => {
+      const control = event.target as HTMLSelectElement;
+      if (control.value === 'manage') {
+        control.value = active;
+        state.route = 'models';
+        return;
+      }
+      const picked = models.find(item => item.value === control.value);
+      control.value = active;
+      if (ai.saving) return;
+      ai.saving = true;
+      state.notice = '';
+      void run(async () => {
+        await call('SaveAISettings', {
+          ...selection, defaultProviderId: picked?.provider ?? '', defaultModelId: picked?.model ?? '',
+        });
+        await refreshAI();
+        state.notice = 'ai.saved';
+      }).finally(() => { ai.saving = false; });
+    },
+  }, [
+    h('option', { value: '' }, t('common.notConfigured')),
+    ...models.map(item => h('option', { value: item.value, key: item.value }, item.label)),
+    h('option', { value: 'manage' }, t('settings.manageModels') + '…'),
+  ]);
+}
+
 export function SettingsPage(legacyAcceptance = false) {
+  const developer = legacyAcceptance || state.settings.interfaceMode === 'developer';
   return h('div',{class:'page-scroll'},h('div',{class:'page settings-page'},[
     pageHeading('settings.title','settings.subtitle',state.saving?h('span',{class:'micro muted',role:'status'},t('settings.saving')):undefined),
     h('section',{class:'settings-section'},[h('h2',t('settings.general')),
+      legacyAcceptance ? null : settingRow('settings.interfaceMode','settings.interfaceModeHint',
+        settingSelect('interfaceMode',[['standard','settings.standardMode'],['developer','settings.developerMode']],'interface-mode')),
       settingRow('settings.startup','settings.startupHint',settingSelect('startup',[['welcome','settings.welcome'],['last','settings.last']],'startup')),
     ]),
-    h('section',{class:'settings-section'},[h('h2',t('preset.providers')),settingRow('settings.models',legacyAcceptance?'settings.modelsHint':'settings.manageModelsHint',button('settings.manageModels',()=>state.route='models',{class:'button secondary'}))]),
+    h('section',{class:'settings-section'},[h('h2',t('preset.providers')),settingRow('settings.defaultModel','settings.defaultModelHint',defaultModelSelect())]),
     h('section',{class:'settings-section'},[h('h2',t('preset.appearance')),
       settingRow('settings.theme','settings.themeHint',settingSelect('theme',[['light','settings.light'],['dark','settings.dark'],['system','settings.system']],'theme')),
     ]),
@@ -76,22 +123,23 @@ export function SettingsPage(legacyAcceptance = false) {
       settingRow('settings.agentLanguage','settings.agentLanguageHint',settingSelect('agentLanguage',[['follow-app','settings.followApp'],['auto','settings.auto'],['en-US','settings.english'],['zh-CN','settings.chinese']],'agent-language')),
     ]),
     h('section',{class:'settings-section'},[h('h2',t('preset.privacy')),settingRow('security.scoped','settings.securityHint',button('settings.openSecurity',()=>state.route='security',{class:'button secondary'}))]),
-    legacyAcceptance ? AISettingsPanel() : h('details',{class:'settings-section preset-advanced','data-testid':'preset-advanced'},[h('summary',t('preset.advanced')), AISettingsPanel(), h(ConfigurationPanel)]),
-    h('section',{class:'settings-section about-section'},[h('div',{class:'about-brand'},[h('div',{class:'welcome-mark small'},icon('logo',24)),h('div',[h('h2',t('settings.about')),h('p',t('app.description'))])]),h('dl',{class:'about-details'},[detail('settings.version',state.info?.version||t('common.unknown')),detail('settings.go',state.info?.goVersion||t('common.unknown')),detail('settings.wails',state.info?.wailsVersion||t('common.unknown')),detail('security.dataDir',state.info?.dataDir||t('common.unknown'),true)])]),
+    legacyAcceptance ? AISettingsPanel() : developer ? h('details',{class:'settings-section preset-advanced','data-testid':'preset-advanced'},[h('summary',t('preset.advanced')), AISettingsPanel(), h(ConfigurationPanel)]) : null,
+    h('section',{class:'settings-section about-section'},[h('div',{class:'about-brand'},[h('div',{class:'welcome-mark small'},icon('logo',24)),h('div',[h('h2',t('settings.about')),h('p',t('app.description'))])]),h('dl',{class:'about-details'},[detail('settings.version',state.info?.version||t('common.unknown')),developer ? detail('settings.go',state.info?.goVersion||t('common.unknown')) : null,developer ? detail('settings.wails',state.info?.wailsVersion||t('common.unknown')) : null,detail('security.dataDir',state.info?.dataDir||t('common.unknown'),true)])]),
   ]));
 }
 
-export function HistoryPage() {
+export function HistoryPage(developer = true) {
+  const conversations = state.conversations.filter(item => developer || !item.playground);
   return h('div',{class:'page-scroll'},h('div',{class:'page history-page'},[
-    pageHeading('history.title','history.subtitle',button('navigation.newTask',newConversation,{class:'button primary',disabled:!state.connected},[icon('plus',16),t('navigation.newTask')])),
-    h('section',{class:'history-section'},[h('div',{class:'section-title'},[h('h2',t('history.conversations')),h('span',{class:'count'},number(state.conversations.length))]),
-      state.conversations.length?h('div',{class:'record-list'},state.conversations.map(c=>h('button',{class:'history-conversation',onClick:()=>openConversation(c.id),'aria-label':t('history.openConversation',{title:c.title}),key:c.id,'data-conversation-id':c.id},[
-        h('span',{class:'record-icon'},icon('assistant',21)),h('span',{class:'history-content'},[h('strong',c.title||t('assistant.newConversation')),h('span',{class:'micro muted'},[t('history.taskCount',{count:c.tasks?.length||state.tasks.filter(x=>x.conversationId===c.id).length})])]),h('time',{class:'micro muted',datetime:c.updatedAt},date(c.updatedAt)),icon('chevron',16),
+    pageHeading('history.title','history.subtitle',button('navigation.newChat',newConversation,{class:'button primary',disabled:!state.connected},[icon('plus',16),t('navigation.newChat')])),
+    h('section',{class:'history-section'},[h('div',{class:'section-title'},[h('h2',t('history.conversations')),h('span',{class:'count'},number(conversations.length))]),
+      conversations.length?h('div',{class:'record-list'},conversations.map(c=>h('button',{class:'history-conversation',onClick:()=>openConversation(c.id),'aria-label':t('history.openConversation',{title:c.title}),key:c.id,'data-conversation-id':c.id},[
+        h('span',{class:'record-icon'},icon('assistant',21)),h('span',{class:'history-content'},[h('strong',c.title||t('assistant.newConversation')),developer ? h('span',{class:'micro muted'},t('history.taskCount',{count:c.tasks?.length||state.tasks.filter(x=>x.conversationId===c.id).length})) : null]),h('time',{class:'micro muted',datetime:c.updatedAt},date(c.updatedAt)),icon('chevron',16),
       ]))):h('div',{class:'list-empty'},[icon('history',28),h('p',t('history.noConversations'))]),
     ]),
-    h('section',{class:'history-section'},[h('div',{class:'section-title'},[h('h2',t('history.tasks')),h('span',{class:'count'},number(state.tasks.length))]),state.tasks.length?h('div',{class:'record-list'},state.tasks.map(task=>h('button',{class:'history-task',onClick:()=>openConversation(task.conversationId,task.id),'aria-label':t('tasks.select',{id:task.id}),key:task.id,'data-task-id':task.id},[
+    developer ? h('section',{class:'history-section'},[h('div',{class:'section-title'},[h('h2',t('history.tasks')),h('span',{class:'count'},number(state.tasks.length))]),state.tasks.length?h('div',{class:'record-list'},state.tasks.map(task=>h('button',{class:'history-task',onClick:()=>openConversation(task.conversationId,task.id),'aria-label':t('tasks.select',{id:task.id}),key:task.id,'data-task-id':task.id},[
       h('span',{class:'record-icon'},icon('file',19)),h('span',{class:'history-content'},[h('strong',task.title),h('code',{class:'micro muted'},task.id)]),badge(task.status),h('time',{class:'micro muted',datetime:task.updatedAt},date(task.updatedAt)),icon('chevron',16),
-    ]))):h('p',{class:'list-empty muted'},t('history.noTasks'))]),
+    ]))):h('p',{class:'list-empty muted'},t('history.noTasks'))]) : null,
   ]));
 }
 

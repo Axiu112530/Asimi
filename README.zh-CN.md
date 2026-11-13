@@ -2,9 +2,9 @@
 
 [English](README.md) · 简体中文
 
-面向开发者的本地优先 AI 桌面助手。把 AI 对话、项目理解、代码修改、测试执行和受控电脑交互放在一个 Windows 工作空间中。
+Asimi 是一款本地优先的 AI 桌面助手，帮助你解答问题、撰写内容、分析图片和处理电脑上的任务。
 
-Asimi is a local-first AI desktop assistant for developers. Review project context, proposed changes, commands and computer actions before approving execution.
+可在「设置 → 通用 → 界面模式」切换到开发者模式，打开项目、代码审阅和测试工具。
 
 当前版本为 **0.2.1 试用候选版**，面向 Windows x64。原生验收环境为 Windows 11 25H2 x64，其他 Windows 版本仍需验证。
 

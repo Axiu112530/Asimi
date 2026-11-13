@@ -9,7 +9,7 @@
       "ProductName": "Asimi",
       "ProductVersion": "0.2.1",
       "FileVersion": "0.2.1.0",
-      "FileDescription": "Asimi is a local-first AI desktop assistant for developers, combining AI conversations, project understanding, code changes, controlled computer interaction, and secure local execution.",
+      "FileDescription": "Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer.",
       "InternalName": "Asimi",
       "OriginalFilename": "Asimi.exe"
     }

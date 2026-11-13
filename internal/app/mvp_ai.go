@@ -74,9 +74,21 @@ func (s *Service) callMVPAnalysis(method, payload string) (domain.Reply, bool) {
 	if e != nil {
 		return result(nil, e), true
 	}
+	revision, e := cognitionRevision(s.db)
+	if e != nil {
+		return result(nil, e), true
+	}
 	preview, e := agentContext(task)
 	if e != nil {
 		return result(nil, e), true
+	}
+	knowledge, e := s.cognitionContext(task.WorkspaceID, task.Goal, min(4200, 49152-len(preview.Content)-256), true)
+	if e != nil {
+		return result(nil, e), true
+	}
+	if len(knowledge.Memories)+len(knowledge.Skills) > 0 {
+		preview.Content += "\n" + cognitionReferenceInstruction + "\n" + encode(knowledge)
+		preview.Hash = hashControlText(preview.Content)
 	}
 	if method == "PreviewAgentTaskContext" {
 		if q.ContextHash != "" || q.ProviderID != "" || q.ModelID != "" || q.ConfirmSend || q.Stream {
@@ -95,7 +107,7 @@ func (s *Service) callMVPAnalysis(method, payload string) (domain.Reply, bool) {
 		s.mu.Unlock()
 		return fail("SERVICE_CLOSED"), true
 	}
-	reply, e := s.startChatLocked(ChatInput{ProviderID: q.ProviderID, ModelID: q.ModelID, Content: preview.Content, ConfirmSend: true, Stream: q.Stream, ImageDetail: "auto"}, false)
+	reply, e := s.startChatRequestLocked(ChatInput{ProviderID: q.ProviderID, ModelID: q.ModelID, Content: preview.Content, ConfirmSend: true, Stream: q.Stream, ImageDetail: "auto"}, false, nil, &revision)
 	s.mu.Unlock()
 	if e != nil {
 		return result(nil, e), true

@@ -520,7 +520,8 @@ export const ScreenCaptureActions = defineComponent({
 });
 
 export const ComputerPage = defineComponent({
-  setup() {
+  props: { developer: Boolean },
+  setup(props) {
     const displays = ref<ScreenDisplay[]>([]);
     const capabilities = ref<CaptureCapabilities>();
     const history = ref<ScreenMetadata[]>([]);
@@ -562,7 +563,7 @@ export const ComputerPage = defineComponent({
         screenError(error.value),
         pending.value ? status('screen.loadingDisplays') : null,
         h(ComputerControlPanel, {
-          tasks: product.data.agentTasks, suggestionRevision: suggestionRevision.value,
+          tasks: props.developer ? product.data.agentTasks : [], suggestionRevision: suggestionRevision.value,
           onRequestSuggestion: target => { suggestion.value = target; },
         }),
         suggestion.value ? h(Teleport, { to: 'body' }, [h(ScreenCaptureDialog, {
@@ -570,29 +571,29 @@ export const ComputerPage = defineComponent({
           onSuggestionSubmitted: () => { suggestionRevision.value++; },
           onDismiss: () => { suggestion.value = undefined; },
         })]) : null,
-        h('div', { class: 'screen-observation' }, [
+        props.developer ? h('div', { class: 'screen-observation' }, [
           h('strong', [icon('computer', 20), t('screen.observationOnly')]),
           h('span', t('screen.captureDescription')),
-        ]),
+        ]) : null,
         h('div', { class: 'screen-page-grid' }, [
           card('capture', [h('p', t('screen.captureDescription')), h(ScreenCaptureActions, { source: 'computer', disabled: pending.value })]),
           card('analysis', h('p', t('screen.analysisDescription'))),
           card('displayList', displays.value.length ? h('ul', { class: 'screen-display-list' }, displays.value.map(display =>
             h('li', { key: display.id }, [
               h('strong', displayLabel(display)),
-              h('p', { class: 'micro muted' }, t('screen.displayGeometry', {
+              props.developer ? h('p', { class: 'micro muted' }, t('screen.displayGeometry', {
                 physical: rectText(display.physicalBounds), logical: rectText(display.logicalBounds), dpi: display.dpi, scale: display.scale,
-              })),
+              })) : null,
             ]))) : pending.value ? null : h('p', { class: 'muted' }, t('screen.noDisplays')), 'computer-display-list'),
           card('privacy', h('p', t('screen.privacyStatus')), 'computer-privacy'),
-          card('capabilities', c ? h('dl', [
+          props.developer ? card('capabilities', c ? h('dl', [
             detail('screen.backend', known(c.backend)),
             detail('screen.display', capability(c.display)),
             detail('screen.crop', capability(c.region)),
             detail('screen.singleWindow', capability(c.window)),
             detail('screen.maxCapture', t('screen.limits', { pixels: number(c.maxPixels), dimension: number(c.maxDimension), bytes: number(c.maxBytes) })),
             detail('screen.ttl', t('screen.seconds', { seconds: number(c.ttlSeconds) })),
-          ]) : null, 'computer-capabilities'),
+          ]) : null, 'computer-capabilities') : null,
           card('history', [
             h('p', { class: 'muted' }, t('screen.historyDescription')),
             history.value.length ? h('ul', { class: 'screen-history' }, history.value.map(record =>

@@ -1,9 +1,11 @@
+param([string]$OutputDirectory, [string]$RuntimeDirectory, [string]$EvidenceDirectory)
+
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$Output = Join-Path $Repo 'build/bin'
-$Portable = Join-Path $Output 'asimi-0.2.1'
-$Evidence = Join-Path $Repo 'docs/release/evidence'
-New-Item -ItemType Directory -Force -Path $Evidence | Out-Null
+$Output = if ($OutputDirectory) { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory) } else { Join-Path $Repo 'build/bin' }
+$Portable = if ($RuntimeDirectory) { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RuntimeDirectory) } else { Join-Path $Output 'asimi-0.2.1' }
+$Evidence = if ($EvidenceDirectory) { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($EvidenceDirectory) } else { Join-Path $Repo 'docs/release/evidence' }
+New-Item -ItemType Directory -Force -Path $Output,$Evidence | Out-Null
 
 $Runtime = @('Asimi.exe','AsimiControlHost.exe','AsimiControlHost.exe.config','AsimiUIAWorker.exe','AsimiUIAWorker.exe.config')
 $Docs = @('INSTALLATION-GUIDE.md','USER-GUIDE.md','UPGRADE-GUIDE.md','KNOWN-LIMITATIONS.md','THIRD-PARTY-NOTICES.md')

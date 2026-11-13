@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Asimi",
-    "description": "Asimi 是面向开发者的本地优先 AI 桌面助手，提供 AI 对话、项目理解、代码修改、受控电脑交互和安全的本地执行。",
+    "description": "Asimi 是一款本地优先的 AI 桌面助手，帮助你解答问题、撰写内容、分析图片和处理电脑上的任务。",
     "tagline": "你的电脑，你的 AI，由你掌控。",
     "edition": "本地工作空间",
     "phase": "Phase 1 · 功能雏形",
@@ -20,6 +20,7 @@
     "title": "{page} · Asimi"
   },
   "navigation": {
+    "newChat": "新建会话",
     "assistant": "助手",
     "computer": "电脑",
     "developer": "开发者",
@@ -304,6 +305,13 @@
     "lastActivity": "最近活动"
   },
   "settings": {
+    "interfaceMode": "界面模式",
+    "interfaceModeHint": "选择 Asimi 显示的工具和菜单。",
+    "standardMode": "普通模式",
+    "developerMode": "开发者模式",
+    "defaultModel": "默认模型",
+    "defaultModelHint": "选择新会话使用的已连接模型。",
+    "requestLimits": "请求限制",
     "title": "设置",
     "subtitle": "让工作空间符合你的习惯。",
     "general": "通用",
@@ -562,6 +570,26 @@
       "created": "文件已创建"
     },
     "user": "用户请求"
+  },
+  "usage": {
+    "subtitle": "查看本机记录的请求数、Token 和预估费用。实际费用以供应商账单为准。",
+    "range": "时间范围",
+    "breakdown": "按供应商和模型",
+    "loading": "正在加载用量…",
+    "unavailable": "连接中断时无法读取用量。",
+    "emptyRange": "这个时间段没有请求记录。",
+    "unknownProvider": "未知供应商",
+    "partial": "{value} · {count} 条未知",
+    "diagnostics": "今日请求排查",
+    "diagnosticsHint": "最多显示今日最近的 25 条请求，按时间倒序排列。",
+    "period": {
+      "today": "今天",
+      "threeDays": "最近 3 天",
+      "thisWeek": "本周",
+      "thisMonth": "本月",
+      "lastMonth": "上个月",
+      "allTime": "累计"
+    }
   },
   "ai": {
     "keyboardHint": "Enter 发送 · Shift+Enter 换行",

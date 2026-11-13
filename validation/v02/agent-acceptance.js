@@ -11,6 +11,7 @@ async function until(name,read,ms=15000){const deadline=performance.now()+ms;do{
 const byId=id=>document.querySelector(`[data-testid="${id}"]`);
 async function click(name,selector){const node=await until(name,()=>{const element=document.querySelector(selector);return element&&!element.disabled?element:null;});node.click();}
 async function measured(name,fn){const start=performance.now();const value=await fn();timings[name]=Math.round(performance.now()-start);return value;}
+const cognitionFixtureText='Go Add fixture preference for reviewed tests';
 let taskId='';
 const task=()=>call('GetAgentTask',{id:taskId});
 async function trackRound(want,actionKind=''){
@@ -19,6 +20,7 @@ async function trackRound(want,actionKind=''){
   await measured(`context${want}Ms`,()=>click('review context',`${prefix} [data-testid="agent02-review"]`).then(()=>until('context',()=>document.querySelector(`${prefix} [data-testid="agent02-preview"] pre`))));
   const preview=document.querySelector(`${prefix} [data-testid="agent02-preview"] pre`).textContent;
   const payload=JSON.parse(preview);
+  if(stage===11&&want===1)check('reviewIncludesScopedMemory',payload.localKnowledge?.memories?.some(item=>item.kind==='project'&&item.text===cognitionFixtureText));
   check(`reviewIncludesFixture${want}`,payload.projectContext.files.some(f=>f.path==='calc.go'&&f.editable)&&!preview.includes('DEEPSEEK_API_KEY'));
   if(want===1&&params.has('gitFixture'))check('reviewShowsGitAndSelectedDirtyFile',payload.projectContext.git.status==='AVAILABLE'&&payload.projectContext.git.unstaged===1&&payload.projectContext.files.some(f=>f.path==='calc.go'&&f.gitDirty));
   if(want===3)check('actualTestOutputInPreview',payload.observations.some(o=>o.kind==='command'&&JSON.parse(o.evidence).exitCode===0&&o.evidence.includes('fixture')));
@@ -67,6 +69,10 @@ async function run(){
    check('threeRoundsRestored',!!restored);
    check('effectsRestored',current.actions.filter(a=>a.taskId===restored.id&&a.status==='SUCCEEDED').length===2);
    check('noReplay',current.actions.filter(a=>a.taskId===restored.id).length===2);
+   const cognition=await call('GetCognitionState',{workspaceId:restored.workspaceId});
+   check('memoryRestored',cognition.memories.some(item=>item.kind==='project'&&item.text===cognitionFixtureText));
+   check('verifiedExperienceRestored',cognition.memories.some(item=>item.kind==='episode'&&item.key===restored.id&&item.verified));
+   check('candidateStillPending',cognition.candidates.some(item=>item.taskId===restored.id&&item.status==='pending'));
    return;
  }
  const modelId=stage===12?'deepseek-flash':'agent-fixture';
@@ -81,6 +87,10 @@ async function run(){
    providerId=profile.id;
  }
  const workspace=await call('PickWorkspace');
+ if(stage===11){
+   await call('SetCognitionSettings',{memory:true,automaticLearning:true,automaticSkillCreation:true,projectLearning:true});
+   await call('SaveCognitionMemory',{kind:'project',workspaceId:workspace.id,key:'Go Add',text:cognitionFixtureText});
+ }
  if(params.has('gitFixture')){
    const inspection=await call('InspectDeveloperProject',{workspaceId:workspace.id,exclusions:[]});
    check('detectedGoAndReadOnlyGit',inspection.summary.types.includes('Go')&&inspection.git.branch==='preset-fixture'&&inspection.git.staged===3&&inspection.git.unstaged===1&&inspection.git.untracked===1);
@@ -98,6 +108,15 @@ async function run(){
    let completed=false;
    for(let attempt=0;attempt<3&&!completed;attempt++)completed=await trackRound(want,kind);
    check(`reviewRoundCompleted${want}`,completed);
+ }
+ if(stage===11){
+   const learned=await until('learning evidence',async()=>{
+     const data=await call('GetCognitionState',{workspaceId:workspace.id});
+     return data.memories.some(item=>item.kind==='episode'&&item.key===taskId&&item.verified)&&
+       data.candidates.some(item=>item.taskId===taskId&&item.status==='pending')?data:null;
+   });
+   check('verifiedExperiencePersisted',!!learned);
+   check('candidateRequiresReview',!learned.skills.some(skill=>skill.scope==='project'&&skill.sourceExperience===taskId));
  }
  const after=await call('ReadWorkspaceFile',{workspaceId:workspace.id,path:'calc.go'});
  check('independentFileRead',after.content.includes('a + b')&&before.hash!==after.hash);

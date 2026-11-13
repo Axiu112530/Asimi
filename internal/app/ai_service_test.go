@@ -74,6 +74,59 @@ func jsonFixture(w http.ResponseWriter) {
 	io.WriteString(w, `{"id":"local-fixture","choices":[{"message":{"content":"Fixture answer"},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120,"prompt_tokens_details":{"cached_tokens":25}}}`)
 }
 
+func TestUsageSummaryKeepsRangesAndCurrenciesSeparate(t *testing.T) {
+	s := aiFixture(t, nil)
+	mustCall(t, s, "SaveAIProfile", map[string]any{"profile": aiTestProfile("named", "https://example.com")})
+	insert := func(id, stamp, provider, raw string) {
+		t.Helper()
+		if _, err := s.db.Exec("INSERT INTO ai_requests(id,conversation_id,message_id,provider_id,model_id,status,created_at) VALUES(?,'usage-chat','usage-message',?,'fixture','COMPLETED',?)", id, provider, stamp); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.db.Exec("INSERT INTO ai_usage(request_id,json) VALUES(?,?)", id, raw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.db.Exec("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('usage-chat','',?,?); INSERT INTO messages(id,conversation_id,role,content,created_at,updated_at) VALUES('usage-message','usage-chat','assistant','',?,?)", now(), now(), now(), now()); err != nil {
+		t.Fatal(err)
+	}
+	insert("before", "2026-10-31T15:59:59.999999999Z", "named", `{"usage":{"totalTokens":1000}}`)
+	insert("usd", "2026-10-31T16:00:00.000000000Z", "named", `{"usage":{"inputTokens":3,"outputTokens":4,"totalTokens":7},"pricing":{"currency":"USD"},"estimatedCost":0.1}`)
+	insert("cny", "2026-11-20T01:00:00.000000000Z", "named", `{"usage":{"inputTokens":8,"outputTokens":2,"totalTokens":10},"pricing":{"currency":"CNY"},"estimatedCost":0.5}`)
+	insert("unknown", "2026-11-20T01:00:01.000000000Z", "removed", `{"usage":{"inputTokens":0},"pricing":{"currency":"USD"}}`)
+	insert("after", "2026-11-30T16:00:00.000000000Z", "named", `{"usage":{"totalTokens":2000}}`)
+	from, _ := time.Parse(time.RFC3339, "2026-11-01T00:00:00+08:00")
+	until, _ := time.Parse(time.RFC3339, "2026-12-01T00:00:00+08:00")
+	buckets, err := s.usageSummaryLocked(from, until)
+	if err != nil || len(buckets) != 3 {
+		t.Fatalf("summary: %+v, %v", buckets, err)
+	}
+	diagnostics, err := s.recentUsageLocked(usageRange{From: from, Until: until})
+	if err != nil || len(diagnostics) != 3 {
+		t.Fatalf("diagnostics: %+v, %v", diagnostics, err)
+	}
+	for _, row := range buckets {
+		if row.Requests != 1 {
+			t.Fatal(row)
+		}
+		switch row.Currency {
+		case "CNY":
+			if row.ProviderName != "named" || row.TotalTokens != 10 || row.EstimatedCost != 0.5 {
+				t.Fatal(row)
+			}
+		case "USD":
+			if row.ProviderName != "named" || row.TotalTokens != 7 || row.EstimatedCost != 0.1 {
+				t.Fatal(row)
+			}
+		case "":
+			if row.TotalKnown != 0 || row.InputKnown != 1 || row.CostKnown != 0 || row.ProviderName != "" {
+				t.Fatal(row)
+			}
+		default:
+			t.Fatal(row)
+		}
+	}
+}
+
 func TestAIOptionalCredentialContextIsolationSwitchAndUsage(t *testing.T) {
 	requests := make(chan string, 10)
 	auth := make(chan string, 10)

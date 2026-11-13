@@ -307,9 +307,26 @@ func TestUnverifiedNeverCompletesAndCommittedCancellationIsHonest(t *testing.T) 
 	}
 }
 
+func TestInterfaceModeDefaultsAndValidation(t *testing.T) {
+	s, _, _ := fixture(t)
+	initial := mustCall(t, s, "GetSettings", struct{}{}).(domain.Settings)
+	if initial.InterfaceMode != "standard" {
+		t.Fatalf("default mode: %q", initial.InterfaceMode)
+	}
+	initial.InterfaceMode = "invalid"
+	if reply := s.Call("UpdateSettings", encode(initial)); reply.Error == nil || reply.Error.Code != "INVALID_SETTINGS" {
+		t.Fatalf("invalid mode accepted: %+v", reply)
+	}
+	initial.InterfaceMode = "developer"
+	mustCall(t, s, "UpdateSettings", initial)
+	if got := mustCall(t, s, "GetSettings", struct{}{}).(domain.Settings); got.InterfaceMode != "developer" {
+		t.Fatalf("developer mode was not saved: %+v", got)
+	}
+}
+
 func TestClarificationAndSettingsPersist(t *testing.T) {
 	s, dir, _ := fixture(t)
-	settings := domain.Settings{AppLanguage: "zh-CN", AgentLanguage: "en-US", Theme: "dark", Startup: "last"}
+	settings := domain.Settings{AppLanguage: "zh-CN", AgentLanguage: "en-US", Theme: "dark", Startup: "last", InterfaceMode: "developer"}
 	mustCall(t, s, "UpdateSettings", settings)
 	ids := mustCall(t, s, "SendMessage", map[string]string{"content": `Create file "draft.txt"`}).(map[string]string)
 	task := mustCall(t, s, "GetTask", map[string]string{"id": ids["taskId"]}).(domain.Task)

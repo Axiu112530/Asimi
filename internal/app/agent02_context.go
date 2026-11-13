@@ -12,23 +12,29 @@ import (
 )
 
 type agent02Preview struct {
-	TaskID            string   `json:"taskId"`
-	Provider          string   `json:"provider"`
-	Endpoint          string   `json:"endpoint"`
-	Model             string   `json:"model"`
-	Files             []string `json:"files"`
-	Content           string   `json:"content"`
-	Hash              string   `json:"hash"`
-	MaxRequestUSD     float64  `json:"maxRequestUsd"`
-	RemainingUSD      float64  `json:"remainingUsd"`
-	RemainingRequests int      `json:"remainingRequests"`
-	profile           ai.Profile
-	model             ai.Model
-	language          string
-	project           developer.AgentContext
-	task              AgentTask
-	workspace         Workspace
-	limits            configuration.AgentLimits
+	TaskID               string   `json:"taskId"`
+	Provider             string   `json:"provider"`
+	Endpoint             string   `json:"endpoint"`
+	Model                string   `json:"model"`
+	Files                []string `json:"files"`
+	Content              string   `json:"content"`
+	Hash                 string   `json:"hash"`
+	MaxRequestUSD        float64  `json:"maxRequestUsd"`
+	RemainingUSD         float64  `json:"remainingUsd"`
+	RemainingRequests    int      `json:"remainingRequests"`
+	profile              ai.Profile
+	model                ai.Model
+	language             string
+	project              developer.AgentContext
+	task                 AgentTask
+	workspace            Workspace
+	limits               configuration.AgentLimits
+	matchedSkills        []cognitionSkill
+	KnowledgeMatches     []cognitionMatch `json:"knowledgeMatches,omitempty"`
+	KnowledgeBytes       int              `json:"knowledgeBytes"`
+	InputTokenUpperBound int              `json:"inputTokenUpperBound"`
+	SystemInstruction    string           `json:"systemInstruction"`
+	knowledgeRevision    int64
 }
 
 type agent02Observation struct {
@@ -90,11 +96,35 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 		RemainingRounds  int                    `json:"remainingRounds"`
 		MaxSteps         int                    `json:"maxSteps"`
 		FinalizeOnly     bool                   `json:"finalizeOnly"`
-	}{project, commands, observations, len(t.Agent.Rounds) + 1, limits.Requests - len(t.Agent.Rounds), limits.StepsPerPlan, len(t.Agent.Rounds)+1 == limits.Requests})
+		Correction       string                 `json:"currentUserCorrection,omitempty"`
+	}{project, commands, observations, len(t.Agent.Rounds) + 1, limits.Requests - len(t.Agent.Rounds), limits.StepsPerPlan, len(t.Agent.Rounds)+1 == limits.Requests, boundedAgentText(t.Agent.CognitionCorrection, workspace.Root, 1250)})
 	if err != nil {
 		return agent02Preview{}, err
 	}
-	inputTokensUpperBound := len(content) + len(agent02Instruction) + 384
+	revision, err := cognitionRevision(s.db)
+	if err != nil {
+		return agent02Preview{}, err
+	}
+	knowledge, err := s.selectCognitionContext(t.WorkspaceID, t.Goal+" "+t.Agent.CognitionCorrection, min(4200, limits.ContextBytes-len(content)-256), true, t.Agent.CognitionChoices)
+	if err != nil {
+		return agent02Preview{}, err
+	}
+	instruction := agent02Instruction + " Write user-facing summaries in " + language + " unless the user requests another language."
+	knowledgeBytes := 0
+	if len(knowledge.Memories)+len(knowledge.Skills) > 0 {
+		instruction += " " + cognitionReferenceInstruction
+		body := encode(knowledge)
+		knowledgeBytes = len(body)
+		content = append(content[:len(content)-1], []byte(",\"localKnowledge\":"+body+"}")...)
+	}
+	current, err := cognitionRevision(s.db)
+	if err != nil {
+		return agent02Preview{}, err
+	}
+	if current != revision {
+		return agent02Preview{}, codedError("TASK_CONTEXT_CHANGED")
+	}
+	inputTokensUpperBound := len(content) + len(instruction) + 384
 	if len(content) > limits.ContextBytes || model.Capabilities.ContextLimit != nil && int64(inputTokensUpperBound+limits.OutputTokens) > *model.Capabilities.ContextLimit {
 		return agent02Preview{}, codedError("CONTEXT_LIMIT_EXCEEDED")
 	}
@@ -107,13 +137,13 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 	if reserve > remaining {
 		return agent02Preview{}, codedError("AGENT_BUDGET_EXHAUSTED")
 	}
-	p := agent02Preview{TaskID: t.ID, Provider: profile.Name, Endpoint: profile.BaseURL, Model: model.ID, Content: string(content), Files: []string{}, MaxRequestUSD: reserve, RemainingUSD: remaining, RemainingRequests: limits.Requests - len(t.Agent.Rounds), profile: profile, model: model, language: language, project: project, task: t, workspace: workspace, limits: limits}
+	p := agent02Preview{TaskID: t.ID, Provider: profile.Name, Endpoint: profile.BaseURL, Model: model.ID, Content: string(content), Files: []string{}, MaxRequestUSD: reserve, RemainingUSD: remaining, RemainingRequests: limits.Requests - len(t.Agent.Rounds), profile: profile, model: model, language: language, project: project, task: t, workspace: workspace, limits: limits, matchedSkills: knowledge.Skills, KnowledgeMatches: knowledge.Matches, KnowledgeBytes: knowledgeBytes, InputTokenUpperBound: inputTokensUpperBound, SystemInstruction: instruction, knowledgeRevision: revision}
 	for _, file := range project.Files {
 		p.Files = append(p.Files, file.Path)
 	}
 	// Consent binds the exact bytes, system instruction version, provider,
 	// configured price and observed task/workspace version.
-	p.Hash = hashControlText(encode([]any{agent02Policy, agent02Instruction, t.ID, t.UpdatedAt, t.Agent.BoundWorkspace, profile.ID, profile.Protocol, profile.BaseURL, profile.CredentialID, profile.HasCredential, model, language, limits, p.Content}))
+	p.Hash = hashControlText(encode([]any{agent02Policy, instruction, t.ID, t.UpdatedAt, t.Agent.BoundWorkspace, profile.ID, profile.Protocol, profile.BaseURL, profile.CredentialID, profile.HasCredential, model, language, limits, p.Content}))
 	return p, nil
 }
 

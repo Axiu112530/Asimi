@@ -17,10 +17,14 @@ import (
 )
 
 func (s *Service) startChatLocked(in ChatInput, test bool) (map[string]string, error) {
-	return s.startChatWithScreenLocked(in, test, nil)
+	return s.startChatRequestLocked(in, test, nil, nil)
 }
 
 func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *screenUpload) (map[string]string, error) {
+	return s.startChatRequestLocked(in, test, upload, nil)
+}
+
+func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screenUpload, cognitionSnapshot *int64) (map[string]string, error) {
 	if !in.ConfirmSend {
 		return nil, codedError("CONFIRM_SEND_REQUIRED")
 	}
@@ -150,6 +154,15 @@ func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *scr
 			req.SystemInstruction += "\n" + screen.VisionInstruction
 		}
 	}
+	if !test && !in.Playground && upload == nil && cognitionSnapshot == nil {
+		knowledge, err := s.cognitionContext("", in.Content, 1800, false)
+		if err != nil {
+			return nil, err
+		}
+		if len(knowledge.Memories) > 0 {
+			req.SystemInstruction += "\n" + cognitionReferenceInstruction + "\n" + encode(knowledge)
+		}
+	}
 	contextBytes := len(req.SystemInstruction)
 	imageBytes := 0
 	imageCount := 0
@@ -265,6 +278,15 @@ func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *scr
 		suggestion = upload.suggestion
 	}
 	e = s.transaction(func(tx *sql.Tx) error {
+		if cognitionSnapshot != nil {
+			current, err := cognitionRevision(tx)
+			if err != nil {
+				return err
+			}
+			if current != *cognitionSnapshot {
+				return codedError("TASK_CONTEXT_CHANGED")
+			}
+		}
 		if create {
 			title := []rune(c.Title)
 			if len(title) > 80 {
@@ -309,6 +331,11 @@ func (s *Service) startChatWithScreenLocked(in ChatInput, test bool, upload *scr
 		}
 		if _, e := tx.Exec("UPDATE conversations SET updated_at=? WHERE id=?", now(), c.ID); e != nil {
 			return e
+		}
+		if !test && !in.Playground && upload == nil && cognitionSnapshot == nil {
+			if err := captureCognitionPreference(tx, user.ID, in.Content); err != nil {
+				return err
+			}
 		}
 		event := "AI_REQUEST_CONFIRMED"
 		params := map[string]string{"requestId": req.RequestID, "providerId": p.ID, "conversationId": c.ID}

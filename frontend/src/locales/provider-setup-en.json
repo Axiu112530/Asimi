@@ -27,6 +27,7 @@
   "project": "Choose a local project to get started.",
   "pickProject": "Choose project",
   "selectedProject": "Selected project",
+  "finishIntro": "Start a conversation or analyze a screenshot from the Assistant.",
   "finish": "Open Asimi",
   "openProject": "Open project",
   "advanced": "Advanced provider settings",

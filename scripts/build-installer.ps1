@@ -1,6 +1,7 @@
 param(
     [string]$CompilerPath,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [string]$PayloadDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,7 +14,11 @@ $OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPath
 
 $AppInfo = Get-Content -LiteralPath (Join-Path $Repo 'build/windows/asimi-info.json') -Raw | ConvertFrom-Json
 $AppVersion = $AppInfo.info.'0409'.ProductVersion
-$Payload = Join-Path $Output "asimi-$AppVersion"
+$Payload = if ($PayloadDirectory) {
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PayloadDirectory)
+} else {
+    Join-Path $Output "asimi-$AppVersion"
+}
 $App = Join-Path $Payload 'Asimi.exe'
 $Manifest = Join-Path $Payload 'SHA256SUMS.txt'
 if (-not (Test-Path -LiteralPath $App -PathType Leaf) -or -not (Test-Path -LiteralPath $Manifest -PathType Leaf)) {

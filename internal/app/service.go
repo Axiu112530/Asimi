@@ -38,6 +38,7 @@ type workerFault struct {
 	verification *domain.Verification
 }
 type Service struct {
+	cognitionMu      sync.Mutex
 	agent02Secret    []byte
 	mvp              mvpRuntime
 	desktopControl   controlState
@@ -117,8 +118,9 @@ func New(dataDir string, registry *tools.Registry, emit func(string, any)) (*Ser
 		stop()
 		return nil, errors.Join(e, db.Close(), release())
 	}
-	s.wg.Add(1)
+	s.wg.Add(2)
 	go s.expiryLoop()
+	go s.cognitionLoop()
 	return s, nil
 }
 
@@ -232,6 +234,9 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		return fail("SERVICE_CLOSED")
 	}
 	defer s.wg.Done()
+	if reply, handled := s.callCognition(method, payload); handled {
+		return reply
+	}
 	if reply, handled := s.callMVP(method, payload); handled {
 		return reply
 	}
@@ -245,7 +250,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		}
 		defer s.beginMVPStop()()
 		controlStopErr = s.stopDesktopControl()
-		controlStopErr = errors.Join(controlStopErr, s.stopMVP())
+		controlStopErr = errors.Join(controlStopErr, s.stopMVP(), s.changeCognitionLearning(true))
 	}
 	if reply, handled := s.callScreen(method, payload); handled {
 		return reply
@@ -300,6 +305,13 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		var v domain.Settings
 		if e := decode(payload, &v); e != nil {
 			return fail(errorCode(e))
+		}
+		if v.InterfaceMode == "" {
+			current, e := s.settingsLocked()
+			if e != nil {
+				return result(nil, e)
+			}
+			v.InterfaceMode = current.InterfaceMode
 		}
 		if !validSettings(v) {
 			return fail("INVALID_SETTINGS")
@@ -436,7 +448,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 }
 
 func validSettings(v domain.Settings) bool {
-	return (v.AppLanguage == "en-US" || v.AppLanguage == "zh-CN") && (v.AgentLanguage == "follow-app" || v.AgentLanguage == "auto" || v.AgentLanguage == "en-US" || v.AgentLanguage == "zh-CN") && (v.Theme == "light" || v.Theme == "dark" || v.Theme == "system") && (v.Startup == "welcome" || v.Startup == "last")
+	return (v.AppLanguage == "en-US" || v.AppLanguage == "zh-CN") && (v.AgentLanguage == "follow-app" || v.AgentLanguage == "auto" || v.AgentLanguage == "en-US" || v.AgentLanguage == "zh-CN") && (v.Theme == "light" || v.Theme == "dark" || v.Theme == "system") && (v.Startup == "welcome" || v.Startup == "last") && (v.InterfaceMode == "standard" || v.InterfaceMode == "developer")
 }
 func (s *Service) settingsLocked() (domain.Settings, error) {
 	var v domain.Settings
@@ -444,6 +456,9 @@ func (s *Service) settingsLocked() (domain.Settings, error) {
 	e := s.db.QueryRow("SELECT json FROM app_settings WHERE id='app'").Scan(&raw)
 	if e == nil {
 		e = json.Unmarshal([]byte(raw), &v)
+	}
+	if v.InterfaceMode == "" {
+		v.InterfaceMode = "standard"
 	}
 	return v, e
 }

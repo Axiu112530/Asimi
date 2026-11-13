@@ -67,6 +67,12 @@ async function setup(live) {
     check('switchedInterfaceLanguage', true);
     if (asimi) checkWelcomeBrand('ZH');
   }
+  check('standardModeDefault', byId('preset-interface-mode')?.value === 'standard');
+  if (!live) {
+    await until('mode control enabled', () => !byId('preset-interface-mode').disabled);
+    input('preset-interface-mode', 'developer', 'change');
+    await until('developer choice saved', async () => (await call('GetSettings')).interfaceMode === 'developer' && !byId('preset-continue').disabled);
+  }
   await click('preset-continue');
   const provider = await until('provider', () => byId('preset-provider'));
   check('allBuiltInProvidersOffered', [...provider.options].map(option => option.value).join(',') ===
@@ -97,17 +103,21 @@ async function setup(live) {
     check('offlineHasNoUsage', !(await call('GetUsage'))?.length);
     await click('preset-skip-ai');
   }
-  await click('preset-pick-project');
-  await until('selected project', () => byId('preset-selected-project'));
+  if (!live) {
+    await click('preset-pick-project');
+    await until('selected project', () => byId('preset-selected-project'));
+  } else {
+    check('standardOnboardingSkipsProjects', !byId('preset-pick-project'));
+  }
   await click('preset-finish');
-  await until('developer page', () => byId('product-developer') && !byId('preset-onboarding'));
+  await until('onboarding complete', () => (live ? byId('product-home') : byId('product-developer')) && !byId('preset-onboarding'));
   const state = await call('GetMVPState');
+  if (!live) {
   const workspace = state.workspaces[0];
   check('onboardingAndWorkspacePersisted', state.onboarding.completed && state.workspaces.length === 1 && workspace.trustStatus === 'USER_SELECTED');
   const inspection = await call('InspectDeveloperProject', { workspaceId: workspace.id, exclusions: [] });
   check('autoDetectedGoProject', JSON.stringify(inspection.summary).includes('Go'));
   check('gitStatusAbsentIsExplicit', inspection.git.status === 'NOT_REPOSITORY');
-  if (!live) {
     await click('nav-settings');
     const advanced = await until('advanced settings', () => byId('preset-advanced'));
     if (asimi) {
@@ -116,8 +126,16 @@ async function setup(live) {
     }
     check('releaseSettingsHideDemoCopy', !document.querySelector('.settings-page').textContent.includes('Mock'));
     check('advancedCollapsed', !advanced.open);
+    const modelControl = await until('default model select', () => byId('settings-default-model'));
+    const bounds = modelControl.getBoundingClientRect();
+    const modeBounds = byId('interface-mode').getBoundingClientRect();
+    check('settingsControlsAligned', modelControl.tagName === 'SELECT' &&
+      Math.abs(bounds.left - modeBounds.left) < 1 && Math.abs(bounds.height - modeBounds.height) < 1);
     advanced.querySelector('summary').click();
     await until('limit form', () => byId('preset-limit-requests'));
+    const sources = document.querySelector('.preset-provenance');
+    sources.open = true;
+    check('sourcesUsePairedRows', !!sources.querySelector('.detail-row > dt + dd'));
     input('preset-limit-requests', '3');
     input('preset-limit-attachments', '2');
     await click('preset-save-limits');
@@ -134,9 +152,10 @@ async function restart(live) {
   const state = await call('GetMVPState');
   check('doesNotRepeatWizard', state.onboarding.completed && !byId('preset-onboarding'));
   if (asimi) checkBrand('homeBrandAfterRestart', byId('product-home').textContent);
-  check('workspaceSurvivesRestart', state.workspaces.length === 1);
+  check('workspaceSurvivesRestart', state.workspaces.length === (live ? 0 : 1));
   const settings = await call('GetSettings');
   check('languageSurvivesRestart', settings.appLanguage === (live ? 'en-US' : 'zh-CN'));
+  check('modeSurvivesRestart', settings.interfaceMode === (live ? 'standard' : 'developer'));
   if (live) {
     await click('nav-models');
     const current = await until('current provider', () => byId('preset-default-model'));
@@ -148,6 +167,18 @@ async function restart(live) {
     check('overrideSurvivesRestart', config.agent.requests === 3 && config.media.attachments === 2);
     const reset = await call('RestoreConfigurationDefaults', { confirm: true });
     check('resetRestoresSourceAndValue', reset.agent.requests === reset.agentMaximum.requests && reset.media.attachments === reset.mediaMaximum.attachments && reset.sources['agent.requests'] === 'DEFAULT' && reset.sources['media.attachments'] === 'DEFAULT');
+    await click('nav-settings');
+    input('interface-mode', 'standard', 'change');
+    await until('standard menus', () => !byId('nav-developer') && !byId('nav-playground'));
+    check('standardHidesAdvancedSettings', !byId('preset-advanced') && !!byId('settings-default-model') && !!byId('nav-computer'));
+    await click('nav-skills');
+    await until('standard skill', () => byId('skill-screen-analysis'));
+    check('standardHidesProjectSkills', !byId('skill-project-overview'));
+    await click('nav-settings');
+    await until('mode setting ready', () => byId('interface-mode') && !byId('interface-mode').disabled);
+    input('interface-mode', 'developer', 'change');
+    await until('developer menus restored', () => byId('nav-developer') && byId('nav-playground'));
+    await click('nav-home');
     await click('product-chat');
     await until('model setup entry', () => byId('chat-model-required'));
     check('releaseHasNoDemoControls', !byId('ai-assistantMode') && !byId('composer') && !document.querySelector('.runtime-info,.local-indicator'));
@@ -175,8 +206,14 @@ async function restart(live) {
             contextLimit: 32768, imageDetails: ['auto'],
           } }],
       } });
-      const settings = await call('GetAISettings');
-      await call('SaveAISettings', { ...settings, defaultProviderId: 'visual-fixture', defaultModelId: 'fixture-model' });
+      await click('nav-models');
+      await until('provider page', () => byId('preset-provider'));
+      await click('nav-settings');
+      await until('default model fixture', () => [...byId('settings-default-model').options].some(option => option.textContent.includes('Fixture model')));
+      await until('model control ready', () => !byId('settings-default-model').disabled);
+      const fixtureValue = [...byId('settings-default-model').options].find(option => option.textContent.includes('Fixture model')).value;
+      input('settings-default-model', fixtureValue, 'change');
+      await until('default model saved from settings', async () => (await call('GetAISettings')).defaultModelId === 'fixture-model');
       await click('nav-models');
       await until('model refresh', () => byId('preset-default-model')?.textContent.includes('fixture-model'));
       await click('nav-assistant');
@@ -204,6 +241,49 @@ async function restart(live) {
       } finally {
         window.confirm = previousConfirm;
       }
+      await click('nav-usage');
+      await until('usage summary', () => byId('usage-totals'));
+      check('usageDefaultsToCurrentWeek', byId('usage-period').value === 'thisWeek');
+      const usagePage = byId('ai-usage');
+      check('usageShowsProviderName', byId('usage-breakdown').textContent.includes('Local fixture') &&
+        !usagePage.textContent.includes('visual-fixture'));
+      check('usageSummaryKeepsUnknowns', byId('usage-requests').textContent === '1' &&
+        byId('usage-totalTokens').textContent.includes('未知'));
+      check('usageDiagnosticsLoadOnlyOnExpansion', !!byId('usage-diagnostics') && !byId('usage-request'));
+      input('usage-period', 'lastMonth', 'change');
+      await until('last month usage', () => byId('usage-requests')?.textContent === '0');
+      input('usage-period', 'threeDays', 'change');
+      await until('three days usage', () => byId('usage-requests')?.textContent === '1');
+      byId('usage-diagnostics').open = true;
+      await until('today request diagnostics', () => byId('usage-request'));
+      await click('nav-settings');
+      await until('standard mode control', () => byId('interface-mode') && !byId('interface-mode').disabled);
+      input('interface-mode', 'standard', 'change');
+      await until('standard mode set', () => !byId('nav-playground'));
+      await click('nav-usage');
+      await until('standard usage summary', () => byId('usage-totals'));
+      check('standardUsageHasNoRequestDiagnostics', !byId('usage-diagnostics') && !byId('usage-request'));
+      await click('nav-settings');
+      await until('developer mode control', () => byId('interface-mode') && !byId('interface-mode').disabled);
+      input('interface-mode', 'developer', 'change');
+      await until('developer mode set', () => byId('nav-playground'));
+      await click('nav-skills');
+      await until('local skills editor',()=>byId('cognition-skill-editor'));
+      byId('cognition-skill-editor').open=true;
+      for(const [field,value] of Object.entries({
+        slug:'local-review-fixture',name:'Local review fixture',description:'Review a local Go project',
+        instructions:'Summarize the existing tests before proposing a change.',triggers:'Go review',
+      })) input('cognition-skill-'+field,value);
+      const saveSkill=await until('skill save enabled',()=>{
+        const button=byId('cognition-skill-editor').querySelector('button');
+        return button && !button.disabled && button;
+      });
+      saveSkill.click();
+      const saved=await until('skill saved by UI',()=>document.querySelector('[data-skill-slug="local-review-fixture"]'));
+      check('manualSkillSavedFromUI',saved.textContent.includes('Local review fixture'));
+      await click('nav-memory');
+      check('memoryPageAvailable',!!await until('memory page',()=>byId('cognition-memory')));
+      await click('nav-assistant');
       await reviewVisual();
     }
   }

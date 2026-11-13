@@ -82,7 +82,7 @@ func (s *Service) requestAgent02Plan(ctx context.Context, preview agent02Preview
 		return ai.Response{}, err
 	}
 	defer credential.Wipe(secret)
-	in := ai.Request{RequestID: newID(), ConversationID: preview.TaskID, ProviderID: preview.profile.ID, ModelID: preview.model.ID, SystemInstruction: agent02Instruction + " Write user-facing summaries in " + preview.language + " unless the user requests another language.", Messages: []ai.Message{{Role: "user", Content: []ai.Content{{Type: "text", Text: preview.Content}}}}, MaxOutputTokens: preview.limits.OutputTokens, ResponseLanguage: preview.language, JSONOutput: preview.model.Capabilities.StructuredOutput == ai.Supported}
+	in := ai.Request{RequestID: newID(), ConversationID: preview.TaskID, ProviderID: preview.profile.ID, ModelID: preview.model.ID, SystemInstruction: preview.SystemInstruction, Messages: []ai.Message{{Role: "user", Content: []ai.Content{{Type: "text", Text: preview.Content}}}}, MaxOutputTokens: preview.limits.OutputTokens, ResponseLanguage: preview.language, JSONOutput: preview.model.Capabilities.StructuredOutput == ai.Supported}
 	return adapter.Generate(ctx, in, secret)
 }
 

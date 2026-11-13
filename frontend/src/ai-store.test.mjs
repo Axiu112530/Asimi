@@ -15,7 +15,7 @@ globalThis.__aiTest={state,fail:error=>{throw error;},call:async(method,payload=
   calls.push({method,payload});if(override){const result=override(method,payload);if(result!==undefined)return await result;}
   if(method==='ListAIProfiles')return clone(profiles);
   if(method==='GetAISettings')return clone(settings);
-  if(method==='GetUsage')return [];
+  if(method==='GetRequestUsage')return [];
   if(method==='ListConversations')return [...conversations.values()].map(clone);
   if(method==='GetConversation')return clone(conversations.get(payload.id));
   if(method==='DeleteAttachment'||method==='CancelChat')return true;
@@ -48,7 +48,9 @@ await sendAI(ai.playground,true);
 window.confirm = () => true;
 assert.equal(ai.playground.busy,false);assert.equal(ai.playground.conversation.messages[0].content.length,5000);
 emit('early','delta',6000,'late duplicate');assert.equal(ai.playground.busy,false);assert.equal(ai.playground.conversation.messages[0].content.length,5000);
-console.log('PASS: 5000 early deltas retain terminal completion; late terminal duplicates ignored');
+assert.equal(calls.filter(item => item.method === 'GetRequestUsage').length, 1);
+assert.ok(calls.every(item => item.method !== 'GetUsage'));
+console.log('PASS: 5000 early deltas retain terminal completion and only fetch the active request');
 
 // Two simultaneous pending calls must associate early events by returned ID.
 fresh(ai.assistant);fresh(ai.playground);const assistantReply=deferred(),playgroundReply=deferred();

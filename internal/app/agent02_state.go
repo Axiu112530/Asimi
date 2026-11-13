@@ -14,15 +14,17 @@ import (
 const agent02MaxFiles = 4
 
 type agent02Run struct {
-	ProviderID     string                     `json:"providerId"`
-	ModelID        string                     `json:"modelId"`
-	BoundWorkspace string                     `json:"boundWorkspace"`
-	Paths          []string                   `json:"paths"`
-	Deadline       time.Time                  `json:"deadline"`
-	ReservedUSD    float64                    `json:"reservedUsd"`
-	Rounds         []agent02Round             `json:"rounds"`
-	Limits         *configuration.AgentLimits `json:"limits,omitempty"`
-	Exclusions     []string                   `json:"exclusions,omitempty"`
+	ProviderID          string                     `json:"providerId"`
+	ModelID             string                     `json:"modelId"`
+	BoundWorkspace      string                     `json:"boundWorkspace"`
+	Paths               []string                   `json:"paths"`
+	Deadline            time.Time                  `json:"deadline"`
+	ReservedUSD         float64                    `json:"reservedUsd"`
+	Rounds              []agent02Round             `json:"rounds"`
+	Limits              *configuration.AgentLimits `json:"limits,omitempty"`
+	Exclusions          []string                   `json:"exclusions,omitempty"`
+	CognitionChoices    []cognitionSkillChoice     `json:"cognitionChoices,omitempty"`
+	CognitionCorrection string                     `json:"cognitionCorrection,omitempty"`
 }
 
 type agent02Round struct {

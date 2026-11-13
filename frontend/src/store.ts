@@ -2,7 +2,7 @@ import { reactive } from 'vue';
 import { call, connect, disconnect, ServiceError, type ChangeEvent } from './bridge';
 import { i18n } from './i18n';
 import type { Settings, AppInfo, Conversation, Task, Approval, AuditEvent, ToolExecution, ProviderProfile, SecurityStatus, Route } from './types';
-const defaults: Settings = { appLanguage:'en-US',agentLanguage:'follow-app',theme:'light',startup:'welcome' };
+const defaults: Settings = { appLanguage:'en-US',agentLanguage:'follow-app',theme:'light',startup:'welcome',interfaceMode:'standard' };
 export const state = reactive({
   route:'assistant' as Route, ready:false, connected:false, loading:false, busy:false, saving:false, error:'', errorParams:{} as Record<string,string>, notice:'',
   settings:{...defaults}, info:null as AppInfo|null, conversations:[] as Conversation[], conversation:null as Conversation|null,
@@ -52,7 +52,8 @@ export async function boot() {
     applySettings(await call<Settings>('GetSettings'));
     const [info,providers]=await Promise.all([call<AppInfo>('GetAppInfo'),call<ProviderProfile[]>('ListProviders'),refreshIndex(),refreshSecurity()]);
     state.info=info;state.providers=providers||[];
-    if(state.settings.startup==='last' && state.conversations.length) await openConversation(state.conversations[0].id);
+    const recent = state.conversations.find(item => !item.playground || state.settings.interfaceMode === 'developer');
+    if (state.settings.startup === 'last' && recent) await openConversation(recent.id);
   }catch(e){disconnectStore();fail(e);}finally{state.ready=true;state.loading=false;connecting=null;}})();return connecting;
 }
 export async function saveSettings(patch: Partial<Settings>) {

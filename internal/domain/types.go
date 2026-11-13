@@ -19,6 +19,7 @@ type Settings struct {
 	AgentLanguage string `json:"agentLanguage"`
 	Theme         string `json:"theme"`
 	Startup       string `json:"startup"`
+	InterfaceMode string `json:"interfaceMode"`
 }
 type Message struct {
 	ID             string               `json:"id"`
