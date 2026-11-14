@@ -185,6 +185,9 @@ func (s *Service) failAgent(id string, failure error) {
 func (s *Service) changeAgent(id, mode string) (AgentTask, error) {
 	if mode != "resume" {
 		defer s.beginMVPTaskStop(id)()
+		if err := s.invalidateDesktopTaskPending(id); err != nil {
+			return AgentTask{}, err
+		}
 	}
 	s.mvp.mu.Lock()
 	defer s.mvp.mu.Unlock()
@@ -193,6 +196,9 @@ func (s *Service) changeAgent(id, mode string) (AgentTask, error) {
 		return t, e
 	}
 	if mode == "resume" {
+		if t.Desktop {
+			return t, codedError("CONTROL_STALE_TARGET")
+		}
 		if t.Agent != nil {
 			return s.resumeAgent02Locked(t, false)
 		}
@@ -222,6 +228,9 @@ func (s *Service) changeAgent(id, mode string) (AgentTask, error) {
 		}
 		s.launchAgentLocked(id)
 		s.changed("", id)
+		return t, nil
+	}
+	if t.Desktop && t.Status == "CANCELLED" {
 		return t, nil
 	}
 	if t.Status == "CANCELLED" || t.Status == "COMPLETED" || t.Status == "FAILED" {
@@ -266,26 +275,29 @@ func (s *Service) changeAgent(id, mode string) (AgentTask, error) {
 			}
 		}
 	}
-	t, e = loadAgentTask(s.db, id)
-	if e != nil {
-		return t, e
-	}
-	t.Status = "PAUSED"
-	t.Summary = "TASK_PAUSED"
-	if mode == "cancel" {
-		t.Status = "CANCELLED"
-		t.Summary = "TASK_CANCELLED"
-	}
-	t.UpdatedAt = now()
-	for i := range t.Steps {
-		if t.Steps[i].Status == "RUNNING" || t.Steps[i].Status == "PENDING" {
-			t.Steps[i].Status = "PENDING"
-			if mode == "cancel" {
-				t.Steps[i].Status = "SKIPPED"
+	e = s.transaction(func(tx *sql.Tx) error {
+		// Re-read inside the write transaction: an effect can settle while the
+		// stop request is cancelling it. Preserve its latest factual evidence.
+		var err error
+		t, err = loadAgentTask(tx, id)
+		if err != nil {
+			return err
+		}
+		t.Status, t.Summary = "PAUSED", "TASK_PAUSED"
+		if mode == "cancel" {
+			t.Status, t.Summary = "CANCELLED", "TASK_CANCELLED"
+		}
+		t.UpdatedAt = now()
+		for i := range t.Steps {
+			if t.Steps[i].Status == "RUNNING" || t.Steps[i].Status == "PENDING" {
+				t.Steps[i].Status = "PENDING"
+				if mode == "cancel" {
+					t.Steps[i].Status = "SKIPPED"
+				}
 			}
 		}
-	}
-	e = s.transaction(func(tx *sql.Tx) error { return saveAgentTask(tx, t) })
+		return saveAgentTask(tx, t)
+	})
 	if e == nil {
 		s.changed("", id)
 	}
@@ -396,7 +408,14 @@ func (s *Service) pauseMVPActiveTasks() error {
 		return e
 	}
 	return s.transaction(func(tx *sql.Tx) error {
-		for _, t := range tasks {
+		for _, selected := range tasks {
+			t, err := loadAgentTask(tx, selected.ID)
+			if err != nil {
+				return err
+			}
+			if t.Status != "RUNNING" && t.Status != "WAITING_APPROVAL" && t.Status != "NEEDS_REVIEW" {
+				continue
+			}
 			t.Status = "PAUSED"
 			t.Summary = "STOP_ALL"
 			t.UpdatedAt = now()

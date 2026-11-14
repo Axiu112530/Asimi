@@ -4,6 +4,7 @@ import type { ComputerSuggestion, ComputerSuggestionTarget, ControlAction, Contr
 import { date, known, t } from './i18n';
 import type { ScreenRect } from './screen-types';
 import { state } from './store';
+import { product, refreshProduct } from './product-store';
 import { button, detail, errorText, icon } from './ui';
 import type { AgentTask } from './product-types';
 import { computerTaskReview, computerTaskSelector } from './agent02-computer-fields';
@@ -209,22 +210,23 @@ export const ComputerControlPanel = defineComponent({
       }
     }
 
-    async function reviewSuggestion(item: ComputerSuggestion) {
+    async function reviewSuggestion(item: ComputerSuggestion, asTask = false) {
       if (blocked.value || item.status !== 'READY') return;
       const version = viewVersion;
       const task = taskId.value;
       busy.value = 'propose';
       error.value = '';
       try {
-        const proposal = await call<ControlProposal>('ProposeComputerSuggestion', { requestId: item.requestId, taskId: task });
+        const proposal = await call<ControlProposal>('ProposeComputerSuggestion', { requestId: item.requestId, taskId: task, ...(asTask ? { asTask: true } : {}) });
         if (!isCurrent(version)) return;
         if (proposal.status !== 'AWAITING_APPROVAL' || proposal.sourceRequestId !== item.requestId ||
-            proposal.taskId !== task || proposal.type !== item.actionType || proposal.window?.app !== 'test_host' ||
+            (asTask ? !proposal.taskId || proposal.taskId === task : proposal.taskId !== task) || proposal.type !== item.actionType || proposal.window?.app !== 'test_host' ||
             proposal.element?.automationId !== item.selector || !proposal.id || !proposal.hash) {
           error.value = 'bridge.invalid_response';
           return;
         }
         showProposal(proposal);
+        if (asTask) void refreshProduct().catch(() => undefined);
       } catch (failure) {
         if (isCurrent(version)) error.value = codeOf(failure);
       } finally {
@@ -259,6 +261,7 @@ export const ComputerControlPanel = defineComponent({
         if (!isCurrent(version)) return;
         status.value = next;
         if (next.stopped) state.controlStoppedLocally = true;
+        state.controlEscapeAvailable = next.nativeEscape === true;
         if (next.stopped || !next.available || next.permissionMode !== 'PER_ACTION_APPROVAL') {
           clearProposal();
           clearObservation();
@@ -328,11 +331,11 @@ export const ComputerControlPanel = defineComponent({
       selectedId.value = element.id;
     }
 
-    async function propose(type: ControlAction) {
+    async function propose(type: ControlAction, asTask = false) {
       if (blocked.value) return;
       const current = observed.value;
       const params: { type: ControlAction; observationId?: string; elementId?: string; text?: string; taskId?: string } = { type };
-      if (taskId.value) params.taskId = taskId.value;
+      if (taskId.value && !asTask) params.taskId = taskId.value;
       if (type !== 'app.launch_test_host') {
         const expires = current && Date.parse(current.expiresAt || current.observedAt) + (current.expiresAt ? 0 : 60_000);
         if (!current || !expires || !Number.isFinite(expires) || expires <= Date.now()) {
@@ -356,9 +359,13 @@ export const ComputerControlPanel = defineComponent({
       busy.value = 'propose';
       error.value = '';
       try {
-        const proposal = await call<ControlProposal>('ProposeControlAction', params);
+        const task = asTask
+          ? await call<AgentTask & { proposal: ControlProposal }>('CreateDesktopTask', { ...params, workspaceId: product.selectedWorkspace })
+          : undefined;
+        const proposal = task?.proposal ?? await call<ControlProposal>('ProposeControlAction', params);
+        if (task) void refreshProduct().catch(() => undefined);
         if (!isCurrent(version)) return;
-        if (proposal.status !== 'AWAITING_APPROVAL' || proposal.type !== type || proposal.text !== params.text || proposal.taskId !== params.taskId || !proposal.id || !proposal.hash) {
+        if (proposal.status !== 'AWAITING_APPROVAL' || proposal.type !== type || proposal.text !== params.text || proposal.taskId !== (task?.id ?? params.taskId) || !proposal.id || !proposal.hash) {
           error.value = 'bridge.invalid_response';
           return;
         }
@@ -390,7 +397,10 @@ export const ComputerControlPanel = defineComponent({
       lastResult.value = undefined;
       uncertainReply.value = false;
       clearProposal();
-      if (approve) clearObservation();
+      if (approve) {
+        clearObservation();
+        state.activeControlActionId = proposal.id;
+      }
       try {
         const record = await call<ControlRecord>(approve ? 'ApproveControlAction' : 'RejectControlAction', {
           actionId: proposal.id, actionHash: proposal.hash,
@@ -407,8 +417,10 @@ export const ComputerControlPanel = defineComponent({
           if (error.value === 'CONTROL_STOPPED') void refreshStatus();
         }
       } finally {
+        if (state.activeControlActionId === proposal.id) state.activeControlActionId = '';
         if (active) {
           deciding.value = false;
+          void refreshStatus();
           void refreshJournal();
         }
       }
@@ -571,6 +583,7 @@ export const ComputerControlPanel = defineComponent({
           actionButton('proposeLaunch', 'control-propose-launch', () => propose('app.launch_test_host'), blocked.value || !!taskId.value),
           canFocus.value ? actionButton('proposeFocus', 'control-propose-focus', () => propose('window.focus'), blocked.value) : null,
           canInvoke.value ? actionButton('proposeInvoke', 'control-propose-invoke', () => propose('uia.invoke'), blocked.value) : null,
+          canInvoke.value ? actionButton('proposeTaskInvoke', 'control-propose-task-invoke', () => propose('uia.invoke', true), blocked.value) : null,
         ]),
         canText.value ? [
           h('label', { class: 'ai-field' }, [label('plainText'), h('input', {
@@ -581,6 +594,7 @@ export const ComputerControlPanel = defineComponent({
           h('p', { class: 'muted', id: 'control-text-hint' }, label('plainTextHint')),
           h('div', { class: 'ai-row' }, [
             actionButton('proposeValue', 'control-propose-set-value', () => propose('uia.set_value'), blocked.value || !validText.value),
+            actionButton('proposeTaskValue', 'control-propose-task-value', () => propose('uia.set_value', true), blocked.value || !validText.value),
             actionButton('proposeText', 'control-propose-type-text', () => propose('keyboard.type_text'), blocked.value || !validText.value),
           ]),
         ] : null,
@@ -633,6 +647,9 @@ export const ComputerControlPanel = defineComponent({
             item.summary ? h('p', { class: 'screen-plain-text' }, item.summary) : null,
             item.status === 'READY' ? button('computerSuggestion.review', () => reviewSuggestion(item), {
               class: ['button', 'primary'], disabled: blocked.value, 'data-testid': 'control-review-suggestion',
+            }) : null,
+            item.status === 'READY' ? button('control.proposeTaskInvoke', () => reviewSuggestion(item, true), {
+              class: ['button', 'secondary'], disabled: blocked.value, 'data-testid': 'control-review-suggestion-task',
             }) : null,
           ]))) : null,
       ]);

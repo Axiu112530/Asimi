@@ -1,6 +1,7 @@
 package developer
 
 import (
+	"context"
 	"encoding/xml"
 	"path"
 	"regexp"
@@ -61,6 +62,13 @@ func BuildAgentContext(root, objective string, selectedPaths []string) (AgentCon
 }
 
 func BuildAgentContextWithExclusions(root, objective string, selectedPaths, exclusions []string) (AgentContext, error) {
+	return BuildAgentContextUntil(context.Background(), root, objective, selectedPaths, exclusions)
+}
+
+func BuildAgentContextUntil(ctx context.Context, root, objective string, selectedPaths, exclusions []string) (AgentContext, error) {
+	if err := ctx.Err(); err != nil {
+		return AgentContext{}, err
+	}
 	options, err := checkedOptions(Options{Exclusions: slices.Clone(exclusions)})
 	if err != nil {
 		return AgentContext{}, err
@@ -71,7 +79,7 @@ func BuildAgentContextWithExclusions(root, objective string, selectedPaths, excl
 	}
 	defer w.Close()
 	removeRoot := rootRedactor(w.path)
-	git := inspectGit(w, options.Exclusions)
+	git := inspectGitUntil(ctx, w, options.Exclusions)
 	context := AgentContext{
 		Objective: agentPrefix(RedactAgentText(removeRoot(objective)), 4096),
 		Git:       git.ForAgent(),
@@ -81,6 +89,9 @@ func BuildAgentContextWithExclusions(root, objective string, selectedPaths, excl
 	seen := map[string]bool{}
 	remaining := agentMaxSourceBytes
 	for i, input := range selectedPaths {
+		if err := ctx.Err(); err != nil {
+			return AgentContext{}, err
+		}
 		if i >= agentMaxFiles {
 			context.Omitted = append(context.Omitted, "Additional selections exceeded the file limit.")
 			break
@@ -120,8 +131,8 @@ func BuildAgentContextWithExclusions(root, objective string, selectedPaths, excl
 		}
 		context.Files = append(context.Files, file)
 	}
-	context.Project = buildProjectSummary(w, context.Objective, seen, options.Exclusions, false)
-	return context, nil
+	context.Project = buildProjectSummary(ctx, w, context.Objective, seen, options.Exclusions, false)
+	return context, ctx.Err()
 }
 
 // SuggestAgentPaths ranks source and test files within the same bounded scope
@@ -139,7 +150,7 @@ func SuggestAgentPaths(root, objective string, exclusions []string) ([]string, e
 	defer w.Close()
 	removeRoot := rootRedactor(w.path)
 	objective = agentPrefix(RedactAgentText(removeRoot(objective)), 4096)
-	summary := buildProjectSummary(w, objective, nil, options.Exclusions, true)
+	summary := buildProjectSummary(context.Background(), w, objective, nil, options.Exclusions, true)
 	suggestions := make([]string, 0, 3)
 	for _, name := range summary.CandidatePaths {
 		file, err := w.snapshotBounded(name, agentMaxFileBytes)
@@ -225,7 +236,7 @@ var (
 	agentDepName = regexp.MustCompile(`^[[:alnum:]@][[:alnum:]@._:/-]{0,159}$`)
 )
 
-func buildProjectSummary(w *workspace, objective string, selected map[string]bool, exclusions []string, sourceOnly bool) ProjectSummary {
+func buildProjectSummary(ctx context.Context, w *workspace, objective string, selected map[string]bool, exclusions []string, sourceOnly bool) ProjectSummary {
 	summary := ProjectSummary{
 		Types: []string{}, Manifests: []string{}, Dependencies: []string{},
 		CandidatePaths: []string{}, TestGuidance: []string{},
@@ -237,7 +248,7 @@ func buildProjectSummary(w *workspace, objective string, selected map[string]boo
 	var candidates []agentCandidate
 	visited, manifestBytes := 0, agentMaxSourceBytes
 	queue := []string{""}
-	for len(queue) > 0 && visited < agentMaxVisited {
+	for len(queue) > 0 && visited < agentMaxVisited && ctx.Err() == nil {
 		dir := queue[0]
 		queue = queue[1:]
 		entries, truncated, err := w.list(dir, agentMaxVisited-visited)
@@ -248,6 +259,9 @@ func buildProjectSummary(w *workspace, objective string, selected map[string]boo
 		visited += len(entries)
 		slices.SortFunc(entries, func(a, b nativeEntry) int { return strings.Compare(a.name, b.name) })
 		for _, entry := range entries {
+			if ctx.Err() != nil {
+				break
+			}
 			name := path.Join(dir, entry.name)
 			if entry.unsafe || agentExcluded(name) || excluded(name, exclusions) {
 				continue

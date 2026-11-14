@@ -47,6 +47,9 @@ globalThis.__controlTest = {
       case 'ListControlWindows': targetListed = true; return [window];
       case 'InspectControlWindow': assert.ok(targetListed); return delayedInspection?.promise || observation;
       case 'ProposeControlAction': return delayedProposal?.promise || proposal(payload.type, payload.text, proposedTaskOverride || payload.taskId);
+      case 'CreateDesktopTask':
+        return {id:'desktop-created', desktop:true, proposal:proposal(payload.type,payload.text,'desktop-created')};
+      case 'GetMVPState': return {workspaces:[],agentTasks:[],skills:[],actions:[],onboarding:{completed:false},commandCatalog:[]};
       case 'ListComputerSuggestions': return suggestions;
       case 'ProposeComputerSuggestion': {
         const item = suggestions.find(item => item.requestId === payload.requestId);
@@ -75,7 +78,7 @@ registerHooks({
   load(url, context, next) {
     const source = {
       'control-test:bridge': 'export const call=(...args)=>globalThis.__controlTest.call(...args); export class ServiceError extends Error { constructor(code){super(code);this.code=code;} } globalThis.__controlTest.ServiceError=ServiceError;',
-      'control-test:store': 'export const state=globalThis.__controlTest.state;',
+      'control-test:store': 'export const state=globalThis.__controlTest.state; export const fail=error=>{throw error};',
       'control-test:i18n': 'export const t=key=>key, known=t, date=value=>value, i18n={global:{te:()=>false,locale:{value:"en-US"}}};',
     }[url];
     return source ? { format: 'module', shortCircuit: true, source } : next(url, context);
@@ -133,6 +136,19 @@ try {
   click('control-inspect-window');
   await tick();
   click('control-select-element');
+  await tick();
+  find('control-text-input').props.onInput({target:{value:'Harness task text'}});
+  await tick();
+  click('control-propose-task-value');
+  await tick();
+  const createdTask=calls.find(({method})=>method==='CreateDesktopTask');
+  assert.equal(createdTask.payload.observationId,observation.id);
+  assert.equal(createdTask.payload.elementId,element.id);
+  assert.equal(createdTask.payload.workspaceId,'');
+  assert.equal(createdTask.payload.text,'Harness task text');
+  assert.equal(find('computer-reviewed-task').children.find(child=>child.tag==='dd').props.title,'desktop-created');
+  assert.ok(!calls.some(({method})=>method==='ApproveControlAction'));
+  click('control-reject');
   await tick();
   const exact = '  Hello Asimi  ';
   find('control-text-input').props.onInput({ target: { value: exact } });

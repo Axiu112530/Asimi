@@ -2,6 +2,7 @@ package developer
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"go/ast"
 	"go/parser"
@@ -14,6 +15,13 @@ import (
 
 func Analyze(root, query string) (Report, error) { return AnalyzeWithOptions(root, query, Options{}) }
 func AnalyzeWithOptions(root, query string, options Options) (Report, error) {
+	return AnalyzeContext(context.Background(), root, query, options)
+}
+
+func AnalyzeContext(ctx context.Context, root, query string, options Options) (Report, error) {
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	options, err := checkedOptions(options)
 	if err != nil {
 		return Report{}, err
@@ -33,6 +41,9 @@ func AnalyzeWithOptions(root, query string, options Options) (Report, error) {
 	query = strings.ToLower(query)
 	var scan func(string, int)
 	scan = func(directory string, depth int) {
+		if ctx.Err() != nil {
+			return
+		}
 		remaining := options.MaxFiles - visited
 		if remaining <= 0 {
 			report.Truncated = true
@@ -48,6 +59,9 @@ func AnalyzeWithOptions(root, query string, options Options) (Report, error) {
 		}
 		sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
 		for _, entry := range entries {
+			if ctx.Err() != nil {
+				return
+			}
 			if visited >= options.MaxFiles {
 				report.Truncated = true
 				return
@@ -118,6 +132,9 @@ func AnalyzeWithOptions(root, query string, options Options) (Report, error) {
 		}
 	}
 	scan("", 1)
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	report.BytesRead = int64(bytesRead)
 	report.FilesVisited = visited
 	for language, count := range languages {

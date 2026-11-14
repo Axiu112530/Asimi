@@ -99,17 +99,23 @@ func (s *Service) callConfig021(method, payload string) (domain.Reply, bool) {
 				v.Sources["ui.theme"] = configuration.UserDefined
 			}
 			if v.Selection.DefaultProviderID != "" {
-				var verifiedAt sql.NullString
-				if err := s.db.QueryRow("SELECT COALESCE(json_extract(json,'$.presetVerifiedAt'),json_extract(json,'$.communityVerifiedAt')) FROM ai_profiles WHERE id=? AND deleted=0",
-					v.Selection.DefaultProviderID).Scan(&verifiedAt); err == nil && verifiedAt.Valid && verifiedAt.String != "" && v.Selection.DefaultModelID == presetDeepSeekModel {
-					v.Sources["provider.selection"] = configuration.Preset
-					profile, readErr := s.aiProfileLocked(v.Selection.DefaultProviderID)
-					if readErr == nil {
-						for _, model := range profile.Models {
-							if model.ID == v.Selection.DefaultModelID && encode(model.Capabilities) == encode(presetDeepSeek().Profile.Models[0].Capabilities) {
-								v.Sources["model.capabilities"] = configuration.Preset
+				profile, readErr := s.aiProfileLocked(v.Selection.DefaultProviderID)
+				if readErr == nil {
+					for _, preset := range providerPresets() {
+						if !matchesPresetEndpoint(profile, preset.Profile) {
+							continue
+						}
+						snapshot, readErr := s.presetProviderLocked(preset, v.Selection.DefaultModelID)
+						if readErr == nil && snapshot.state.ProviderID == profile.ID && snapshot.state.VerifiedAt != "" {
+							v.Sources["provider.selection"] = configuration.Preset
+							for _, model := range preset.Profile.Models {
+								if model.ID == v.Selection.DefaultModelID && encode(model.Capabilities) == encode(snapshot.state.ConfiguredModel.Capabilities) {
+									v.Sources["model.capabilities"] = configuration.Preset
+									break
+								}
 							}
 						}
+						break
 					}
 				}
 			}

@@ -765,9 +765,25 @@ func (s *Service) expiryLoop() {
 		case <-s.lifetime.Done():
 			return
 		case <-ticker.C:
+			var connectorErr error
+			if s.lifetime.Err() == nil && s.communication != nil {
+				connectorErr = s.communication.ExpirePending()
+			}
+			s.desktopControl.mu.Lock()
+			var desktopErr error
+			if s.lifetime.Err() == nil {
+				desktopErr = s.expireControlPending()
+			}
+			s.desktopControl.mu.Unlock()
+			s.mvp.mu.Lock()
+			var mvpErr error
+			if s.lifetime.Err() == nil {
+				mvpErr = s.expireMVP()
+			}
+			s.mvp.mu.Unlock()
 			s.mu.Lock()
 			if s.lifetime.Err() == nil {
-				if e := s.expireLocked(); e != nil {
+				if e := errors.Join(s.expireLocked(), mvpErr, desktopErr, connectorErr); e != nil {
 					code := errorCode(e)
 					if code != previousCode {
 						s.workerFailureLocked("", "", e)

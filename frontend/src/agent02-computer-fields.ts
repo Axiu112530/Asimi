@@ -1,5 +1,5 @@
 import { h } from 'vue';
-import { i18n } from './i18n';
+import { i18n, t } from './i18n';
 import type { AgentTask } from './product-types';
 
 const labels = {
@@ -14,7 +14,7 @@ const labels = {
 export const computerLabel = (key: keyof typeof labels) => labels[key][i18n.global.locale.value === 'zh-CN' ? 1 : 0];
 
 function taskOption(task: AgentTask) {
-  return `${task.goal} · ${task.id.slice(0, 8)}`;
+  return `${task.desktop ? t('product.desktopTask') : task.goal} · ${task.id.slice(0, 8)}`;
 }
 
 export function computerTaskSelector(tasks: readonly AgentTask[], taskId: string, select: (id: string) => void, disabled: boolean, testId: string) {

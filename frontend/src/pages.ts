@@ -87,15 +87,18 @@ function defaultModelSelect() {
       }
       const picked = models.find(item => item.value === control.value);
       control.value = active;
-      if (ai.saving) return;
+      const providerId = picked?.provider ?? '';
+      const modelId = picked?.model ?? '';
+      if (ai.saving || providerId === selection.defaultProviderId && modelId === selection.defaultModelId) return;
       ai.saving = true;
       state.notice = '';
+      const route = state.route;
       void run(async () => {
         await call('SaveAISettings', {
-          ...selection, defaultProviderId: picked?.provider ?? '', defaultModelId: picked?.model ?? '',
+          ...selection, defaultProviderId: providerId, defaultModelId: modelId,
         });
         await refreshAI();
-        state.notice = 'ai.saved';
+        if (state.route === route) state.notice = 'settings.savedDefaultModel';
       }).finally(() => { ai.saving = false; });
     },
   }, [
@@ -178,14 +181,14 @@ export function SecurityPage() {
   const tabs=['overview','operations','approvals','permissions','audit','privacy'];
   const privacy=()=>h('section',{class:'security-content'},[
     h('h2',t('security.privacy')),h('p',{class:'muted'},t('security.localData')),
-    h('dl',{class:'security-dl'},[detail('security.network',t(s?.externalNetwork?'common.enabled':'common.disabled')),detail('security.desktop',t(s?.desktopControl?'common.enabled':'common.disabled')),detail('security.stop',t(s?.stopAvailable?'common.enabled':'common.unavailable')),detail('security.dataDir',state.info?.dataDir||t('common.unknown'),true)]),h('p',{class:'policy-note'},[icon('lock',18),t('security.retention')]),
+    h('dl',{class:'security-dl'},[detail('security.network',t(s?.externalNetwork?'common.enabled':'common.disabled')),detail('security.desktop',t(s?.desktopControlStopped?'security.desktopStopped':s?.desktopControl?'common.enabled':'common.disabled')),detail('security.stop',t(s?.stopAvailable?'common.enabled':'common.unavailable')),detail('security.dataDir',state.info?.dataDir||t('common.unknown'),true)]),h('p',{class:'policy-note'},[icon('lock',18),t('security.retention')]),
   ]);
   return h('div',{class:'page-scroll'},h('div',{class:'page security-page'},[
     pageHeading('security.title','security.subtitle',iconButton('refresh','common.refresh',()=>run(refreshSecurity),{disabled:!state.connected})),
     h('nav',{class:'tabs','aria-label':t('security.title')},tabs.map(key=>button('security.'+key,()=>state.securityTab=key,{class:['tab',{selected:tab===key}],'aria-current':tab===key?'page':undefined}))),
     tab==='overview'?h('div',[
       h('section',{class:'security-content'},[
-        h('div',{class:'security-summary'},[h('div',[h('span',{class:'eyebrow'},t('security.workspace')),h('p',{class:'mono workspace-path'},s?.workspace||t('common.unknown'))]),h('div',{class:'security-stat'},[h('strong',number(s?.activeTasks||0)),h('span',t('security.active'))]),h('div',{class:'security-stat'},[h('strong',number(s?.pendingApprovals||0)),h('span',t('security.pending'))])]),
+        h('div',{class:'security-summary'},[h('div',[h('span',{class:'eyebrow'},t('security.workspace')),h('p',{class:'mono workspace-path'},s?.workspace||t('common.unknown'))]),h('div',{class:'security-stat'},[h('strong',number(s?.activeTasks||0)),h('span',t('security.active'))]),h('div',{class:'security-stat'},[h('strong',number(s?.pendingApprovals||0)),h('span',t('security.pending'))]),h('div',{class:'security-stat'},[h('strong',number(s?.recoveryActions||0)),h('span',t('security.recoveryActions'))])]),
         h('dl',{class:'security-dl'},[detail('security.maxBytes',t('common.bytes',{count:number(s?.maxFileBytes||0)})),detail('security.tools',(s?.toolNames||[]).map(name=>h('code',{class:'tool-name'},name))),detail('security.stop',t(s?.stopAvailable?'common.enabled':'common.unavailable'))]),
         h('h2',t('security.levels')),h('table',{class:'data-table policy-table'},[h('thead',h('tr',[h('th',t('security.level')),h('th',t('security.policy')),h('th',t('security.availability'))])),h('tbody',['L0','L1','L2','L3'].map(level=>h('tr',{class:{'enabled-policy':level==='L2'}},[h('td',h('strong',t('security.'+level))),h('td',t('security.'+level+'Note')),h('td',h('span',{class:level==='L2'?'scope-tag':'muted'},t(level==='L2'?'security.scoped':'common.disabled')))])))]),h('p',{class:'policy-note'},[icon('security',17),t('security.noGrant')]),
       ]),

@@ -3,6 +3,7 @@ package app
 import "database/sql"
 
 type cognitionMemoryChange struct {
+	Pending  bool   `json:"pending,omitempty"`
 	ID       int64  `json:"id"`
 	MemoryID string `json:"memoryId"`
 	Previous string `json:"previous"`
@@ -12,9 +13,14 @@ type cognitionMemoryChange struct {
 }
 
 func (s *Service) cognitionMemoryChanges(project string) ([]cognitionMemoryChange, error) {
-	rows, err := s.db.Query(`SELECT h.id,h.memory_id,h.previous,h.current,h.source,h.created_at
+	rows, err := s.db.Query(`SELECT id,memory_id,previous,current,source,created_at,pending FROM (
+ SELECT p.id,p.memory_id,p.previous,p.current,p.source,p.created_at,1 AS pending
+ FROM cognition_preference_reviews p WHERE p.status='pending'
+ UNION ALL
+ SELECT h.id,h.memory_id,h.previous,h.current,h.source,h.created_at,0 AS pending
  FROM cognition_memory_changes h JOIN memory_records m ON m.id=h.memory_id
- WHERE m.workspace_id IS NULL OR m.workspace_id=? ORDER BY h.id DESC LIMIT 50`, project)
+ WHERE m.workspace_id IS NULL OR m.workspace_id=?
+ ) ORDER BY pending DESC,created_at DESC,id DESC LIMIT 50`, project)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +28,7 @@ func (s *Service) cognitionMemoryChanges(project string) ([]cognitionMemoryChang
 	changes := []cognitionMemoryChange{}
 	for rows.Next() {
 		var c cognitionMemoryChange
-		if err := rows.Scan(&c.ID, &c.MemoryID, &c.Previous, &c.Current, &c.Source, &c.At); err != nil {
+		if err := rows.Scan(&c.ID, &c.MemoryID, &c.Previous, &c.Current, &c.Source, &c.At, &c.Pending); err != nil {
 			return nil, err
 		}
 		changes = append(changes, c)

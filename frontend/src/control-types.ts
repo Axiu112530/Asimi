@@ -8,6 +8,9 @@ export interface ControlStatus {
   available: boolean;
   permissionMode: string;
   rawInput: boolean;
+  working?: boolean;
+  escapeAvailable?: boolean;
+  nativeEscape?: boolean;
   notepadText: boolean;
   notepadTextStatus?: 'CONDITIONAL';
 }

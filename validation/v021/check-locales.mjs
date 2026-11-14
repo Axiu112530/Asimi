@@ -10,9 +10,13 @@ const flatten = (value, prefix = '') => Object.entries(value).flatMap(([key, ent
 });
 const placeholders = text => [...text.matchAll(/\{([\w]+)\}/g)].map(match => match[1]).sort();
 const pairs = [
+  ['unified-agent.en-US.json', 'unified-agent.zh-CN.json'],
   ['provider-setup-en.json', 'provider-setup-zh.json'],
   ['project021.en-US.json', 'project021.zh-CN.json'],
   ['computer-suggestion.en-US.json', 'computer-suggestion.zh-CN.json'],
+  ['computer-center-en.json', 'computer-center-zh.json'],
+  ['cognition.en-US.json', 'cognition.zh-CN.json'],
+  ['cognition-layout.en-US.json', 'cognition-layout.zh-CN.json'],
 ];
 for (const [english, chinese] of pairs) {
   const en = Object.fromEntries(flatten(read(english)));

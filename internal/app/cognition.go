@@ -161,6 +161,9 @@ func (s *Service) callCognition(method, payload string) (domain.Reply, bool) {
 			return audit(tx, "", "COGNITION_MEMORY_SAVED", map[string]string{"kind": in.Kind, "workspaceId": in.WorkspaceID})
 		})
 		return done(err == nil, err)
+	case "ResolveCognitionMemoryChange":
+		err := s.resolveCognitionMemoryChange(payload)
+		return done(err == nil, err)
 	case "DismissCognitionMemoryChange":
 		err := s.dismissCognitionMemoryChange(payload)
 		return done(err == nil, err)
@@ -316,6 +319,9 @@ func cognitionTerms(value string) map[string]bool {
 		if len(word) > 1 {
 			terms[word] = true
 		}
+	}
+	for _, concept := range cognitionConceptMatches(value) {
+		terms[concept.token] = true
 	}
 	return terms
 }

@@ -7,7 +7,7 @@ export const state = reactive({
   route:'assistant' as Route, ready:false, connected:false, loading:false, busy:false, saving:false, error:'', errorParams:{} as Record<string,string>, notice:'',
   settings:{...defaults}, info:null as AppInfo|null, conversations:[] as Conversation[], conversation:null as Conversation|null,
   tasks:[] as Task[], task:null as Task|null, approvals:[] as Approval[], approvalHistory:[] as Approval[], audits:[] as AuditEvent[], executions:[] as ToolExecution[], providers:[] as ProviderProfile[], security:null as SecurityStatus|null,
-  inspectorOpen:true, selectedProvider:'mock', securityTab:'overview', draft:'', controlStopVersion:0, controlStoppedLocally:false,
+  inspectorOpen:true, selectedProvider:'mock', securityTab:'overview', draft:'', controlStopVersion:0, controlStoppedLocally:false, activeControlActionId:'', controlEscapeAvailable:false,
 });
 export function fail(error: unknown) { state.error = error instanceof ServiceError ? error.code : 'app.unexpected'; state.errorParams = error instanceof ServiceError ? error.params : {}; }
 export async function run(work: () => Promise<void>) { state.error=''; try { await work(); } catch(e) { fail(e); } }
@@ -57,8 +57,20 @@ export async function boot() {
   }catch(e){disconnectStore();fail(e);}finally{state.ready=true;state.loading=false;connecting=null;}})();return connecting;
 }
 export async function saveSettings(patch: Partial<Settings>) {
-  if(state.saving)return;state.saving=true;state.notice='';
-  await run(async()=>{applySettings(await call<Settings>('UpdateSettings',{...state.settings,...patch}));state.notice='settings.saved';});state.saving=false;
+  const changed = (Object.keys(patch) as (keyof Settings)[]).filter(key => patch[key] !== state.settings[key]);
+  if (state.saving || !changed.length) return;
+  state.saving = true;
+  state.notice = '';
+  const route = state.route;
+  const notices: Partial<Record<keyof Settings, string>> = {
+    appLanguage: 'settings.savedLanguage', agentLanguage: 'settings.savedReplyLanguage',
+    theme: 'settings.savedTheme', interfaceMode: 'settings.savedMode', startup: 'settings.savedStartup',
+  };
+  await run(async () => {
+    applySettings(await call<Settings>('UpdateSettings', { ...state.settings, ...patch }));
+    if (state.route === route) state.notice = changed.length === 1 ? notices[changed[0]] || 'settings.saved' : 'settings.saved';
+  });
+  state.saving = false;
 }
 export async function newConversation() {
   await run(async()=>{state.conversation=await call<Conversation>('CreateConversation');state.task=null;state.draft='';state.route='assistant';await refreshIndex();});
@@ -88,4 +100,9 @@ export async function decide(id: string, approve: boolean) {
   await run(async()=>{state.task=await call<Task>(approve?'ApproveAction':'RejectAction',{id});await Promise.all([refreshIndex(),refreshSecurity()]);if(state.conversation)state.conversation=await call<Conversation>('GetConversation',{id:state.conversation.id});});state.busy=false;
 }
 export async function cancel() { if(!state.task)return;await run(async()=>{state.task=await call<Task>('CancelTask',{id:state.task!.id,reason:'user'});await Promise.all([refreshIndex(),refreshSecurity()]);if(state.conversation)state.conversation=await call<Conversation>('GetConversation',{id:state.conversation.id});}); }
+export async function stopComputerControl() {
+  state.controlStoppedLocally = true;
+  state.controlStopVersion++;
+  await run(async () => { await call('StopComputerControl'); });
+}
 export async function stopAll() { state.controlStoppedLocally=true;state.controlStopVersion++;await run(async()=>{await call('StopAll');await Promise.all([refreshIndex(),refreshSecurity()]);if(state.task)state.task=await call<Task>('GetTask',{id:state.task.id});if(state.conversation)state.conversation=await call<Conversation>('GetConversation',{id:state.conversation.id});state.notice='tasks.stopped';}); }

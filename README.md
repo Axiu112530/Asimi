@@ -79,6 +79,12 @@ Other local content can contain readable private data. Close all instances befor
 
 For an older profile, follow the upgrade guide to back up and copy it into the new directory. When a selected profile contains only the old database filename, Asimi checks the legacy process lock, verifies and checkpoints SQLite, and renames the database to `asimi.db`. An existing `asimi.db` takes precedence. [Privacy notice](PRIVACY.md) · [Upgrade guide](docs/release/UPGRADE-GUIDE.md)
 
+## Build release assets
+
+On Windows x64, prepare the toolchain and frontend dependencies below. Run `./scripts/build-release.ps1` in PowerShell from the repository root to create the installer, portable archive and SHA-256 files under `build/releases/<version>/assets/`. The script reads the version from `build/windows/asimi-info.json` and checks that the source working tree is clean. For local testing with uncommitted changes, use `./scripts/build-release.ps1 -LocalCandidate` and open the timestamped build directory.
+
+For a GitHub Release, attach `Asimi-<version>-Setup-x64.exe`, `Asimi-<version>-win-x64.zip` and the two matching `.sha256` files. The surrounding `build-info.json` identifies the source commit and confirms whether the output is a local candidate. Temporary runtime files are under `work/`.
+
 ## Build from source
 
 ### Prepare the toolchain

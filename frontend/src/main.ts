@@ -1,4 +1,4 @@
-import { createApp, defineComponent, h, Teleport, watch, watchEffect } from 'vue';
+import { createApp, defineComponent, h, onBeforeUnmount, Teleport, watch, watchEffect } from 'vue';
 import { i18n, t } from './i18n';
 import { state, boot, disconnectStore, newConversation, saveSettings, stopAll, fail } from './store';
 import { Assistant, FuturePage, HistoryPage, ModelsPage, SecurityPage, SettingsPage } from './pages';
@@ -13,23 +13,28 @@ import { AIProfilesPage, AssistantSelection, RealAssistant, PlaygroundPage } fro
 import { UsagePage } from './usage-page';
 import { PresetOnboarding, PresetProviders } from './provider-setup';
 import { ComputerPage } from './screen-pages';
+import { ComputerActivity } from './computer-activity';
 import { HomePage, DeveloperPage, WorkspacesPage, TasksPage, SkillsPage, Onboarding } from './product-pages';
 import { product, refreshProduct } from './product-store';
 import './product.css';
 import './workspace.css';
+import './unified-agent.css';
+import { UnifiedAgentPage, ConnectionsPage } from './unified-agent-page';
 import { CognitionSkillsPanel, GrowthPage, LearningPage, MemoryPage } from './cognition-pages';
-const primaryRoutes: Route[] = ['home', 'assistant', 'computer'];
-const managementRoutes: Route[] = ['models', 'usage', 'memory', 'skills', 'learning', 'growth', 'security', 'history', 'settings'];
+const primaryRoutes: Route[] = ['home', 'goals', 'assistant', 'computer'];
+const managementRoutes: Route[] = ['models', 'connections', 'usage', 'memory', 'skills', 'learning', 'growth', 'security', 'history', 'settings'];
 const developerRoutes: Route[] = ['developer', 'workspaces', 'workflows', 'playground'];
 const params=new URLSearchParams(location.search);
 const stage=params.has('acceptance')?Number(params.get('stage')):0;
 const legacyAcceptance=stage>0&&stage<=13;
 const cognitionRoutes: Partial<Record<Route,string>> = { memory: 'memoryPage', learning: 'learningPage', growth: 'growthPage' };
-const routeLabel=(route:Route)=>cognitionRoutes[route] ? 'cognition.'+cognitionRoutes[route] : !legacyAcceptance&&route==='models'?'preset.providers':'navigation.'+route;
+const routeLabel=(route:Route)=>['goals','connections'].includes(route)?'unified.'+route:cognitionRoutes[route] ? 'cognition.'+cognitionRoutes[route] : !legacyAcceptance&&route==='models'?'preset.providers':'navigation.'+route;
 const showDeveloper = () => legacyAcceptance || state.settings.interfaceMode === 'developer';
 function renderPage() {
   switch (state.route) {
     case 'home': return h(HomePage, { developer: showDeveloper() });
+    case 'goals': return h(UnifiedAgentPage);
+    case 'connections': return h(ConnectionsPage);
     case 'developer': return h(DeveloperPage);
     case 'workspaces': return h(WorkspacesPage);
     case 'workflows': return h(TasksPage);
@@ -65,10 +70,17 @@ function renderPage() {
 }
 
 const App=defineComponent({setup(){
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  watch(() => state.notice, value => {
+    clearTimeout(noticeTimer);
+    if (value) noticeTimer = setTimeout(() => { state.notice = ''; }, 3500);
+  });
+  onBeforeUnmount(() => clearTimeout(noticeTimer));
   watch(() => [showDeveloper(), state.route] as const, ([enabled, route]) => {
-    if (!enabled && developerRoutes.includes(route)) state.route = 'home';
+    if (!enabled && route !== 'workflows' && developerRoutes.includes(route)) state.route = 'home';
   });
   watch(() => state.route, route => {
+    state.notice = '';
     if (route === 'settings' && state.connected) void refreshAI().catch(fail);
   });
   watchEffect(()=>{document.documentElement.lang=i18n.global.locale.value;document.title=t('app.title',{page:t(routeLabel(state.route))});});
@@ -99,6 +111,7 @@ const App=defineComponent({setup(){
           button('tasks.stopAll',stopAll,{class:'stop-all',title:t('tasks.stopHint'),'aria-label':t('tasks.stopHint'),'data-testid':'stop-all',disabled:!state.connected},[icon('stop',14),h('span',t('tasks.stopAll'))]),
         ]),
       ]),
+      h(ComputerActivity),
       state.error?h('div',{class:'notification error-notification',role:'alert'},[icon('warning',18),h('div',[h('strong',errorText(state.error,state.errorParams)),!state.connected?h('p',t('app.bridgeNote')):null]),!state.connected?button('app.retry',boot,{class:'button secondary',disabled:state.loading}):null,iconButton('close','accessibility.dismissError',()=>state.error='')]):null,
       state.notice?h('div',{class:'notification success-notification',role:'status'},[icon('check',17),h('span',t(state.notice)),iconButton('close','accessibility.dismissNotice',()=>state.notice='')]):null,
       h('main',{class:'workspace','aria-label':t('accessibility.workspace')},[

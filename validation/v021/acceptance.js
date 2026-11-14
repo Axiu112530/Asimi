@@ -40,7 +40,7 @@ function input(id, value, event = 'input') {
 async function reviewVisual() {
   if (!params.has('visual')) return;
   globalThis.__asimiAcceptanceReady = { stage };
-  await until('visual review', () => globalThis.__asimiAcceptanceContinue, 42);
+  await until('visual review', () => globalThis.__asimiAcceptanceContinue, stage === 15 ? 55 : 42);
 }
 
 function checkBrand(surface, text) {
@@ -77,6 +77,14 @@ async function setup(live) {
   const provider = await until('provider', () => byId('preset-provider'));
   check('allBuiltInProvidersOffered', [...provider.options].map(option => option.value).join(',') ===
     'deepseek,kimi,glm,qwen,hy,openai,claude,gemini' && provider.value === 'deepseek');
+  const modelChoice = await until('model options loaded', () => byId('preset-model'));
+  check('presetOffersModelSelection', [...modelChoice.options].some(option => option.value === 'deepseek-v4-pro'));
+  input('preset-model', 'custom', 'change');
+  const customModel = await until('custom preset model field', () => byId('preset-custom-model'));
+  input('preset-custom-model', 'account-specific-model');
+  check('customPresetKeepsSimpleSetup', customModel.maxLength === 256 &&
+    !byId('preset-onboarding').querySelector('input[type=url]'));
+  input('preset-model', 'deepseek-flash', 'change');
   check('passwordField', byId('preset-api-key').type === 'password' && byId('preset-connect').disabled);
   check('setupUsesOpaqueSurface', getComputedStyle(byId('preset-onboarding')).visibility === 'visible' &&
     getComputedStyle(byId('preset-onboarding')).backgroundColor !== 'rgba(0, 0, 0, 0)' &&
@@ -147,6 +155,77 @@ async function setup(live) {
   }
 }
 
+async function checkOrdinaryUnifiedTasks() {
+  check('standardGoalsAndConnectionsVisible', !!byId('nav-goals') && !!byId('nav-connections') &&
+    !byId('nav-developer') && !byId('nav-playground'));
+  await click('nav-connections');
+  const connections = await until('ordinary connections page', () => byId('connections-page'));
+  check('ordinaryConnectionFormHasExactGrants', byId('connection-kind')?.value === 'github' &&
+    byId('connection-origin')?.value === 'https://api.github.com' &&
+    !!byId('connection-resource') && byId('connection-credential')?.type === 'password' &&
+    [...connections.querySelectorAll('fieldset code')].some(code => code.textContent === 'repo.read'));
+  check('ordinaryConnectionIdentityGrantAvailable',
+    [...connections.querySelectorAll('fieldset code')].some(code => code.textContent === 'identity.read'));
+
+  await click('nav-goals');
+  await until('ordinary goals page', () => byId('unified-page'));
+  check('ordinaryGoalDoesNotRequireModel', byId('unified-kind')?.value === 'auto' &&
+    !byId('unified-model-consent')?.checked);
+  const evolution = await until('ordinary evolution evidence', () => byId('evolution-maintenance-preview') && byId('evolution-panel'));
+  check('ordinaryEvolutionEvidenceAndCompositionVisible',
+    evolution.querySelectorAll('.unified-memory-stats > div').length === 4 &&
+    !!evolution.querySelector('.unified-composition') && !!byId('evolution-composition-consent') &&
+    !byId('evolution-composition-consent').checked);
+  check('memoryApplyRequiresPreview', !byId('evolution-maintenance-apply'));
+  await click('evolution-maintenance-preview');
+  await until('memory maintenance preview', () => byId('evolution-maintenance-review'));
+  check('ordinaryMemoryMaintenancePreviewAvailable', !!byId('evolution-maintenance-apply'));
+
+  const previousRuns = new Set((await call('GetUnifiedRuns')).map(run => run.id));
+  const previousUsage = (await call('GetUsage'))?.length || 0;
+  const goal = 'Read https://github.com/octocat/Hello-World';
+  input('unified-goal', goal);
+  await click('unified-submit');
+  const run = await until('ordinary readonly goal prepared', async () =>
+    (await call('GetUnifiedRuns')).find(item => !previousRuns.has(item.id) && item.goal === goal));
+  const action = await until('ordinary connector proposal', async () =>
+    (await call('ListConnectorActions')).find(item => item.id === run.actionId && item.status === 'NEEDS_APPROVAL'));
+  check('ordinaryGoalRoutesToReadonlyCommunication', run.kind === 'communication' &&
+    run.status === 'WAITING_APPROVAL' && action.operation === 'repo.read' &&
+    action.resource === 'octocat/Hello-World' && !action.verified && action.result == null);
+  const review = await until('ordinary exact approval review', () => byId('connector-action-' + action.id));
+  check('ordinaryApprovalShowsExactNetworkTarget',
+    review.textContent.includes('https://api.github.com') &&
+    review.textContent.includes('/repos/octocat/Hello-World') &&
+    review.textContent.includes('GET') && review.textContent.includes(action.hash));
+  const approve = byId('connector-approve-' + action.id);
+  const consent = byId('connector-consent-' + action.id);
+  check('ordinaryApprovalBlockedWithoutConsent', !!approve?.disabled && !!consent && !consent.checked);
+  consent.click();
+  await until('exact connector consent', () => !byId('connector-approve-' + action.id)?.disabled);
+  check('checkingConsentDoesNotExecute',
+    (await call('ListConnectorActions')).find(item => item.id === action.id)?.status === 'NEEDS_APPROVAL');
+  consent.click();
+  await until('consent withdrawn blocks approval', () => byId('connector-approve-' + action.id)?.disabled);
+  await click('connector-reject-' + action.id);
+  await until('ordinary rejection persists', async () => {
+    const runs = await call('GetUnifiedRuns');
+    const actions = await call('ListConnectorActions');
+    return runs.find(item => item.id === run.id)?.status === 'CANCELLED' &&
+      actions.find(item => item.id === action.id)?.status === 'REJECTED';
+  });
+  check('ordinaryGoalRejectionDurableWithoutExecution',
+    !(await call('ListConnectorActions')).find(item => item.id === action.id)?.verified &&
+    ((await call('GetUsage'))?.length || 0) === previousUsage);
+  await click('nav-connections');
+  await until('rejected action in connection history', () => byId('connector-action-' + action.id));
+  const saved = (await call('ListConnections')).find(connection => connection.id === action.connectionId);
+  check('ordinaryPublicGitHubConnectionNeedsNoCredential', saved?.kind === 'github' &&
+    saved.credentialStatus === 'not_required' && saved.scopes.some(scope =>
+      scope.resource === 'octocat/Hello-World' && scope.operations.includes('repo.read')));
+  check('rejectedConnectionActionHasNoApproveControl', !byId('connector-approve-' + action.id));
+}
+
 async function restart(live) {
   await until('home', () => byId('product-home'));
   const state = await call('GetMVPState');
@@ -170,7 +249,31 @@ async function restart(live) {
     await click('nav-settings');
     input('interface-mode', 'standard', 'change');
     await until('standard menus', () => !byId('nav-developer') && !byId('nav-playground'));
+    check('saveNoticeNamesChangedSetting', document.querySelector('.success-notification')?.textContent.includes('模式'));
+    await until('save notice expires', () => !document.querySelector('.success-notification'), 6);
     check('standardHidesAdvancedSettings', !byId('preset-advanced') && !!byId('settings-default-model') && !!byId('nav-computer'));
+    if (asimi) await checkOrdinaryUnifiedTasks();
+    await click('nav-computer');
+    await until('computer permissions', () => byId('computer-permissions'));
+    check('standardComputerOffersManagedActions', !!byId('computer-tools') && !byId('computer-control'));
+    byId('computer-tools').open = true;
+    await until('standard managed control', () => byId('computer-control'));
+    check('standardComputerHidesCaptureDiagnostics', !byId('computer-tools').querySelector('.computer-capture-details'));
+    check('unimplementedDevicesAreExplicit', byId('permission-camera').textContent.includes('尚未接入') &&
+      byId('permission-microphone').textContent.includes('尚未接入') &&
+      !byId('permission-camera').querySelector('input,button'));
+    await until('computer control ready', () => !byId('computer-control-toggle').disabled);
+    await click('computer-control-toggle');
+    await until('computer paused', async () => (await call('GetControlStatus')).stopped);
+    check('computerPermissionPauseIsReal', byId('computer-session').textContent.includes('已暂停'));
+    await until('computer resume ready', () => !byId('computer-control-toggle').disabled);
+    await click('computer-control-toggle');
+    await until('computer resumed', async () => !(await call('GetControlStatus')).stopped);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check('idleEscapeDoesNotPauseComputer', !(await call('GetControlStatus')).stopped);
+    await click('nav-learning');
+    await until('standard learning loaded', () => byId('cognition-learning-open-memory'));
+    check('standardLearningHasAccessibleLinks', !byId('cognition-learning-open-tasks') && !!byId('cognition-learning-open-memory'));
     await click('nav-skills');
     await until('standard skill', () => byId('skill-screen-analysis'));
     check('standardHidesProjectSkills', !byId('skill-project-overview'));
@@ -196,22 +299,29 @@ async function restart(live) {
     await click('product-skillBack');
     await until('updated skill card', () => byId('skill-project-overview')?.textContent.includes('已停用'));
     if (params.has('visual')) {
-      await call('SaveAIProfile', { profile: {
-        id: 'visual-fixture', name: 'Local fixture', protocol: 'chat-completions',
-        baseUrl: 'http://127.0.0.1:1/v1', enabled: true, trustedHttp: false,
-        models: [{ id: 'fixture-model', displayName: 'Fixture model',
-          capabilities: {
-            text: 'SUPPORTED', vision: 'SUPPORTED', streaming: 'SUPPORTED', toolCalling: 'UNSUPPORTED',
-            structuredOutput: 'UNSUPPORTED', computerUse: 'UNSUPPORTED', temperature: 'UNSUPPORTED',
-            contextLimit: 32768, imageDetails: ['auto'],
-          } }],
-      } });
+      await click('nav-settings');
+      await until('standard mode choice', () => byId('interface-mode') && !byId('interface-mode').disabled);
+      input('interface-mode', 'standard', 'change');
+      await until('mode saved', () => !byId('nav-playground'));
       await click('nav-models');
       await until('provider page', () => byId('preset-provider'));
+      check('saveNoticeClearedOnNavigation', !document.querySelector('.success-notification'));
+      await click('custom-provider-add');
+      await until('simple custom service form', () => byId('custom-provider-form'));
+      input('custom-provider-name', 'Local fixture');
+      input('custom-provider-endpoint', 'http://127.0.0.1:1/v1');
+      input('custom-provider-model', 'fixture-model');
+      check('customServiceNeedsNoProtocolOrCapabilities', !byId('custom-provider-form').querySelector('select'));
+      await click('custom-provider-save');
+      const profile = await until('custom service saved', async () =>
+        (await call('ListAIProfiles')).find(item => item.name === 'Local fixture'));
+      check('customModelKeepsUnknownVision', profile.models[0].capabilities.text === 'SUPPORTED' &&
+        profile.models[0].capabilities.vision === 'UNKNOWN');
+      await until('custom default selected', async () => (await call('GetAISettings')).defaultProviderId === profile.id);
       await click('nav-settings');
-      await until('default model fixture', () => [...byId('settings-default-model').options].some(option => option.textContent.includes('Fixture model')));
+      await until('default model fixture', () => [...byId('settings-default-model').options].some(option => option.textContent.includes('fixture-model')));
       await until('model control ready', () => !byId('settings-default-model').disabled);
-      const fixtureValue = [...byId('settings-default-model').options].find(option => option.textContent.includes('Fixture model')).value;
+      const fixtureValue = [...byId('settings-default-model').options].find(option => option.textContent.includes('fixture-model')).value;
       input('settings-default-model', fixtureValue, 'change');
       await until('default model saved from settings', async () => (await call('GetAISettings')).defaultModelId === 'fixture-model');
       await click('nav-models');
@@ -238,15 +348,22 @@ async function restart(live) {
         check('textSentWithoutPrompt', prompts === 0 && usage.modelId === 'fixture-model');
         await until('keyboard conversation loaded', () => document.querySelector('.message-user')?.textContent.includes('Keyboard fixture'));
         check('chatHidesRequestMetadata', !document.querySelector('.message-user')?.textContent.includes(usage.requestId));
+        check('firstMessageNamesConversation', (await call('ListConversations')).some(item => item.title === 'Keyboard fixture'));
       } finally {
         window.confirm = previousConfirm;
       }
       await click('nav-usage');
       await until('usage summary', () => byId('usage-totals'));
       check('usageDefaultsToCurrentWeek', byId('usage-period').value === 'thisWeek');
+      await click('nav-settings');
+      await until('diagnostic mode choice', () => byId('interface-mode') && !byId('interface-mode').disabled);
+      input('interface-mode', 'developer', 'change');
+      await until('diagnostic mode enabled', () => byId('nav-playground'));
+      await click('nav-usage');
+      await until('developer usage summary', () => byId('usage-totals'));
       const usagePage = byId('ai-usage');
       check('usageShowsProviderName', byId('usage-breakdown').textContent.includes('Local fixture') &&
-        !usagePage.textContent.includes('visual-fixture'));
+        !usagePage.textContent.includes(profile.id));
       check('usageSummaryKeepsUnknowns', byId('usage-requests').textContent === '1' &&
         byId('usage-totalTokens').textContent.includes('未知'));
       check('usageDiagnosticsLoadOnlyOnExpansion', !!byId('usage-diagnostics') && !byId('usage-request'));

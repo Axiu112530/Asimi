@@ -9,9 +9,13 @@ const catalog = createI18n({ legacy: false, messages: {
 } });
 // Mirror the resources merged by i18n.ts, project021-panel.ts and provider-setup.ts.
 for (const [namespace, englishFile, chineseFile] of [
+  [null, 'unified-agent.en-US.json', 'unified-agent.zh-CN.json'],
   [null, 'computer-suggestion.en-US.json', 'computer-suggestion.zh-CN.json'],
+  [null, 'cognition.en-US.json', 'cognition.zh-CN.json'],
   ['project021', 'project021.en-US.json', 'project021.zh-CN.json'],
   ['presetSetup', 'provider-setup-en.json', 'provider-setup-zh.json'],
+  ['computerCenter', 'computer-center-en.json', 'computer-center-zh.json'],
+  [null, 'cognition-layout.en-US.json', 'cognition-layout.zh-CN.json'],
 ]) {
   const english = await readLocale(englishFile);
   const chinese = await readLocale(chineseFile);

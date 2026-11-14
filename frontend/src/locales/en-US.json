@@ -249,6 +249,8 @@
     "UNKNOWN": "Unknown"
   },
   "security": {
+    "desktopStopped": "Stopped",
+    "recoveryActions": "Actions requiring review",
     "title": "Security center",
     "subtitle": "Visible permissions. Exact approvals. Local evidence.",
     "overview": "Permission overview",
@@ -305,6 +307,11 @@
     "lastActivity": "Last activity"
   },
   "settings": {
+    "savedLanguage": "Interface language saved.",
+    "savedReplyLanguage": "Reply language saved.",
+    "savedTheme": "Appearance saved.",
+    "savedMode": "Interface mode saved.",
+    "savedStartup": "Startup preference saved.",
     "interfaceMode": "Interface mode",
     "interfaceModeHint": "Choose which tools and menus appear in Asimi.",
     "standardMode": "Standard",
@@ -345,6 +352,7 @@
     "go": "Go runtime",
     "wails": "Wails runtime",
     "saved": "Settings saved.",
+    "savedDefaultModel": "Default model saved.",
     "saving": "Saving…"
   },
   "future": {
@@ -542,6 +550,11 @@
     "AGENT_FILE_NOT_REVIEWED": "The suggested patch does not match a complete, editable file in the reviewed context.",
     "AGENT_SENSITIVE_PATCH": "The patch resembles credential material and cannot be proposed through Agent Tasks.",
     "AGENT_EMPTY_PATCH": "The proposed content matches the current file.",
+    "AGENT_DEADLINE_EXCEEDED": "The task reached its deadline.",
+    "AGENT_EVIDENCE_MISSING": "The task is missing required evidence. Check the completion conditions.",
+    "AGENT_STEP_UNSUPPORTED": "This step cannot be executed.",
+    "DESKTOP_VERIFIED": "The desktop action was independently verified.",
+    "DESKTOP_VERIFYING": "The approved desktop action is being checked.",
     "AGENT_BUDGET_EXHAUSTED": "This task reached its time, request or estimated cost limit.",
     "AGENT_PRICING_REQUIRED": "Set USD input and output pricing for this model before starting a budgeted Agent Task.",
     "AGENT_FILE_SCOPE_LIMIT": "The task reached its source file limit.",
@@ -590,6 +603,18 @@
       "lastMonth": "Last month",
       "allTime": "All time"
     }
+  },
+  "providerCustom": {
+    "title": "Your services",
+    "add": "Add service",
+    "connected": "Saved services",
+    "edit": "Edit models",
+    "name": "Service name",
+    "endpoint": "Service address",
+    "model": "Model name",
+    "save": "Save and use",
+    "saved": "The service is saved and selected for new chats.",
+    "hint": "Enter the API address and model name supplied by your service. Optional keys are encrypted locally. A new model starts with text support until its image capabilities are verified."
   },
   "ai": {
     "keyboardHint": "Enter to send · Shift+Enter for a new line",
@@ -852,6 +877,8 @@
     "unstructured": "The provider returned a text response."
   },
   "control": {
+    "proposeTaskValue": "Set value as a task",
+    "proposeTaskInvoke": "Invoke as a task",
     "title": "Computer Control",
     "permissionMode": "Each action requires approval",
     "checkingStatus": "Checking control availability…",
@@ -984,6 +1011,7 @@
     "notepadUnsupported": "This inspected window is not eligible. Existing text, multiple editors, or a TextPattern-only/read-only editor cannot be edited."
   },
   "product": {
+    "desktopTask": "Desktop action",
     "agentTasks": "Agent tasks",
     "welcome": "Welcome to Asimi",
     "homeIntro": "Your desktop, projects and AI in one local workspace. Choose a provider or start offline. Every action stays under your control.",
@@ -1179,6 +1207,29 @@
     "gitUnknown": "Git status was unavailable. Review the current file and its diff before approval."
   },
   "agent02": {
+    "localSkill": "Local skill {name} v{version} prepares {command}. The command requires separate approval.",
+    "prepareLocalSkill": "Prepare the skill action",
+    "acceptance": "Completion conditions",
+    "legacyAcceptance": "This run predates evidence-based completion checks.",
+    "evidence": "Evidence references",
+    "requirement": {
+      "read": "Read the relevant project material and provide the analysis.",
+      "repair": "Apply the requested change, verify it by reading it back, then pass a relevant test.",
+      "test": "Run the requested registered test and confirm its exit result.",
+      "clarify": "The goal needs a clearer outcome before Asimi can verify completion."
+    },
+    "condition": {
+      "read": "Project evidence",
+      "file": "Verified file change",
+      "test": "Passing test",
+      "recovery": "Unresolved action",
+      "clarify": "Goal clarification"
+    },
+    "evidenceStatus": {
+      "SATISFIED": "Satisfied",
+      "MISSING": "Missing evidence",
+      "UNKNOWN": "Needs review"
+    },
     "create": "Start model-driven task",
     "paths": "Relevant workspace paths (optional, up to four, one per line)",
     "review": "Review the next model request",

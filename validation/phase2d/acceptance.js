@@ -83,6 +83,9 @@ async function run() {
   await call('ResumeComputerControl');
   check('explicitResume', !(await call('GetControlStatus')).stopped);
   await click('nav-computer');
+  const tools = await until('developer computer tools', ()=>byID('computer-tools'));
+  tools.open = true;
+  tools.dispatchEvent(new Event('toggle'));
   await until('control panel', ()=>byID('computer-control'));
   check('controlPanelRendered', true);
   await uiInspect();

@@ -1,5 +1,9 @@
 {
   "cognition": {
+    "proposedMemory": "待审偏好",
+    "acceptPreference": "采用新偏好",
+    "keepPreference": "保留现有偏好",
+    "executableGoCheck": "Go 文件修改通过读回验证后，此工作流会为修改所在的包准备测试，并等待命令审批。",
     "memoryPage": "记忆",
     "growthPage": "Agent 成长",
     "recentSkills": "最近的本地技能",

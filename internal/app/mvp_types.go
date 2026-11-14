@@ -27,6 +27,7 @@ type AgentStep struct {
 	Error    string          `json:"error,omitempty"`
 }
 type AgentTask struct {
+	Desktop        bool        `json:"desktop,omitempty"`
 	ID             string      `json:"id"`
 	WorkspaceID    string      `json:"workspaceId"`
 	ConversationID string      `json:"conversationId,omitempty"`
@@ -40,15 +41,16 @@ type AgentTask struct {
 	Agent          *agent02Run `json:"agent,omitempty"`
 }
 type ProductProposal struct {
-	WorkspaceID   string            `json:"workspaceId"`
-	Root          string            `json:"root"`
-	File          *developer.Change `json:"file,omitempty"`
-	Command       *command.Proposal `json:"command,omitempty"`
-	PolicyVersion string            `json:"policyVersion,omitempty"`
-	PlanVersion   int               `json:"planVersion,omitempty"`
-	StepID        string            `json:"stepId,omitempty"`
-	GitStatus     string            `json:"gitStatus,omitempty"`
-	GitDirtyFile  bool              `json:"gitDirtyFile,omitempty"`
+	Skill         *agentSkillDispatch `json:"skill,omitempty"`
+	WorkspaceID   string              `json:"workspaceId"`
+	Root          string              `json:"root"`
+	File          *developer.Change   `json:"file,omitempty"`
+	Command       *command.Proposal   `json:"command,omitempty"`
+	PolicyVersion string              `json:"policyVersion,omitempty"`
+	PlanVersion   int                 `json:"planVersion,omitempty"`
+	StepID        string              `json:"stepId,omitempty"`
+	GitStatus     string              `json:"gitStatus,omitempty"`
+	GitDirtyFile  bool                `json:"gitDirtyFile,omitempty"`
 }
 type ProductAction struct {
 	ID        string          `json:"id"`

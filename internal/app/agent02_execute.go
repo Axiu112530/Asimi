@@ -36,12 +36,15 @@ func (s *Service) planAgent02(id, hash string) (AgentTask, error) {
 		return t, codedError("TASK_STATE")
 	}
 	if !t.Agent.Deadline.After(time.Now()) {
-		return t, codedError("AGENT_BUDGET_EXHAUSTED")
+		return t, codedError("AGENT_DEADLINE_EXCEEDED")
 	}
 	if !s.mvpAdmission(epoch, id) {
 		return t, codedError("ACTION_CANCELLED")
 	}
-	round := agent02Round{Version: len(t.Agent.Rounds) + 1, Status: "RUNNING", ContextHash: hash, Files: preview.Files}
+	if t.Agent.Acceptance == nil {
+		t.Agent.Acceptance = preview.task.Agent.Acceptance
+	}
+	round := agent02Round{Skill: preview.LocalSkill, Version: len(t.Agent.Rounds) + 1, Status: "RUNNING", ContextHash: hash, Files: preview.Files}
 	t.Agent.Rounds = append(t.Agent.Rounds, round)
 	t.Agent.ReservedUSD += preview.MaxRequestUSD
 	step := AgentStep{ID: newID(), Kind: "agent.plan", Title: "AGENT_PLANNING", Status: "RUNNING"}
@@ -50,6 +53,9 @@ func (s *Service) planAgent02(id, hash string) (AgentTask, error) {
 	t.CurrentStep = len(t.Steps) - 1
 	t.Summary = "AGENT_PLANNING"
 	t.UpdatedAt = now()
+	if preview.LocalSkill != nil {
+		t.Steps[t.CurrentStep].Title = preview.LocalSkill.Namespace
+	}
 	if err = s.transaction(func(tx *sql.Tx) error {
 		current, err := cognitionRevision(tx)
 		if err != nil {
@@ -81,11 +87,12 @@ func minTime(a, b time.Time) time.Time {
 }
 
 type agent02Outcome struct {
-	plan   agent02Plan
-	steps  []AgentStep
-	paths  []string
-	action *ProductAction
-	final  string
+	plan         agent02Plan
+	steps        []AgentStep
+	paths        []string
+	action       *ProductAction
+	final        string
+	verification *agentVerification
 }
 
 func (s *Service) runAgent02Round(ctx context.Context, p agent02Preview, version int, planStep string, epoch uint64) {
@@ -94,10 +101,18 @@ func (s *Service) runAgent02Round(ctx context.Context, p agent02Preview, version
 	var outcome agent02Outcome
 	var response ai.Response
 	var err error
-	if ctx.Err() == nil {
+	if p.LocalSkill != nil && ctx.Err() == nil {
+		err = validateAgentSkillDispatch(s.db, p.workspace.ID, p.LocalSkill)
+		if err == nil {
+			plan := agent02Plan{Objective: p.task.Goal, RiskLevel: "process", Steps: []agent02PlanStep{{
+				Type: "PROPOSE_COMMAND", CommandID: p.LocalSkill.Tool, Args: p.LocalSkill.Args, Summary: p.LocalSkill.Tool,
+			}}}
+			outcome, err = s.evaluateAgent02(ctx, p, version, plan)
+		}
+	} else if ctx.Err() == nil {
 		response, err = s.requestAgent02Plan(ctx, p)
 	}
-	if err == nil && ctx.Err() == nil {
+	if p.LocalSkill == nil && err == nil && ctx.Err() == nil {
 		var plan agent02Plan
 		plan, err = parseAgent02Plan(response.Content)
 		if err == nil {
@@ -123,16 +138,53 @@ func (s *Service) evaluateAgent02(ctx context.Context, p agent02Preview, version
 		if ctx.Err() != nil {
 			return result, ctx.Err()
 		}
-		step := AgentStep{ID: newID(), Kind: "agent.observe", Title: boundedAgentText(planned.Summary, p.workspace.Root, 450), Status: "COMPLETED"}
+		step := AgentStep{ID: newID(), Kind: "agent.observe", Title: boundedAgentText(planned.Summary, p.workspace.Root, 450), Status: "RUNNING"}
 		if step.Title == "" {
 			step.Title = planned.Type
 		}
 		switch planned.Type {
+		case "READ_WORKSPACE":
+			step.Kind = "agent.workspace"
+			step.Result = json.RawMessage(encode(map[string]any{
+				"contextHash": p.Hash, "observedAt": now(), "project": p.project.Project,
+			}))
+		case "ANALYZE_CODE":
+			type analyzedFile struct {
+				Path      string   `json:"path"`
+				SHA256    string   `json:"sha256"`
+				Symbols   []string `json:"symbols"`
+				Truncated bool     `json:"truncated"`
+			}
+			var files []analyzedFile
+			for _, file := range p.project.Files {
+				files = append(files, analyzedFile{file.Path, file.SHA256, file.Symbols, file.Truncated})
+			}
+			step.Kind = "agent.analysis"
+			if len(files) == 0 {
+				step.Status, step.Error = "FAILED", "AGENT_EVIDENCE_MISSING"
+			} else {
+				step.Result = json.RawMessage(encode(files))
+			}
+		case "VERIFY_RESULT", "FINALIZE":
+			verification, err := s.verifyAgent02(ctx, p, result.steps)
+			if err != nil {
+				return result, err
+			}
+			result.verification = &verification
+			step.Kind = "agent.verify"
+			if planned.Type == "FINALIZE" {
+				step.Kind = "agent.finalize"
+				result.final = boundedAgentText(planned.Summary, p.workspace.Root, 1500)
+			}
+			step.Result = json.RawMessage(encode(verification))
+			if !verification.Passed {
+				step.Status, step.Error = "FAILED", "AGENT_EVIDENCE_MISSING"
+			}
 		case "READ_FILE":
 			if !developer.AgentContextPathAllowed(planned.Path) {
 				return result, codedError("PATH_DENIED")
 			}
-			file, err := developer.ReadWithOptions(p.workspace.Root, planned.Path, options)
+			file, err := developer.ReadContext(ctx, p.workspace.Root, planned.Path, options)
 			if err != nil {
 				return result, err
 			}
@@ -145,7 +197,7 @@ func (s *Service) evaluateAgent02(ctx context.Context, p agent02Preview, version
 			step.Kind = "agent.read"
 			step.Result = json.RawMessage(encode(map[string]any{"path": file.Path, "sha256": file.Hash, "bytes": file.Bytes}))
 		case "SEARCH_FILES":
-			found, err := developer.AnalyzeWithOptions(p.workspace.Root, planned.Query, options)
+			found, err := developer.AnalyzeContext(ctx, p.workspace.Root, planned.Query, options)
 			if err != nil {
 				return result, err
 			}
@@ -162,7 +214,7 @@ func (s *Service) evaluateAgent02(ctx context.Context, p agent02Preview, version
 			step.Kind = "agent.environment"
 			step.Result = json.RawMessage(encode(checks))
 		case "PROPOSE_FILE_CHANGE", "PROPOSE_COMMAND":
-			action, err := prepareAgent02Action(p, version, step.ID, planned)
+			action, err := prepareAgent02Action(ctx, p, version, step.ID, planned)
 			if err != nil {
 				return result, err
 			}
@@ -170,8 +222,14 @@ func (s *Service) evaluateAgent02(ctx context.Context, p agent02Preview, version
 			step.Kind = action.Kind
 			step.ActionID = action.ID
 			step.Status = "WAITING_APPROVAL"
-		case "FINALIZE":
-			result.final = boundedAgentText(planned.Summary, p.workspace.Root, 1500)
+		default:
+			return result, codedError("AGENT_STEP_UNSUPPORTED")
+		}
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		if step.Status == "RUNNING" {
+			step.Status = "COMPLETED"
 		}
 		result.steps = append(result.steps, step)
 	}
@@ -181,9 +239,9 @@ func (s *Service) evaluateAgent02(ctx context.Context, p agent02Preview, version
 	return result, nil
 }
 
-func prepareAgent02Action(p agent02Preview, version int, stepID string, step agent02PlanStep) (ProductAction, error) {
+func prepareAgent02Action(ctx context.Context, p agent02Preview, version int, stepID string, step agent02PlanStep) (ProductAction, error) {
 	w := p.workspace
-	proposal := ProductProposal{WorkspaceID: w.ID, Root: w.Root, PolicyVersion: agent02Policy, PlanVersion: version, StepID: stepID}
+	proposal := ProductProposal{Skill: p.LocalSkill, WorkspaceID: w.ID, Root: w.Root, PolicyVersion: agent02Policy, PlanVersion: version, StepID: stepID}
 	kind := "file"
 	if step.Type == "PROPOSE_FILE_CHANGE" {
 		path := strings.ReplaceAll(step.Path, `\`, "/")
@@ -212,7 +270,7 @@ func prepareAgent02Action(p agent02Preview, version int, stepID string, step age
 			return ProductAction{}, codedError("AGENT_EMPTY_PATCH")
 		}
 		proposal.File = &change
-		recordGitFileContext(&proposal)
+		recordGitFileContext(ctx, &proposal)
 	} else {
 		kind = "command"
 		var spec *command.Spec
@@ -258,11 +316,20 @@ func (s *Service) finishAgent02Round(id string, version int, stepID string, epoc
 	t.Status = "NEEDS_REVIEW"
 	t.Summary = "AGENT_CONTEXT_REVIEW"
 	t.UpdatedAt = now()
+	if roundErr == nil && round.Skill != nil {
+		roundErr = validateAgentSkillDispatch(s.db, t.WorkspaceID, round.Skill)
+	}
+	if roundErr == nil && !t.Agent.Deadline.After(time.Now()) {
+		roundErr = context.DeadlineExceeded
+	}
 	if roundErr != nil {
 		round.Status = "FAILED"
 		round.Error = errorCode(roundErr)
 		if errors.Is(roundErr, context.DeadlineExceeded) {
 			round.Error = "REQUEST_TIMEOUT"
+			if !t.Agent.Deadline.After(time.Now()) {
+				round.Error = "AGENT_DEADLINE_EXCEEDED"
+			}
 		}
 		if errors.Is(roundErr, context.Canceled) {
 			round.Error = "REQUEST_CANCELLED"
@@ -299,9 +366,17 @@ func (s *Service) finishAgent02Round(id string, version int, stepID string, epoc
 			t.Status = "WAITING_APPROVAL"
 			t.Summary = "AGENT_ACTION_REVIEW"
 		}
-		if outcome.final != "" {
-			t.Status = "COMPLETED"
-			t.Summary = outcome.final
+		t.Agent.Verification = outcome.verification
+		if outcome.final != "" && outcome.verification != nil {
+			if outcome.verification.Passed {
+				t.Status = "COMPLETED"
+				t.Summary = outcome.final
+			} else {
+				t.Summary = "AGENT_EVIDENCE_MISSING"
+				if version == maxRequests {
+					t.Status = "FAILED"
+				}
+			}
 		}
 		if version == maxRequests && t.Status == "NEEDS_REVIEW" {
 			t.Status = "FAILED"

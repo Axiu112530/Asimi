@@ -1,0 +1,35 @@
+.computer-center { max-width: 1100px; }
+.computer-session { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.computer-session-icon, .computer-permission-icon { display: grid; flex: 0 0 auto; place-items: center; width: 44px; height: 44px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }
+.computer-session h2 { margin: 0 0 5px; font-size: 17px; }
+.computer-session p, .computer-permission p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 13px; }
+.computer-permissions { padding: 0 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.computer-permissions > h2 { margin: 0; padding: 20px 0 8px; font-size: 15px; }
+.computer-permissions > ul { list-style: none; padding: 0; margin: 0; }
+.computer-permission { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 22px 0; }
+.computer-permission + .computer-permission { border-top: 1px solid var(--line); }
+.computer-permission h3 { margin: 0 0 5px; font-size: 14px; font-weight: 650; }
+.computer-permission-copy { max-width: 430px; }
+.computer-permission-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 8px 14px; }
+.computer-permission-status { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.computer-permission .screen-actions { margin: 0; gap: 8px; }
+.computer-permission .button { min-height: 36px; }
+.computer-privacy { display: flex; align-items: flex-start; gap: 8px; margin: 16px 2px 24px; font-size: 12px; line-height: 1.6; }
+.computer-privacy .icon { flex-shrink: 0; margin-top: 2px; }
+.computer-secondary { margin-top: 12px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.computer-secondary > summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.computer-secondary[open] > summary { margin-bottom: 16px; }
+.computer-secondary > p { font-size: 13px; margin-bottom: 16px; }
+.computer-capture-details { margin-top: 16px; }
+.computer-activity { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 10px 24px; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; }
+.computer-activity-title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.computer-activity .button { min-height: 32px; }
+@media (max-width: 1100px) {
+  .computer-permission { grid-template-columns: 36px minmax(0, 1fr); gap: 10px 14px; }
+  .computer-permission-icon { width: 36px; height: 36px; }
+  .computer-permission-actions { grid-column: 2; justify-content: start; }
+}
+@media (max-width: 480px) {
+  .computer-permissions { padding-inline: 16px; }
+  .computer-permission-actions { grid-column: 1 / -1; }
+}

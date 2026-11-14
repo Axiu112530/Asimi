@@ -1,4 +1,5 @@
 import { defineComponent, h, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { CustomProviders } from './custom-providers';
 import { AIProfilesPage } from './ai-pages';
 import { ai, refreshAI, selectModel, selectProvider } from './ai-store';
 import type { AIModel, AIProfile } from './ai-types';
@@ -18,6 +19,7 @@ i18n.global.mergeLocaleMessage('zh-CN', { presetSetup: zh });
 interface ProviderStatus {
   preset: { id: string; profile: AIProfile };
   options: { id: string; name: string }[];
+  providerId?: string;
   configuredModel?: AIModel;
   hasCredential: boolean;
   verifiedAt?: string;
@@ -69,6 +71,8 @@ const ProviderConnection = defineComponent({
     const input = ref<HTMLInputElement>();
     const entered = ref(false);
     const selected = ref('');
+    const selectedModel = ref('');
+    const customModel = ref('');
     let alive = true;
 
     onBeforeUnmount(() => {
@@ -79,6 +83,9 @@ const ProviderConnection = defineComponent({
     function setStatus(result: ProviderStatus) {
       status.value = result;
       selected.value = result.preset.id;
+      const modelID = result.configuredModel?.id || result.preset.profile.models[0]?.id || '';
+      selectedModel.value = modelID;
+      customModel.value = '';
       emit('status', result);
     }
 
@@ -98,6 +105,8 @@ const ProviderConnection = defineComponent({
 
     function changeProvider(event: Event) {
       selected.value = (event.target as HTMLSelectElement).value;
+      selectedModel.value = '';
+      customModel.value = '';
       if (input.value) input.value.value = '';
       entered.value = false;
       void load();
@@ -107,13 +116,14 @@ const ProviderConnection = defineComponent({
       event.preventDefault();
       const password = input.value;
       if (!password || loading.value || pending.value || selected.value !== status.value?.preset.id ||
-        (!entered.value && !status.value.hasCredential)) return;
+        (!entered.value && !status.value.hasCredential) ||
+        !(selectedModel.value === 'custom' ? customModel.value.trim() : selectedModel.value)) return;
       pending.value = true;
       emit('busy', true);
       error.value = '';
       try {
         const request = call<ProviderStatus>('ConnectPresetProvider', {
-          presetId: selected.value, secret: password.value,
+          presetId: selected.value, modelId: selectedModel.value === 'custom' ? customModel.value.trim() : selectedModel.value, secret: password.value,
         });
         password.value = '';
         entered.value = false;
@@ -142,7 +152,8 @@ const ProviderConnection = defineComponent({
     return () => {
       const current = status.value;
       const preset = current?.preset.profile;
-      const model = current?.configuredModel ?? preset?.models[0];
+      const modelID = selectedModel.value === 'custom' ? customModel.value.trim() : selectedModel.value;
+      const model = preset?.models.find(item => item.id === modelID);
       const selectionReady = !loading.value && selected.value === current?.preset.id;
       const providerName = current?.options.find(item => item.id === selected.value)?.name ?? '';
       const capabilityKeys = ['text', 'streaming', 'vision', 'structuredOutput', 'toolCalling', 'computerUse'] as const;
@@ -154,7 +165,7 @@ const ProviderConnection = defineComponent({
             ? [current.defaultProviderName ? current.defaultProviderName + ' · ' : '', h('code', current.defaultModelId)]
             : label('offline')),
         ]) : null,
-        current && preset && model ? h('form', { class: 'preset-form', onSubmit: connect }, [
+        current && preset ? h('form', { class: 'preset-form', onSubmit: connect }, [
           h('div', { class: 'ai-form-grid' }, [
             h('label', { class: 'ai-field' }, [
               h('span', label('provider')),
@@ -164,8 +175,27 @@ const ProviderConnection = defineComponent({
                 'data-testid': 'preset-provider',
               }, current.options.map(item => h('option', { value: item.id, key: item.id }, item.name))),
             ]),
-            selectionReady ? h('dl', { class: 'preset-default' }, [h('dt', label('recommended')), h('dd', h('code', model.id))]) : null,
+            selectionReady ? h('label', { class: 'ai-field' }, [
+              h('span', label('model')),
+              h('select', {
+                value: selectedModel.value, disabled: pending.value || !state.connected,
+                'data-testid': 'preset-model',
+                onChange: (event: Event) => { selectedModel.value = (event.target as HTMLSelectElement).value; error.value = ''; },
+              }, [
+                ...preset.models.map(item => h('option', { value: item.id, key: item.id }, item.displayName || item.id)),
+                h('option', { value: 'custom' }, label('customModel')),
+              ]),
+            ]) : null,
           ]),
+          selectionReady && selectedModel.value === 'custom' ? h('label', { class: 'ai-field' }, [
+            h('span', label('modelId')),
+            h('input', {
+              value: customModel.value, maxlength: 256, required: true, autocomplete: 'off',
+              disabled: pending.value, 'data-testid': 'preset-custom-model',
+              onInput: (event: Event) => { customModel.value = (event.target as HTMLInputElement).value; },
+            }),
+            h('small', { class: 'muted' }, label('customModelHint')),
+          ]) : null,
           !selectionReady ? (error.value ? h('div', [
             h('p', { role: 'alert', class: 'ai-error' }, errorText(error.value)),
             action('retry', 'reload-provider', () => load(), loading.value || !state.connected),
@@ -183,20 +213,20 @@ const ProviderConnection = defineComponent({
           h('div', { class: 'preset-actions' }, [
             h('button', {
               type: 'submit', class: 'button primary',
-              disabled: pending.value || !state.connected || !selected.value || (!entered.value && !current.hasCredential),
+              disabled: pending.value || !state.connected || !selected.value || !modelID || (!entered.value && !current.hasCredential),
               'data-testid': 'preset-connect',
             }, label(error.value ? 'retry' : 'connect')),
             pending.value ? h('span', { role: 'status' }, label('testing')) : null,
           ]),
-          error.value ? null : current.verifiedAt
+          error.value ? null : current.verifiedAt && modelID === current.configuredModel?.id
             ? h('p', { class: 'preset-verified', role: 'status', 'data-testid': 'preset-connected' }, [
-                icon('check', 16), label('verified', { model: model.id }),
+                icon('check', 16), label('verified', { model: modelID }),
               ])
             : !props.wizard && !pending.value && current.hasCredential ? h('p', { class: 'muted' }, label('unverified')) : null,
           error.value ? h('p', {
             role: 'alert', class: 'ai-error', 'data-testid': 'preset-connection-error',
           }, connectionErrors[error.value] ? label(connectionErrors[error.value]) : errorText(error.value)) : null,
-          props.wizard ? null : h('details', { class: 'preset-capabilities' }, [
+          props.wizard || !model ? null : h('details', { class: 'preset-capabilities' }, [
             h('summary', label(current.configuredModel ? 'configuredCapabilities' : 'capabilities')),
             h('dl', { class: 'ai-capabilities' }, capabilityKeys.map(key => h('div', [
               h('dt', t('ai.' + key)), h('dd', t('ai.' + model.capabilities[key])),
@@ -219,6 +249,7 @@ export const PresetProviders = defineComponent({
     return () => h('div', { class: 'page-scroll' }, h('div', { class: 'page preset-provider-page' }, [
       h('header', { class: 'page-heading' }, h('h1', t('ai.providers'))),
       h('section', { class: 'settings-section' }, h(ProviderConnection)),
+      h(CustomProviders),
       state.settings.interfaceMode === 'developer' ? h('details', {
         class: 'settings-section preset-advanced', 'data-testid': 'preset-provider-advanced',
         onToggle: (event: Event) => { if ((event.currentTarget as HTMLDetailsElement).open) loadedAdvanced.value = true; },

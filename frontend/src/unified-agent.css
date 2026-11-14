@@ -1,0 +1,33 @@
+.unified-page { max-width: 1160px; margin: 0 auto; }
+.unified-page .product-heading { margin-bottom: 1.2rem; }
+.unified-page .product-heading p { max-width: 720px; }
+.unified-page .product-card { min-width: 0; }
+.unified-compose { display: grid; gap: 1rem; }
+.unified-compose > .product-field textarea { min-height: 96px; resize: vertical; }
+.unified-compose details > .product-row { margin-top: 1rem; }
+.unified-page pre,.unified-evolution pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto; }
+.unified-page .product-details dd { overflow-wrap: anywhere; min-width: 0; }
+.unified-page .product-row { flex-wrap: wrap; }
+.unified-page .product-field { min-width: 0; }
+.unified-page .product-row > .product-field { flex: 1 1 220px; }
+.unified-action { border-left: 3px solid var(--accent, #6558d9); }
+.unified-action .product-check { margin: 1rem 0; }
+.unified-grants { border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+.unified-grants .product-check { margin: .65rem 0; flex-wrap: wrap; }
+.unified-grants .product-check span { color: var(--muted, #687384); font-size: .85rem; }
+.unified-table-wrap { overflow-x: auto; margin: 1rem 0; }
+.unified-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.unified-table th,.unified-table td { padding: .7rem; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.unified-table tbody th { font-weight: 500; }
+.unified-memory-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: .75rem; margin: 1rem 0; }
+.unified-memory-stats > div { padding: .8rem; border: 1px solid var(--line); border-radius: 10px; }
+.unified-memory-stats strong { display: block; font-size: 1.4rem; font-weight: 600; }
+.unified-memory-stats span { font-size: .8rem; color: var(--muted, #687384); }
+.unified-run > .product-row { margin-top: 1rem; }
+.unified-summary .product-check { margin: 1rem 0; }
+.unified-evolution > .split h2 { margin-bottom: .35rem; }
+.unified-evolution .product-details { margin-top: 1rem; }
+@media(max-width:700px) { .unified-memory-stats { grid-template-columns: repeat(2,1fr); } .unified-page .product-columns { grid-template-columns: 1fr; } }
+
+.unified-operation,.unified-composition { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.unified-composition > .product-check { margin: 1rem 0; }

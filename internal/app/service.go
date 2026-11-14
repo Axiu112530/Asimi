@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"asimi/internal/communication"
 	"asimi/internal/domain"
 	"asimi/internal/provider"
 	"asimi/internal/tools"
@@ -38,6 +39,8 @@ type workerFault struct {
 	verification *domain.Verification
 }
 type Service struct {
+	communication    *communication.Manager
+	unifiedMu        sync.Mutex
 	cognitionMu      sync.Mutex
 	agent02Secret    []byte
 	mvp              mvpRuntime
@@ -110,6 +113,15 @@ func New(dataDir string, registry *tools.Registry, emit func(string, any)) (*Ser
 	}
 	if e == nil {
 		e = recoverComputer(db)
+	}
+	if e == nil {
+		e = s.initializeCommunication()
+	}
+	if e == nil {
+		e = s.initializeUnifiedCommunication()
+	}
+	if e == nil {
+		e = s.initializeEvolution()
 	}
 	if e == nil {
 		e = s.initializeMVP()
@@ -234,14 +246,29 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		return fail("SERVICE_CLOSED")
 	}
 	defer s.wg.Done()
+	if reply, handled := s.callCommunication(method, payload); handled {
+		return reply
+	}
+	if reply, handled := s.callEvolution(method, payload); handled {
+		return reply
+	}
+	if reply, handled := s.callUnified(method, payload); handled {
+		return reply
+	}
 	if reply, handled := s.callCognition(method, payload); handled {
 		return reply
 	}
 	if reply, handled := s.callMVP(method, payload); handled {
 		return reply
 	}
+	if method == "CreateDesktopTask" {
+		return s.callCreateDesktopTask(payload)
+	}
 	if reply, handled := s.callControl(method, payload); handled {
 		return reply
+	}
+	if method == "GetSecurityStatus" {
+		return s.securityStatus(payload)
 	}
 	var controlStopErr error
 	if method == "StopAll" {
@@ -250,7 +277,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		}
 		defer s.beginMVPStop()()
 		controlStopErr = s.stopDesktopControl()
-		controlStopErr = errors.Join(controlStopErr, s.stopMVP(), s.changeCognitionLearning(true))
+		controlStopErr = errors.Join(controlStopErr, s.stopCommunication(), s.stopMVP(), s.changeCognitionLearning(true))
 	}
 	if reply, handled := s.callScreen(method, payload); handled {
 		return reply
@@ -425,18 +452,6 @@ func (s *Service) Call(method, payload string) domain.Reply {
 			}
 		}
 		return fail("NOT_FOUND")
-	case "GetSecurityStatus":
-		if e := decode(payload, &struct{}{}); e != nil {
-			return fail(errorCode(e))
-		}
-		var pending, active int
-		if e := s.db.QueryRow("SELECT COUNT(*) FROM approval_records WHERE status='PENDING'").Scan(&pending); e != nil {
-			return fail(errorCode(e))
-		}
-		if e := s.db.QueryRow("SELECT COUNT(*) FROM task_sessions WHERE status IN ('CREATED','PLANNING','WAITING_APPROVAL','RUNNING','VERIFYING')").Scan(&active); e != nil {
-			return fail(errorCode(e))
-		}
-		return result(map[string]any{"workspace": s.registry.Workspace(), "maxFileBytes": 65536, "toolNames": []string{"filesystem.file.create"}, "pendingApprovals": pending, "activeTasks": active, "stopAvailable": true, "externalNetwork": false, "externalModelNetwork": "USER_CONFIRMED_BYOK_ONLY", "realModelTools": false, "desktopControl": false}, nil)
 	case "GetAuditEvents", "GetToolExecutions":
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
@@ -568,6 +583,9 @@ func (s *Service) BeginShutdown() {
 	s.screens.close()
 	s.desktopControl.signalStop()
 	s.signalMVPStop()
+	if s.communication != nil {
+		_ = s.stopCommunication()
+	}
 }
 
 func (s *Service) Close() error {

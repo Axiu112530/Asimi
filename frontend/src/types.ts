@@ -12,5 +12,5 @@ export interface AuditEvent { id: string; taskId?: string; code: string; params?
 export interface ToolExecution { id: string; taskId: string; toolName: string; path: string; status: string; result?: Verification; errorCode?: string; createdAt: string; updatedAt: string }
 export interface Model { providerId: string; id: string; text: string; vision: string; toolCalling: string; streaming: string; computerUse: string; structuredOutput: string; contextLength: number; pricingMetadata: Record<string,unknown> }
 export interface ProviderProfile { id: string; name: string; baseUrl: string; enabled: boolean; status: string; models: Model[] }
-export interface SecurityStatus { workspace: string; maxFileBytes: number; toolNames: string[]; pendingApprovals: number; activeTasks: number; stopAvailable: boolean; externalNetwork: boolean; desktopControl: boolean }
-export type Route = 'home'|'assistant'|'computer'|'developer'|'workspaces'|'workflows'|'skills'|'memory'|'learning'|'growth'|'models'|'security'|'history'|'settings'|'playground'|'usage';
+export interface SecurityStatus { workspace: string; maxFileBytes: number; toolNames: string[]; pendingApprovals: number; activeTasks: number; stopAvailable: boolean; externalNetwork: boolean; desktopControl: boolean; desktopControlStopped?: boolean; recoveryActions?: number }
+export type Route = 'goals'|'connections'|'home'|'assistant'|'computer'|'developer'|'workspaces'|'workflows'|'skills'|'memory'|'learning'|'growth'|'models'|'security'|'history'|'settings'|'playground'|'usage';

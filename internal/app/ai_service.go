@@ -57,6 +57,9 @@ func (s *Service) initializeAI() error {
 		if _, e := tx.Exec("INSERT OR IGNORE INTO ai_settings(id,json) VALUES('ai','{}')"); e != nil {
 			return e
 		}
+		if e := restoreChatTitles(tx); e != nil {
+			return e
+		}
 		rows, e := tx.Query("SELECT id,conversation_id,message_id,provider_id,model_id,created_at FROM ai_requests WHERE status IN ('PENDING','RUNNING')")
 		if e != nil {
 			return e

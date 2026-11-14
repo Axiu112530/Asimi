@@ -1,6 +1,7 @@
 package developer
 
 import (
+	"context"
 	"encoding/json"
 	"path"
 	"regexp"
@@ -25,7 +26,7 @@ func InspectProject(root string, exclusions []string) (ProjectInspection, error)
 	}
 	defer w.Close()
 	return ProjectInspection{
-		Summary: buildProjectSummary(w, "", nil, options.Exclusions, false),
+		Summary: buildProjectSummary(context.Background(), w, "", nil, options.Exclusions, false),
 		Git:     inspectGit(w, options.Exclusions),
 	}, nil
 }

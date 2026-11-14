@@ -76,6 +76,10 @@ func (s *Service) selectCognitionContext(project, goal string, limit int, includ
 	if err != nil {
 		return context, err
 	}
+	adjustments := map[string]int{}
+	for _, skill := range skills {
+		adjustments[evolutionKey(skill.ID, skill.Version)] = evolutionAdjustment(skill.CompletedUses, skill.FailedUses)
+	}
 	scores := make(map[string]int, len(skills))
 	for _, item := range skills {
 		if cognitionChoice(choices, item.ID) == "include" {
@@ -85,9 +89,7 @@ func (s *Service) selectCognitionContext(project, goal string, limit int, includ
 		hits := cognitionScore(terms, item.Name+" "+item.Slug+" "+strings.Join(item.Triggers, " "))
 		if hits > 0 {
 			hits = hits*4 + min(8, cognitionScore(terms, item.Description+" "+item.Applicability+" "+strings.Join(item.Workflow, " ")))
-			if item.CompletedUses+item.FailedUses >= 2 {
-				hits += min(2, item.CompletedUses) - min(2, item.FailedUses)
-			}
+			hits += adjustments[evolutionKey(item.ID, item.Version)]
 		}
 		if hits > 0 && item.Scope == "project" {
 			hits += 2
@@ -97,13 +99,16 @@ func (s *Service) selectCognitionContext(project, goal string, limit int, includ
 	slices.SortStableFunc(skills, func(a, b cognitionSkill) int { return scores[b.ID] - scores[a.ID] })
 	seen := map[string]bool{}
 	for _, skill := range skills {
-		if !skill.Enabled || validateCognitionSkillText(skill.cognitionSkillInput) != nil || slices.ContainsFunc(skill.AllowedTools, func(tool string) bool { return !cognitionRegisteredTool(tool) }) {
+		if !skill.Enabled || validateCognitionDependencies(s.db, skill.cognitionSkillInput) != nil || validateCognitionSkillText(skill.cognitionSkillInput) != nil || slices.ContainsFunc(skill.AllowedTools, func(tool string) bool { return !cognitionRegisteredTool(tool) }) {
 			continue
 		}
 		mode := cognitionChoice(choices, skill.ID)
 		reason := "available"
 		if scores[skill.ID] > 0 {
 			reason = "keyword"
+			if adjustments[evolutionKey(skill.ID, skill.Version)] != 0 {
+				reason = "outcome-informed"
+			}
 		}
 		if mode == "include" {
 			reason = "manual"

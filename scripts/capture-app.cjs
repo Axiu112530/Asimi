@@ -32,6 +32,8 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  if (ready.stage === 15) {
   for (const [page, selector] of [
     ['home', '[data-testid="product-home"]'],
+    ['goals', '[data-testid="unified-page"]'],
+    ['connections', '[data-testid="connections-page"]'],
     ['settings', '.settings-page'],
     ['models', '.preset-provider-page'],
     ['usage', '[data-testid="ai-usage"]'],
@@ -84,6 +86,31 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
     await fs.writeFile(path.join(output,`stage${ready.stage}-${page}-${label}.png`),Buffer.from(shot.data,'base64'));
    }
   }
+ }
+ if (ready.stage === 15) {
+  await evaluate(`(async()=>{const {Call}=await import('/wails/runtime.js');const s=await Call.ByName('main.DesktopService.Call','GetSettings','{}');return Call.ByName('main.DesktopService.Call','UpdateSettings',JSON.stringify({...s.data,interfaceMode:'standard'}))})()`);
+  await pause(180);
+  for (const page of ['goals','connections','computer','learning','growth']) {
+   await evaluate(`document.querySelector('[data-testid="nav-${page}"]').click()`);
+   await pause(180);
+   const ordinary = await evaluate(`!document.querySelector('.computer-capture-details') && !document.querySelector('[data-testid=cognition-learning-open-tasks]') && !document.querySelector('[data-testid=nav-developer]') && !document.querySelector('[data-testid=nav-playground]') && !!document.querySelector('[data-testid=nav-goals]') && !!document.querySelector('[data-testid=nav-connections]')`);
+   if (!ordinary) throw new Error('Standard view hides ordinary navigation or exposes capture diagnostics');
+   metrics.push({label:'standard-'+page,ordinaryFeaturesAvailable:ordinary});
+   for (const [label,width,height] of [['wide',1380,820],['compact',1000,700],['narrow',720,620]]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await pause(130);
+    const dimensions=await evaluate(`(() => {
+      const root=document.querySelector('[data-testid="${page==='goals'?'unified-page':page==='connections'?'connections-page':page==='computer'?'computer-page':page==='learning'?'cognition-learning':'cognition-growth'}"]');
+      const workspace=document.querySelector('.workspace');
+      return root&&workspace?{width:innerWidth,pageWidth:root.clientWidth,pageScrollWidth:root.scrollWidth,shellFits:workspace.scrollWidth<=workspace.clientWidth+1}:null;
+    })()`);
+    if(!dimensions)throw new Error('Standard '+page+' did not render');
+    metrics.push({label:`standard-${page}-${label}`,...dimensions,noHorizontalOverflow:dimensions.shellFits&&dimensions.pageScrollWidth<=dimensions.pageWidth+1});
+    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    await fs.writeFile(path.join(output,`stage15-standard-${page}-${label}.png`),Buffer.from(shot.data,'base64'));
+   }
+  }
+  await evaluate(`(async()=>{const {Call}=await import('/wails/runtime.js');const s=await Call.ByName('main.DesktopService.Call','GetSettings','{}');return Call.ByName('main.DesktopService.Call','UpdateSettings',JSON.stringify({...s.data,interfaceMode:'developer'}))})()`);
  }
  await send('Emulation.clearDeviceMetricsOverride');
  await fs.writeFile(path.join(output,`visual-stage${ready.stage}.json`),JSON.stringify(metrics,null,2));

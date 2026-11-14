@@ -2,9 +2,11 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref
 import { ai, screenAnalysisBlocked, screenConversation, startScreenAnalysis } from './ai-store';
 import { call, ServiceError } from './bridge';
 import { ComputerControlPanel } from './control-panel';
-import type { ComputerSuggestionTarget } from './control-types';
+import type { ComputerSuggestionTarget, ControlStatus } from './control-types';
+import './computer-copy';
+import './computer-center.css';
 import { date, number, t } from './i18n';
-import { openConversation, state } from './store';
+import { openConversation, state, stopComputerControl } from './store';
 import { button, detail, errorText, icon, iconButton } from './ui';
 import type { CaptureCapabilities, ScreenDisplay, ScreenMetadata, ScreenPreview, ScreenRect, ScreenUploadReview, VisionResult } from './screen-types';
 import { product } from './product-store';
@@ -524,89 +526,168 @@ export const ComputerPage = defineComponent({
   setup(props) {
     const displays = ref<ScreenDisplay[]>([]);
     const capabilities = ref<CaptureCapabilities>();
+    const control = ref<ControlStatus>();
     const history = ref<ScreenMetadata[]>([]);
     const pending = ref(false);
+    const changing = ref(false);
     const error = ref('');
+    const toolsOpen = ref(false);
+    const toolsKey = ref(0);
     const suggestion = ref<ComputerSuggestionTarget>();
     const suggestionRevision = ref(0);
     let active = true;
+    let controlRevision = 0;
+    let refreshAgain = false;
+    const text = (key: string) => t('computerCenter.' + key);
+    const stopped = computed(() => state.controlStoppedLocally || control.value?.stopped === true);
+    async function refreshControl() {
+      if (!active || !state.connected) return;
+      const revision = ++controlRevision;
+      const next = await call<ControlStatus>('GetControlStatus');
+      if (active && revision === controlRevision) {
+        control.value = next;
+        state.controlEscapeAvailable = next.nativeEscape === true;
+        if (next.stopped) state.controlStoppedLocally = true;
+      }
+      return next;
+    }
     async function refresh() {
-      if (pending.value || !state.connected) return;
+      if (!state.connected) return;
+      if (pending.value) { refreshAgain = true; return; }
       pending.value = true;
+      refreshAgain = false;
       error.value = '';
-      const [displayReply, capabilitiesReply, historyReply] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         call<ScreenDisplay[]>('ListDisplays'),
         call<CaptureCapabilities>('GetCaptureCapabilities'),
-        call<ScreenMetadata[]>('ListScreenHistory'),
-      ]);
+        refreshControl(),
+      ] as const);
       if (!active) return;
+      const [displayReply, capabilitiesReply, controlReply] = results;
       if (displayReply.status === 'fulfilled') displays.value = displayReply.value || [];
       else error.value = errorCode(displayReply.reason);
       if (capabilitiesReply.status === 'fulfilled') capabilities.value = capabilitiesReply.value;
       else error.value ||= errorCode(capabilitiesReply.reason);
-      if (historyReply.status === 'fulfilled') history.value = historyReply.value || [];
-      else error.value ||= errorCode(historyReply.reason);
+      if (controlReply.status === 'rejected') error.value ||= errorCode(controlReply.reason);
       pending.value = false;
+      if (refreshAgain) void refresh();
+    }
+    async function changeMode() {
+      if (changing.value || !state.connected || !control.value?.available) return;
+      const resume = stopped.value;
+      changing.value = true;
+      error.value = '';
+      try {
+        if (resume) {
+          await call('ResumeComputerControl');
+          state.controlStoppedLocally = false;
+        } else await stopComputerControl();
+        toolsKey.value++;
+        await refresh();
+      } catch (cause) { if (active) error.value = errorCode(cause); }
+      finally { if (active) changing.value = false; }
+    }
+    async function loadHistory(event: Event) {
+      if (!(event.currentTarget as HTMLDetailsElement).open || !state.connected) return;
+      try {
+        const records = await call<ScreenMetadata[]>('ListScreenHistory');
+        if (active) history.value = records || [];
+      } catch (cause) { if (active) error.value = errorCode(cause); }
     }
     onMounted(refresh);
+    watch(() => state.connected, () => { if (active) void refresh(); });
+    watch(() => [state.controlStopVersion, state.controlStoppedLocally, state.activeControlActionId], () => {
+      void refreshControl().catch(cause => { if (active) error.value = errorCode(cause); });
+    });
     onBeforeUnmount(() => { active = false; });
-    const capability = (available: boolean) => t(available ? 'screen.available' : 'common.unavailable');
-    const card = (key: string, body: VNodeChild, id?: string) =>
-      h('section', { class: 'screen-card', 'data-testid': id }, [h('h2', t('screen.' + key)), body]);
+    const permission = (key: string, image: string, note: string, value: string, actions?: VNodeChild) =>
+      h('li', { class: 'computer-permission', 'data-testid': 'permission-' + key }, [
+        h('span', { class: 'computer-permission-icon' }, icon(image, 22)),
+        h('div', { class: 'computer-permission-copy' }, [h('h3', text(key)), h('p', text(note))]),
+        h('div', { class: 'computer-permission-actions' }, [
+          h('span', { class: 'computer-permission-status' }, value), actions,
+        ]),
+      ]);
     return () => {
       const c = capabilities.value;
-      return h('div', { class: 'page-scroll' }, h('div', { class: 'page computer-page', 'data-testid': 'computer-page' }, [
+      const connected = state.connected && !pending.value;
+      return h('div', { class: 'page-scroll' }, h('div', {
+        class: 'page computer-page computer-center', 'data-testid': 'computer-page',
+      }, [
         h('header', { class: 'page-heading' }, [
-          h('div', [h('h1', t('navigation.computer')), h('p', t('screen.subtitle'))]),
+          h('div', [h('h1', t('navigation.computer')), h('p', text('subtitle'))]),
           action('screen.refresh', 'computer-refresh', refresh, pending.value || !state.connected),
         ]),
         screenError(error.value),
-        pending.value ? status('screen.loadingDisplays') : null,
-        h(ComputerControlPanel, {
-          tasks: props.developer ? product.data.agentTasks : [], suggestionRevision: suggestionRevision.value,
-          onRequestSuggestion: target => { suggestion.value = target; },
-        }),
-        suggestion.value ? h(Teleport, { to: 'body' }, [h(ScreenCaptureDialog, {
-          entry: 'analyze', source: 'computer', suggestion: suggestion.value,
-          onSuggestionSubmitted: () => { suggestionRevision.value++; },
-          onDismiss: () => { suggestion.value = undefined; },
-        })]) : null,
-        props.developer ? h('div', { class: 'screen-observation' }, [
-          h('strong', [icon('computer', 20), t('screen.observationOnly')]),
-          h('span', t('screen.captureDescription')),
-        ]) : null,
-        h('div', { class: 'screen-page-grid' }, [
-          card('capture', [h('p', t('screen.captureDescription')), h(ScreenCaptureActions, { source: 'computer', disabled: pending.value })]),
-          card('analysis', h('p', t('screen.analysisDescription'))),
-          card('displayList', displays.value.length ? h('ul', { class: 'screen-display-list' }, displays.value.map(display =>
+        h('section', { class: 'computer-session', 'data-testid': 'computer-session' }, [
+          h('span', { class: 'computer-session-icon' }, icon('computer', 24)),
+          h('div', [
+            h('h2', text(state.activeControlActionId ? 'active' : stopped.value ? 'paused' : 'idle')),
+            h('p', text(state.activeControlActionId
+              ? state.controlEscapeAvailable ? 'escape' : 'escapeLocal' : stopped.value ? 'pausedNote' : 'idleNote')),
+          ]),
+        ]),
+        h('section', { class: 'computer-permissions', 'data-testid': 'computer-permissions' }, [
+          h('h2', text('devices')),
+          h('ul', [
+            permission('screen', 'computer', 'screenNote',
+              connected ? c?.display ? text('screenStatus') : t('common.unavailable') : t('common.unknown'),
+              h(ScreenCaptureActions, { source: 'computer', disabled: !connected || !c?.display })),
+            permission('control', 'panel', 'controlNote',
+              connected ? !control.value?.available ? t('common.unavailable')
+                : stopped.value ? text('paused') : text('controlStatus') : t('common.unknown'),
+              h('button', {
+                type: 'button', class: 'button secondary', onClick: changeMode,
+                disabled: changing.value || !connected || !control.value?.available,
+                'data-testid': 'computer-control-toggle',
+              }, text(stopped.value ? 'resume' : 'pause'))),
+            permission('camera', 'camera', 'cameraNote', text('notConnected')),
+            permission('microphone', 'microphone', 'microphoneNote', text('notConnected')),
+          ]),
+        ]),
+        h('p', { class: 'computer-privacy muted', 'data-testid': 'computer-privacy' }, [
+          icon('lock', 16), t('screen.privacyStatus'),
+        ]),
+        h('details', { class: 'computer-secondary', 'data-testid': 'computer-display-list' }, [
+          h('summary', text('displayDetails')),
+          displays.value.length ? h('ul', { class: 'screen-display-list' }, displays.value.map(display =>
             h('li', { key: display.id }, [
               h('strong', displayLabel(display)),
               props.developer ? h('p', { class: 'micro muted' }, t('screen.displayGeometry', {
                 physical: rectText(display.physicalBounds), logical: rectText(display.logicalBounds), dpi: display.dpi, scale: display.scale,
               })) : null,
-            ]))) : pending.value ? null : h('p', { class: 'muted' }, t('screen.noDisplays')), 'computer-display-list'),
-          card('privacy', h('p', t('screen.privacyStatus')), 'computer-privacy'),
-          props.developer ? card('capabilities', c ? h('dl', [
-            detail('screen.backend', known(c.backend)),
-            detail('screen.display', capability(c.display)),
-            detail('screen.crop', capability(c.region)),
-            detail('screen.singleWindow', capability(c.window)),
-            detail('screen.maxCapture', t('screen.limits', { pixels: number(c.maxPixels), dimension: number(c.maxDimension), bytes: number(c.maxBytes) })),
-            detail('screen.ttl', t('screen.seconds', { seconds: number(c.ttlSeconds) })),
-          ]) : null, 'computer-capabilities') : null,
-          card('history', [
-            h('p', { class: 'muted' }, t('screen.historyDescription')),
-            history.value.length ? h('ul', { class: 'screen-history' }, history.value.map(record =>
-              h('li', { key: record.captureId }, [
-                h('strong', record.displayName),
-                h('p', { class: 'micro muted' }, t('screen.historyRecord', {
-                  size: dimensions(record.width, record.height), format: record.format.toUpperCase(), date: date(record.capturedAt),
-                  provider: record.providerId, model: record.modelId,
-                })),
-                button('screen.openConversation', () => openConversation(record.conversationId), { class: 'text-button' }),
-              ]))) : pending.value ? null : h('p', { class: 'muted' }, t('screen.emptyHistory')),
-          ], 'screen-capture-history'),
+            ]))) : pending.value ? null : h('p', { class: 'muted' }, t('screen.noDisplays')),
         ]),
+        h('details', { class: 'computer-secondary', 'data-testid': 'screen-capture-history', onToggle: loadHistory }, [
+          h('summary', text('captureHistory')),
+          history.value.length ? h('ul', { class: 'screen-history' }, history.value.map(record =>
+            h('li', { key: record.captureId }, [
+              h('strong', record.displayName),
+              h('p', { class: 'micro muted' }, date(record.capturedAt)),
+              button('screen.openConversation', () => openConversation(record.conversationId), { class: 'text-button' }),
+            ]))) : h('p', { class: 'muted' }, t('screen.emptyHistory')),
+        ]),
+        h('details', {
+          class: 'computer-secondary computer-developer-tools', 'data-testid': 'computer-tools',
+          onToggle: (event: Event) => { toolsOpen.value = (event.currentTarget as HTMLDetailsElement).open; },
+        }, [
+          h('summary', text('tools')),
+          h('p', { class: 'muted' }, text('toolsNote')),
+          toolsOpen.value ? h(ComputerControlPanel, {
+            key: toolsKey.value, tasks: product.data.agentTasks, suggestionRevision: suggestionRevision.value,
+            onRequestSuggestion: target => { suggestion.value = target; },
+          }) : null,
+          props.developer && c ? h('dl', { class: 'computer-capture-details' }, [
+            detail('screen.backend', known(c.backend)),
+            detail('screen.singleWindow', t(c.window ? 'screen.available' : 'common.unavailable')),
+            detail('screen.maxCapture', t('screen.limits', { pixels: number(c.maxPixels), dimension: number(c.maxDimension), bytes: number(c.maxBytes) })),
+          ]) : null,
+        ]),
+        suggestion.value ? h(Teleport, { to: 'body' }, [h(ScreenCaptureDialog, {
+          entry: 'analyze', source: 'computer', suggestion: suggestion.value,
+          onSuggestionSubmitted: () => { suggestionRevision.value++; },
+          onDismiss: () => { suggestion.value = undefined; },
+        })]) : null,
       ]));
     };
   },

@@ -21,6 +21,8 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 		Round   int
 	}
 	started := time.Now()
+	var baselineMS, reusedMS int64
+	var baselineRequests, reusedRequests int
 	requests := make(chan observed, 12)
 	s, project, first := agent02TestRun(t, func(w http.ResponseWriter, r *http.Request) {
 		var envelope struct {
@@ -59,6 +61,10 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 		requests <- observed{content, review.Round}
 		plan := agent02Plan{Objective: "Fix Add and verify it", Steps: []agent02PlanStep{}}
 		file := review.ProjectContext.Files[0]
+		if file.Path == "more.go" && review.Round == 2 {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
 		switch review.Round {
 		case 1:
 			if file.Path == "more.go" && !strings.Contains(content, "project:workflow-go-test") {
@@ -107,19 +113,28 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 	run := func(task AgentTask, wantSkill bool) {
 		t.Helper()
 		id := map[string]string{"id": task.ID}
+		start := time.Now()
+		modelRequests := 0
 		for round := 1; round <= 3; round++ {
 			preview := mustCall(t, s, "PreviewAgentRun", id).(agent02Preview)
 			if strings.Contains(preview.Content, "project:workflow-go-test") != wantSkill {
 				t.Fatal("unexpected skill in preview")
 			}
 			mustCall(t, s, "PlanAgentRun", map[string]string{"id": task.ID, "contextHash": preview.Hash})
-			select {
-			case sent := <-requests:
-				if sent.Round != round || sent.Content != preview.Content {
-					t.Fatal("provider received a different context")
+			if wantSkill && round == 2 {
+				if !strings.Contains(preview.Content, `"localSkill"`) {
+					t.Fatal("approved skill did not schedule a local step")
 				}
-			case <-time.After(8 * time.Second):
-				t.Fatal("provider received no request")
+			} else {
+				modelRequests++
+				select {
+				case sent := <-requests:
+					if sent.Round != round || sent.Content != preview.Content {
+						t.Fatal("provider received a different context")
+					}
+				case <-time.After(8 * time.Second):
+					t.Fatal("provider received no request")
+				}
 			}
 			if round == 3 {
 				awaitState(task.ID, "COMPLETED")
@@ -131,11 +146,49 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if wantSkill && round == 2 {
+				if action.Proposal.Skill == nil || action.Proposal.Skill.Version != 1 || action.Proposal.Skill.After == "" || action.Proposal.Command == nil || action.Proposal.Command.ID != "go.test" ||
+					len(action.Proposal.Command.Args) != 2 || action.Proposal.Command.Args[1] != "." ||
+					!strings.Contains(encode(current.Agent.Rounds[1]), "workflow-go-test") {
+					t.Fatalf("skill did not schedule the changed package's test: %s", encode(current.Agent.Rounds[1]))
+				}
+				select {
+				case <-requests:
+					t.Fatal("local workflow unexpectedly called the provider")
+				default:
+				}
+			}
+			if wantSkill && round == 2 {
+				withoutConsent := s.Call("ApproveProductAction", encode(map[string]any{"id": aid, "hash": action.Hash}))
+				if withoutConsent.Error == nil || withoutConsent.Error.Code != "COMMAND_NETWORK_CONSENT" {
+					t.Fatal("skill command bypassed network consent")
+				}
+				var consumed bool
+				if err := s.db.QueryRow("SELECT consumed FROM product_actions WHERE id=?", aid).Scan(&consumed); err != nil || consumed {
+					t.Fatalf("skill command consumed before approval: %v %v", consumed, err)
+				}
+			}
 			approved := mustCall(t, s, "ApproveProductAction", map[string]any{"id": aid, "hash": action.Hash, "acceptNetwork": true}).(ProductAction)
 			if approved.Status != "SUCCEEDED" {
 				t.Fatal(approved.Status, approved.Error)
 			}
 			awaitState(task.ID, "NEEDS_REVIEW")
+		}
+		elapsed := time.Since(start).Milliseconds()
+		final := awaitState(task.ID, "COMPLETED")
+		failedSteps := 0
+		for _, step := range final.Steps {
+			if step.Status == "FAILED" || step.Status == "RECOVERY_REQUIRED" {
+				failedSteps++
+			}
+		}
+		if failedSteps != 0 {
+			t.Fatalf("completed run contains %d failed steps", failedSteps)
+		}
+		if wantSkill {
+			reusedMS, reusedRequests = elapsed, modelRequests
+		} else {
+			baselineMS, baselineRequests = elapsed, modelRequests
 		}
 	}
 	var startPages, pageBytes int64
@@ -178,6 +231,13 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 	if id == "" {
 		t.Fatal("reviewed skill missing")
 	}
+	other := mvpWorkspace(t, s, t.TempDir())
+	foreign := mustCall(t, s, "CreateAgentRun", agent02CreateInput{WorkspaceID: other.ID, Goal: first.Goal,
+		ProviderID: first.Agent.ProviderID, ModelID: first.Agent.ModelID}).(AgentTask)
+	foreignPreview := mustCall(t, s, "PreviewAgentRun", map[string]string{"id": foreign.ID}).(agent02Preview)
+	if strings.Contains(foreignPreview.Content, "project:workflow-go-test") || foreignPreview.LocalSkill != nil {
+		t.Fatal("project skill crossed into a second workspace")
+	}
 	for name, source := range map[string]string{"calc.go": "package calc\n", "more.go": "package calc\nfunc Add(a,b int) int {return a-b}\n"} {
 		if err := os.WriteFile(filepath.Join(project.Root, name), []byte(source), 0600); err != nil {
 			t.Fatal(err)
@@ -191,6 +251,10 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 	}
 	mustCall(t, s, "SetAgentCognitionChoice", map[string]string{"id": next.ID, "skillId": id, "mode": "auto"})
 	run(next, true)
+	if baselineRequests != 3 || reusedRequests != 2 {
+		t.Fatalf("model requests baseline=%d reuse=%d", baselineRequests, reusedRequests)
+	}
+	t.Logf("baseline requests=%d elapsed_ms=%d; reuse requests=%d elapsed_ms=%d; both tasks verified; failed_steps=0/0", baselineRequests, baselineMS, reusedRequests, reusedMS)
 	var usage int
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM skill_usage WHERE task_id=? AND package_id=?", next.ID, id).Scan(&usage); err != nil || usage != 1 {
 		t.Fatalf("usage=%d err=%v", usage, err)
@@ -231,7 +295,7 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 	if err := s.db.QueryRow("PRAGMA page_count").Scan(&endPages); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("loopback requests=6 elapsed_ms=%d database_growth_bytes=%d", time.Since(started).Milliseconds(), (endPages-startPages)*pageBytes)
+	t.Logf("loopback requests=%d elapsed_ms=%d database_growth_bytes=%d", baselineRequests+reusedRequests, time.Since(started).Milliseconds(), (endPages-startPages)*pageBytes)
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "test", ".")

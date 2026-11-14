@@ -179,6 +179,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .setup-brand { display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: 17px; font-weight: 650; }
 .setup-screen h1 { font-size: clamp(23px, 3vw, 30px); font-weight: 650; margin: 0; }
 .setup-screen .ai-form-grid { margin: 0; grid-template-columns: 1fr 1fr; }
+.custom-providers { max-width: 760px; }
+.custom-providers > header h2 { margin: 0; }
+.custom-providers .preset-form { margin-top: 16px; }
+.custom-provider-list { margin-top: 16px; }
+.custom-provider-list summary { cursor: pointer; }
+.custom-provider-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .preset-provider-page .preset-connection { max-width: 760px; gap: 20px; }
 .preset-form .ai-form-grid { align-items: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .preset-form .preset-default { align-content: start; gap: 6px; }

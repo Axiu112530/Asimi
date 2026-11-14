@@ -4,9 +4,11 @@ Use a standard Windows account on Windows x64. Asimi needs Microsoft Edge WebVie
 
 1. Download `Asimi-0.2.1-Setup-x64.exe` and the matching `.sha256` file from Releases.
 2. In PowerShell, run `Get-FileHash .\Asimi-0.2.1-Setup-x64.exe -Algorithm SHA256` and compare it with the published checksum.
-3. Open the installer, select a language, then choose an installation folder. The default is `%LOCALAPPDATA%\Programs\Asimi`. Choose **Browse** to use another folder.
+3. Close Asimi if you are upgrading. Other applications can stay open. Open the installer, select a language, then choose an installation folder. The default is `%LOCALAPPDATA%\Programs\Asimi`. Choose **Browse** to use another folder.
 4. Follow the prompts to install and create an optional desktop shortcut. Launch Asimi from Start or from the final installer screen.
 5. Choose your interface language and connect a model, or select **Set up later** to browse projects and history.
+
+The current installer is unsigned. Windows SmartScreen may show an unrecognized-app warning because it also checks publisher and file reputation. If you trust the release source and have checked the matching checksum, choose **More info → Run anyway** to continue. Signing future releases requires a publisher certificate; a signature alone does not guarantee that a new download will avoid warnings. [Microsoft SmartScreen guidance](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
 
 Use **Settings → Apps → Installed apps** to uninstall. Your settings and conversations are stored separately in `%LOCALAPPDATA%\Asimi`.
 

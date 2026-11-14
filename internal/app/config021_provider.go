@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"asimi/internal/ai"
 	"asimi/internal/credential"
@@ -30,6 +31,7 @@ type presetProviderState struct {
 	Preset              presetPreset   `json:"preset"`
 	Options             []presetOption `json:"options"`
 	ConfiguredModel     *ai.Model      `json:"configuredModel,omitempty"`
+	ProviderID          string         `json:"providerId"`
 	HasCredential       bool           `json:"hasCredential"`
 	VerifiedAt          string         `json:"verifiedAt,omitempty"`
 	DefaultProviderID   string         `json:"defaultProviderId"`
@@ -59,7 +61,8 @@ func presetDeepSeek() presetPreset {
 		ID: presetDeepSeekID,
 		Profile: ai.Profile{
 			Name: "DeepSeek", Protocol: ai.ChatCompletions, BaseURL: presetDeepSeekURL,
-			Enabled: true, Models: []ai.Model{model},
+			// Official model identifiers and modalities: https://api-docs.deepseek.com/api/list-models/
+			Enabled: true, Models: []ai.Model{model, presetModel("deepseek-v4-pro", false)},
 		},
 	}
 }
@@ -70,12 +73,18 @@ type presetProviderSnapshot struct {
 	revision string
 }
 
-func (s *Service) presetProviderLocked(preset presetPreset) (presetProviderSnapshot, error) {
+func (s *Service) presetProviderLocked(preset presetPreset, selectedIDs ...string) (presetProviderSnapshot, error) {
 	out := presetProviderSnapshot{state: presetProviderState{Preset: preset}}
+	modelID := ""
+	if len(selectedIDs) > 0 {
+		modelID = selectedIDs[0]
+	}
+	if err := validatePresetModelID(modelID); err != nil {
+		return out, err
+	}
 	for _, item := range providerPresets() {
 		out.state.Options = append(out.state.Options, presetOption{ID: item.ID, Name: item.Profile.Name})
 	}
-	modelID := preset.Profile.Models[0].ID
 	settings, err := s.aiSettingsLocked()
 	if err != nil {
 		return out, err
@@ -101,19 +110,35 @@ func (s *Service) presetProviderLocked(preset presetPreset) (presetProviderSnaps
 		if !p.Enabled || !matchesPresetEndpoint(p, preset.Profile) {
 			continue
 		}
-		for _, model := range p.Models {
-			if model.ID == modelID && model.Capabilities.Text == ai.Supported &&
-				(out.profile.ID == "" || p.ID == settings.DefaultProviderID ||
-					out.profile.ID != settings.DefaultProviderID && !out.profile.HasCredential && p.HasCredential) {
-				out.profile = p
-				out.state.ConfiguredModel = &model
-				break
-			}
+		if out.profile.ID == "" || p.ID == settings.DefaultProviderID ||
+			out.profile.ID != settings.DefaultProviderID && !out.profile.HasCredential && p.HasCredential {
+			out.profile = p
 		}
+	}
+	if modelID == "" {
+		modelID = preset.Profile.Models[0].ID
+		if out.profile.ID != "" && out.profile.ID == settings.DefaultProviderID && settings.DefaultModelID != "" {
+			modelID = settings.DefaultModelID
+		}
+	}
+	out.state.Preset.Profile.Models = mergePresetModels(preset.Profile.Models, out.profile.Models)
+	for i := range out.state.Preset.Profile.Models {
+		if out.state.Preset.Profile.Models[i].ID == modelID {
+			model := out.state.Preset.Profile.Models[i]
+			out.state.ConfiguredModel = &model
+			break
+		}
+	}
+	if out.state.ConfiguredModel == nil {
+		model := presetModel(modelID, false)
+		model.Capabilities.Vision = ai.Unknown
+		out.state.ConfiguredModel = &model
+		out.state.Preset.Profile.Models = append(out.state.Preset.Profile.Models, model)
 	}
 	if out.profile.ID == "" {
 		return out, nil
 	}
+	out.state.ProviderID = out.profile.ID
 	out.state.HasCredential = out.profile.HasCredential
 	var raw string
 	err = s.db.QueryRow("SELECT json,updated_at FROM ai_profiles WHERE id=? AND deleted=0", out.profile.ID).Scan(&raw, &out.revision)
@@ -122,18 +147,52 @@ func (s *Service) presetProviderLocked(preset presetPreset) (presetProviderSnaps
 	}
 	var metadata struct {
 		VerifiedAt       string `json:"presetVerifiedAt"`
+		VerifiedModelID  string `json:"presetVerifiedModelId"`
 		LegacyVerifiedAt string `json:"communityVerifiedAt"`
 	}
 	if err := json.Unmarshal([]byte(raw), &metadata); err != nil {
 		return out, err
 	}
-	if out.profile.HasCredential {
+	// Old preset and community connections always probed the first catalog model.
+	verifiedModelID := metadata.VerifiedModelID
+	if verifiedModelID == "" {
+		verifiedModelID = preset.Profile.Models[0].ID
+	}
+	if out.profile.HasCredential && modelID == verifiedModelID {
 		out.state.VerifiedAt = metadata.VerifiedAt
 		if out.state.VerifiedAt == "" && preset.ID == presetDeepSeekID {
 			out.state.VerifiedAt = metadata.LegacyVerifiedAt
 		}
 	}
 	return out, nil
+}
+
+func validatePresetModelID(modelID string) error {
+	if modelID == "" {
+		return nil
+	}
+	if strings.TrimSpace(modelID) == "" || len(modelID) > 256 || strings.IndexFunc(modelID, unicode.IsControl) >= 0 {
+		return codedError("INVALID_REQUEST")
+	}
+	return nil
+}
+
+// Saved models replace catalog metadata by ID so advanced overrides remain authoritative.
+func mergePresetModels(catalog, saved []ai.Model) []ai.Model {
+	models := append([]ai.Model(nil), catalog...)
+	indexes := make(map[string]int, len(models))
+	for i, model := range models {
+		indexes[model.ID] = i
+	}
+	for _, model := range saved {
+		if i, ok := indexes[model.ID]; ok {
+			models[i] = model
+		} else {
+			indexes[model.ID] = len(models)
+			models = append(models, model)
+		}
+	}
+	return models
 }
 
 func matchesPresetEndpoint(profile, preset ai.Profile) bool {
@@ -160,6 +219,7 @@ func requiresPresetCredential(profile ai.Profile) bool {
 func (s *Service) callPresetProvider(method, payload string) domain.Reply {
 	var request struct {
 		PresetID string `json:"presetId"`
+		ModelID  string `json:"modelId,omitempty"`
 		Secret   string `json:"secret,omitempty"`
 	}
 	if err := decode(payload, &request); err != nil {
@@ -169,19 +229,22 @@ func (s *Service) callPresetProvider(method, payload string) domain.Reply {
 	if !ok || (method == "ConnectPresetProvider" && request.PresetID == "") {
 		return fail("PROVIDER_UNAVAILABLE")
 	}
+	if err := validatePresetModelID(request.ModelID); err != nil {
+		return result(nil, err)
+	}
 	if method == "GetPresetProvider" {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.lifetime.Err() != nil {
 			return fail("SERVICE_CLOSED")
 		}
-		snapshot, err := s.presetProviderLocked(preset)
+		snapshot, err := s.presetProviderLocked(preset, request.ModelID)
 		return result(snapshot.state, err)
 	}
 	key := []byte(request.Secret)
 	request.Secret = ""
 	defer credential.Wipe(key)
-	state, err := s.connectPresetProvider(preset, key, probePresetProvider)
+	state, err := s.connectPresetProvider(preset, key, probePresetProvider, request.ModelID)
 	return result(state, err)
 }
 
@@ -198,7 +261,7 @@ func (s *Service) ConnectPresetAcceptance(key []byte) error {
 
 type presetProbe func(context.Context, ai.Profile, string, []byte) error
 
-func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe presetProbe) (presetProviderState, error) {
+func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe presetProbe, selectedIDs ...string) (presetProviderState, error) {
 	var empty presetProviderState
 	if len(key) > 8192 {
 		return empty, codedError("INVALID_API_KEY")
@@ -209,7 +272,7 @@ func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe p
 		}
 	}
 	replacingKey := len(key) > 0
-	snapshot, storedKey, err := s.presetProviderAttempt(preset, replacingKey)
+	snapshot, storedKey, err := s.presetProviderAttempt(preset, replacingKey, selectedIDs...)
 	if err != nil {
 		return empty, err
 	}
@@ -222,10 +285,11 @@ func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe p
 		profile = snapshot.state.Preset.Profile
 		profile.ID = newID()
 	}
+	modelID := snapshot.state.ConfiguredModel.ID
+	profile.Models = mergePresetModels(profile.Models, []ai.Model{*snapshot.state.ConfiguredModel})
 
 	ctx, cancel := context.WithTimeout(s.lifetime, presetTestTimeout)
 	defer cancel()
-	modelID := preset.Profile.Models[0].ID
 	if err := probe(ctx, profile, modelID, key); err != nil {
 		return empty, err
 	}
@@ -235,7 +299,7 @@ func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe p
 	if s.lifetime.Err() != nil {
 		return empty, codedError("SERVICE_CLOSED")
 	}
-	current, err := s.presetProviderLocked(preset)
+	current, err := s.presetProviderLocked(preset, modelID)
 	if err != nil {
 		return empty, err
 	}
@@ -250,7 +314,7 @@ func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe p
 
 	stamp := now()
 	err = s.transaction(func(tx *sql.Tx) error {
-		if err := persistPresetProfile(tx, profile, current.profile.ID == "", key, replacingKey, stamp); err != nil {
+		if err := persistPresetProfile(tx, profile, current.profile.ID == "", key, replacingKey, modelID, stamp); err != nil {
 			return err
 		}
 		if err := setResolvedDefaultModelLocked(tx, profile.ID, modelID); err != nil {
@@ -264,21 +328,19 @@ func (s *Service) connectPresetProvider(preset presetPreset, key []byte, probe p
 		return empty, err
 	}
 	out := current.state
-	if out.ConfiguredModel == nil {
-		out.ConfiguredModel = &profile.Models[0]
-	}
-	out.HasCredential, out.DefaultUsable, out.VerifiedAt = true, true, stamp
+	out.ProviderID = profile.ID
+	out.HasCredential, out.DefaultUsable, out.VerifiedAt = true, out.ConfiguredModel.Capabilities.Text == ai.Supported, stamp
 	out.DefaultProviderID, out.DefaultProviderName, out.DefaultModelID = profile.ID, profile.Name, modelID
 	return out, nil
 }
 
-func (s *Service) presetProviderAttempt(preset presetPreset, replacingKey bool) (presetProviderSnapshot, []byte, error) {
+func (s *Service) presetProviderAttempt(preset presetPreset, replacingKey bool, selectedIDs ...string) (presetProviderSnapshot, []byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.lifetime.Err() != nil {
 		return presetProviderSnapshot{}, nil, codedError("SERVICE_CLOSED")
 	}
-	snapshot, err := s.presetProviderLocked(preset)
+	snapshot, err := s.presetProviderLocked(preset, selectedIDs...)
 	if err != nil {
 		return snapshot, nil, err
 	}
@@ -298,17 +360,17 @@ func (s *Service) presetProviderAttempt(preset presetPreset, replacingKey bool) 
 	return snapshot, key, err
 }
 
-func persistPresetProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []byte, replacingKey bool, stamp string) error {
+func persistPresetProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []byte, replacingKey bool, modelID, stamp string) error {
 	if creating {
-		models := profile.Models
-		profile.Models = nil
-		if _, err := tx.Exec("INSERT INTO ai_profiles(id,json,created_at,updated_at) VALUES(?,?,?,?)", profile.ID, encode(profile), stamp, stamp); err != nil {
+		stored := profile
+		stored.Models = nil
+		if _, err := tx.Exec("INSERT INTO ai_profiles(id,json,created_at,updated_at) VALUES(?,?,?,?)", profile.ID, encode(stored), stamp, stamp); err != nil {
 			return err
 		}
-		for _, model := range models {
-			if _, err := tx.Exec("INSERT INTO ai_models(provider_id,id,json) VALUES(?,?,?)", profile.ID, model.ID, encode(model)); err != nil {
-				return err
-			}
+	}
+	for _, model := range profile.Models {
+		if _, err := tx.Exec("INSERT INTO ai_models(provider_id,id,json) VALUES(?,?,?) ON CONFLICT(provider_id,id) DO NOTHING", profile.ID, model.ID, encode(model)); err != nil {
+			return err
 		}
 	}
 	if replacingKey {
@@ -322,8 +384,8 @@ func persistPresetProfile(tx *sql.Tx, profile ai.Profile, creating bool, key []b
 			return err
 		}
 	}
-	_, err := tx.Exec("UPDATE ai_profiles SET json=json_set(json,'$.credentialId',?,'$.presetVerifiedAt',?),updated_at=? WHERE id=?",
-		profile.CredentialID, stamp, stamp, profile.ID)
+	_, err := tx.Exec("UPDATE ai_profiles SET json=json_set(json,'$.credentialId',?,'$.presetVerifiedAt',?,'$.presetVerifiedModelId',?),updated_at=? WHERE id=?",
+		profile.CredentialID, stamp, modelID, stamp, profile.ID)
 	return err
 }
 

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"asimi/internal/computer"
 )
 
 func (s *Service) initializeMVP() error {
@@ -25,6 +27,7 @@ func (s *Service) initializeMVP() error {
 			return e
 		}
 		rows, e := tx.Query(`SELECT json FROM agent_tasks WHERE status IN ('RUNNING','WAITING_APPROVAL')
+OR (status IN ('PAUSED','CANCELLED') AND json_extract(json,'$.desktop')=1)
 OR (status IN ('PAUSED','CANCELLED') AND EXISTS (SELECT 1 FROM product_actions WHERE task_id=agent_tasks.id AND status IN ('RECOVERY_REQUIRED','EXPIRED'))) `)
 		if e != nil {
 			return e
@@ -49,6 +52,22 @@ OR (status IN ('PAUSED','CANCELLED') AND EXISTS (SELECT 1 FROM product_actions W
 			return e
 		}
 		for _, t := range tasks {
+			if t.Desktop {
+				if len(t.Steps) != 2 {
+					return codedError("APPROVAL_MISMATCH")
+				}
+				var record computer.Record
+				err := tx.QueryRow("SELECT kind,status,code,updated_at,verified FROM computer_actions WHERE id=?", t.Steps[1].ActionID).
+					Scan(&record.Type, &record.Status, &record.Code, &record.At, &record.Verified)
+				if err != nil {
+					return err
+				}
+				record.ID = t.Steps[1].ActionID
+				if err := updateDesktopTask(tx, record); err != nil {
+					return err
+				}
+				continue
+			}
 			if t.Status != "CANCELLED" {
 				t.Status = "PAUSED"
 				t.Summary = "RECOVERY_REQUIRED"
@@ -134,7 +153,7 @@ func productEvent(q querier, a ProductAction, event string) error {
 }
 
 func (s *Service) expireMVP() error {
-	rows, e := s.db.Query("SELECT id FROM product_actions WHERE status='PENDING' AND expires_at<=?", now())
+	rows, e := s.db.Query("SELECT id FROM product_actions WHERE status='PENDING' AND julianday(expires_at)<=julianday('now')")
 	if e != nil {
 		return e
 	}
@@ -154,12 +173,89 @@ func (s *Service) expireMVP() error {
 		return e
 	}
 	for _, id := range ids {
-		if _, e = s.finishPendingAction(id, "EXPIRED", "APPROVAL_EXPIRED"); e != nil {
+		a, err := loadProductAction(s.db, id)
+		if err != nil {
+			return err
+		}
+		if validProductExpiry(a) {
+			continue
+		}
+		code := "APPROVAL_EXPIRED"
+		if a.TaskID != "" {
+			task, err := loadAgentTask(s.db, a.TaskID)
+			if err != nil {
+				return err
+			}
+			if task.Agent != nil && !task.Agent.Deadline.After(time.Now()) {
+				code = "AGENT_DEADLINE_EXCEEDED"
+			}
+		}
+		if _, e = s.finishPendingAction(id, "EXPIRED", code); e != nil {
 			return e
+		}
+	}
+	return s.expireAgentContextReviewsLocked()
+}
+
+func (s *Service) expireAgentContextReviewsLocked() error {
+	rows, err := s.db.Query(`SELECT json FROM agent_tasks WHERE status='NEEDS_REVIEW'
+		AND julianday(json_extract(json,'$.agent.deadline'))<=julianday('now')`)
+	if err != nil {
+		return err
+	}
+	var tasks []AgentTask
+	for rows.Next() {
+		var raw string
+		var task AgentTask
+		if err = rows.Scan(&raw); err != nil {
+			break
+		}
+		if err = json.Unmarshal([]byte(raw), &task); err != nil {
+			break
+		}
+		tasks = append(tasks, task)
+	}
+	if err == nil {
+		err = rows.Err()
+	}
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, task := range tasks {
+		if _, err := s.expireAgentReviewLocked(task); err != nil {
+			return err
 		}
 	}
 	return nil
 }
+
+// expireAgentReviewLocked closes review states without interrupting an active
+// worker or replaying an already consumed effect. The caller owns s.mvp.mu.
+func (s *Service) expireAgentReviewLocked(t AgentTask) (AgentTask, error) {
+	if t.Agent == nil || t.Agent.Deadline.After(time.Now()) || s.mvp.faults["task:"+t.ID] {
+		return t, nil
+	}
+	if t.Status == "WAITING_APPROVAL" && t.CurrentStep >= 0 && t.CurrentStep < len(t.Steps) {
+		id := t.Steps[t.CurrentStep].ActionID
+		if id != "" {
+			if _, err := s.finishPendingAction(id, "EXPIRED", "AGENT_DEADLINE_EXCEEDED"); err != nil {
+				return t, err
+			}
+			return loadAgentTask(s.db, t.ID)
+		}
+	}
+	if t.Status != "NEEDS_REVIEW" {
+		return t, nil
+	}
+	t.Status, t.Summary, t.UpdatedAt = "FAILED", "AGENT_DEADLINE_EXCEEDED", now()
+	err := s.transaction(func(tx *sql.Tx) error { return saveAgentTask(tx, t) })
+	if err == nil {
+		s.changed("", t.ID)
+	}
+	return t, err
+}
+
 func validProductExpiry(a ProductAction) bool {
 	expiry, e := time.Parse(time.RFC3339Nano, a.ExpiresAt)
 	return e == nil && time.Now().Before(expiry)

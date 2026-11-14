@@ -14,6 +14,8 @@ import (
 const agent02MaxFiles = 4
 
 type agent02Run struct {
+	Acceptance          *agentAcceptance           `json:"acceptance,omitempty"`
+	Verification        *agentVerification         `json:"verification,omitempty"`
 	ProviderID          string                     `json:"providerId"`
 	ModelID             string                     `json:"modelId"`
 	BoundWorkspace      string                     `json:"boundWorkspace"`
@@ -28,16 +30,17 @@ type agent02Run struct {
 }
 
 type agent02Round struct {
-	Version      int          `json:"version"`
-	Status       string       `json:"status"`
-	ContextHash  string       `json:"contextHash"`
-	Files        []string     `json:"files"`
-	Plan         *agent02Plan `json:"plan,omitempty"`
-	ActionID     string       `json:"actionId,omitempty"`
-	Error        string       `json:"error,omitempty"`
-	DurationMS   int64        `json:"durationMs"`
-	Usage        ai.Usage     `json:"usage"`
-	EstimatedUSD *float64     `json:"estimatedUsd"`
+	Skill        *agentSkillDispatch `json:"skill,omitempty"`
+	Version      int                 `json:"version"`
+	Status       string              `json:"status"`
+	ContextHash  string              `json:"contextHash"`
+	Files        []string            `json:"files"`
+	Plan         *agent02Plan        `json:"plan,omitempty"`
+	ActionID     string              `json:"actionId,omitempty"`
+	Error        string              `json:"error,omitempty"`
+	DurationMS   int64               `json:"durationMs"`
+	Usage        ai.Usage            `json:"usage"`
+	EstimatedUSD *float64            `json:"estimatedUsd"`
 }
 
 type agent02CreateInput struct {
@@ -140,7 +143,8 @@ func (s *Service) createAgent02(input agent02CreateInput) (AgentTask, error) {
 		return AgentTask{}, codedError("SERVICE_CLOSED")
 	}
 	stamp := now()
-	t := AgentTask{ID: newID(), WorkspaceID: w.ID, Goal: goal, Status: "NEEDS_REVIEW", Summary: "AGENT_CONTEXT_REVIEW", CreatedAt: stamp, UpdatedAt: stamp, Steps: []AgentStep{}, Agent: &agent02Run{ProviderID: input.ProviderID, ModelID: input.ModelID, BoundWorkspace: identity, Paths: input.Paths, Deadline: time.Now().UTC().Add(time.Duration(resolved.Agent.RunSeconds) * time.Second), Rounds: []agent02Round{}, Limits: &resolved.Agent, Exclusions: input.Exclusions}}
+	acceptance := agentAcceptanceForGoal(goal)
+	t := AgentTask{ID: newID(), WorkspaceID: w.ID, Goal: goal, Status: "NEEDS_REVIEW", Summary: "AGENT_CONTEXT_REVIEW", CreatedAt: stamp, UpdatedAt: stamp, Steps: []AgentStep{}, Agent: &agent02Run{Acceptance: &acceptance, ProviderID: input.ProviderID, ModelID: input.ModelID, BoundWorkspace: identity, Paths: input.Paths, Deadline: time.Now().UTC().Add(time.Duration(resolved.Agent.RunSeconds) * time.Second), Rounds: []agent02Round{}, Limits: &resolved.Agent, Exclusions: input.Exclusions}}
 	err = s.transaction(func(tx *sql.Tx) error { return saveAgentTask(tx, t) })
 	if err == nil {
 		s.changed("", t.ID)
@@ -188,6 +192,13 @@ func (s *Service) resumeAgent02Locked(t AgentTask, acknowledge bool) (AgentTask,
 		if t.Agent.Rounds[i].Status == "RUNNING" {
 			t.Agent.Rounds[i].Status = "INTERRUPTED"
 		}
+	}
+	if !t.Agent.Deadline.After(time.Now()) {
+		return t, codedError("AGENT_DEADLINE_EXCEEDED")
+	}
+	if t.Agent.Acceptance == nil {
+		acceptance := agentAcceptanceForGoal(t.Goal)
+		t.Agent.Acceptance = &acceptance
 	}
 	t.Status = "NEEDS_REVIEW"
 	t.Summary = "AGENT_CONTEXT_REVIEW"

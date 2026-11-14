@@ -249,6 +249,8 @@
     "UNKNOWN": "未知"
   },
   "security": {
+    "desktopStopped": "已停止",
+    "recoveryActions": "待核对动作",
     "title": "安全中心",
     "subtitle": "透明权限，确切审批，本地证据。",
     "overview": "权限概览",
@@ -305,6 +307,11 @@
     "lastActivity": "最近活动"
   },
   "settings": {
+    "savedLanguage": "界面语言已保存。",
+    "savedReplyLanguage": "回复语言已保存。",
+    "savedTheme": "外观已保存。",
+    "savedMode": "界面模式已保存。",
+    "savedStartup": "启动偏好已保存。",
     "interfaceMode": "界面模式",
     "interfaceModeHint": "选择 Asimi 显示的工具和菜单。",
     "standardMode": "普通模式",
@@ -345,6 +352,7 @@
     "go": "Go 运行时",
     "wails": "Wails 运行时",
     "saved": "设置已保存。",
+    "savedDefaultModel": "默认模型已保存。",
     "saving": "保存中…"
   },
   "future": {
@@ -542,6 +550,11 @@
     "AGENT_FILE_NOT_REVIEWED": "建议的补丁与已审阅上下文中的完整可编辑文件不匹配。",
     "AGENT_SENSITIVE_PATCH": "补丁内容疑似包含凭据，无法通过 Agent 任务提出。",
     "AGENT_EMPTY_PATCH": "提案内容与当前文件一致。",
+    "AGENT_DEADLINE_EXCEEDED": "任务已达到截止时间。",
+    "AGENT_EVIDENCE_MISSING": "任务缺少必要证据，请查看完成条件。",
+    "AGENT_STEP_UNSUPPORTED": "此步骤目前无法执行。",
+    "DESKTOP_VERIFIED": "桌面操作已通过独立验证。",
+    "DESKTOP_VERIFYING": "正在检查已批准的桌面操作。",
     "AGENT_BUDGET_EXHAUSTED": "此任务已达到时间、请求次数或估算费用上限。",
     "AGENT_PRICING_REQUIRED": "请先为该模型配置以美元计价的输入与输出费率。",
     "AGENT_FILE_SCOPE_LIMIT": "任务已达到源文件数量上限。",
@@ -590,6 +603,18 @@
       "lastMonth": "上个月",
       "allTime": "累计"
     }
+  },
+  "providerCustom": {
+    "title": "我的服务",
+    "add": "添加服务",
+    "connected": "已保存的服务",
+    "edit": "编辑模型",
+    "name": "服务名称",
+    "endpoint": "服务地址",
+    "model": "模型名称",
+    "save": "保存并使用",
+    "saved": "服务已保存，已选为新会话的默认模型。",
+    "hint": "填写服务商提供的 API 地址和模型名称，密钥在本机加密保存。新增模型先用于文字对话，确认支持图片后才会启用图片输入。"
   },
   "ai": {
     "keyboardHint": "Enter 发送 · Shift+Enter 换行",
@@ -852,6 +877,8 @@
     "unstructured": "供应商返回了文字回复。"
   },
   "control": {
+    "proposeTaskValue": "创建设置文本任务",
+    "proposeTaskInvoke": "创建控件操作任务",
     "title": "电脑控制",
     "permissionMode": "每个动作均需单独批准",
     "checkingStatus": "正在检查控制能力…",
@@ -984,6 +1011,7 @@
     "notepadUnsupported": "当前窗口不符合写入条件。已有文字、多个编辑器、仅有 TextPattern 或只读的编辑器均不能编辑。"
   },
   "product": {
+    "desktopTask": "桌面操作",
     "agentTasks": "Agent 任务",
     "welcome": "欢迎使用 Asimi",
     "homeIntro": "在本地工作台中连接电脑、项目与 AI。配置模型或离线开始，每个操作都由你掌控。",
@@ -1179,6 +1207,29 @@
     "gitUnknown": "无法读取 Git 状态。请核对当前文件和差异后再审批。"
   },
   "agent02": {
+    "localSkill": "本地技能 {name} v{version} 准备 {command}。执行命令需要单独审批。",
+    "prepareLocalSkill": "准备技能动作",
+    "acceptance": "完成条件",
+    "legacyAcceptance": "此任务创建时尚未启用基于证据的完成判定。",
+    "evidence": "证据引用",
+    "requirement": {
+      "read": "读取相关项目资料并给出分析。",
+      "repair": "应用所需修改，独立读回验证，并通过相关测试。",
+      "test": "运行指定的注册测试并确认退出结果。",
+      "clarify": "请明确任务要达成的结果，以便 Asimi 验证。"
+    },
+    "condition": {
+      "read": "项目读取证据",
+      "file": "已验证的文件修改",
+      "test": "通过的测试",
+      "recovery": "结果待确认的动作",
+      "clarify": "明确任务目标"
+    },
+    "evidenceStatus": {
+      "SATISFIED": "已满足",
+      "MISSING": "缺少证据",
+      "UNKNOWN": "待核对"
+    },
     "create": "启动模型驱动任务",
     "paths": "相关工作区路径（可选，最多四个，每行一个）",
     "review": "审阅下一次模型请求",

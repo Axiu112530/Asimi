@@ -70,3 +70,5 @@ build/notepad-native/
 !/docs/release/evidence/package.json
 !/docs/release/evidence/final-checks.json
 
+# Versioned build and package output.
+/build/releases/

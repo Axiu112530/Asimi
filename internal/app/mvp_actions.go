@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 
 	"asimi/internal/command"
@@ -46,7 +47,7 @@ func (s *Service) prepareProduct(workspaceID, taskID, kind, path, content, comma
 			return ProductAction{}, err
 		}
 		p.File = &v
-		recordGitFileContext(&p)
+		recordGitFileContext(s.lifetime, &p)
 	case "command":
 		v, err := command.Prepare(commandID, args, w.Root, network)
 		if err != nil {
@@ -94,8 +95,8 @@ func (s *Service) prepareProduct(workspaceID, taskID, kind, path, content, comma
 	return a, e
 }
 
-func recordGitFileContext(proposal *ProductProposal) {
-	git, err := developer.ReadGitContext(proposal.Root)
+func recordGitFileContext(ctx context.Context, proposal *ProductProposal) {
+	git, err := developer.ReadGitContextUntil(ctx, proposal.Root)
 	if err != nil {
 		proposal.GitStatus = "ERROR"
 		return
@@ -185,7 +186,11 @@ func finishAgentAction(q querier, a ProductAction) error {
 		t.Summary = "ACTION_VERIFIED"
 	}
 	if t.Agent != nil && t.Status != "PAUSED" && t.Status != "CANCELLED" && a.Status != "EXECUTING" {
+		t.Agent.Verification = nil
 		t.Status = "NEEDS_REVIEW"
+		if a.Error == "AGENT_DEADLINE_EXCEEDED" || !t.Agent.Deadline.After(time.Now()) {
+			t.Status, t.Summary = "FAILED", "AGENT_DEADLINE_EXCEEDED"
+		}
 	}
 	t.UpdatedAt = now()
 	return saveAgentTask(q, t)
@@ -197,6 +202,10 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 	if e != nil {
 		s.mvp.mu.Unlock()
 		return a, e
+	}
+	if a.Status == "EXPIRED" && a.Error == "AGENT_DEADLINE_EXCEEDED" && hash == a.Hash {
+		s.mvp.mu.Unlock()
+		return a, codedError(a.Error)
 	}
 	var immutable ProductAction
 	raw, ok := s.mvp.immutable[id]
@@ -212,6 +221,25 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 		s.mvp.mu.Unlock()
 		return a, codedError("COMMAND_NETWORK_CONSENT")
 	}
+	var deadline time.Time
+	if a.TaskID != "" {
+		task, err := loadAgentTask(s.db, a.TaskID)
+		if err != nil {
+			s.mvp.mu.Unlock()
+			return a, err
+		}
+		if task.Agent != nil {
+			deadline = task.Agent.Deadline
+			if !deadline.After(time.Now()) {
+				a, err = s.finishPendingAction(id, "EXPIRED", "AGENT_DEADLINE_EXCEEDED")
+				s.mvp.mu.Unlock()
+				if err == nil {
+					err = codedError("AGENT_DEADLINE_EXCEEDED")
+				}
+				return a, err
+			}
+		}
+	}
 	if !validProductExpiry(a) {
 		a, e = s.finishPendingAction(id, "EXPIRED", "APPROVAL_EXPIRED")
 		s.mvp.mu.Unlock()
@@ -220,7 +248,13 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 		}
 		return a, e
 	}
-	ctx, cancel := context.WithCancel(s.lifetime)
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if deadline.IsZero() {
+		ctx, cancel = context.WithCancel(s.lifetime)
+	} else {
+		ctx, cancel = context.WithDeadline(s.lifetime, deadline)
+	}
 	epoch := s.mvpGeneration()
 	if ctx.Err() != nil || !s.mvpAdmission(epoch, a.TaskID) {
 		cancel()
@@ -230,8 +264,14 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 	a.Status = "EXECUTING"
 	a.UpdatedAt = now()
 	e = s.transaction(func(tx *sql.Tx) error {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return codedError("AGENT_DEADLINE_EXCEEDED")
+		}
 		// Exact hash, expiry, single CAS consumption and durable intent are one commit.
-		r, err := tx.Exec("UPDATE product_actions SET status='EXECUTING',consumed=1,updated_at=? WHERE id=? AND status='PENDING' AND consumed=0 AND hash=? AND expires_at>?", a.UpdatedAt, a.ID, hash, now())
+		if !validProductExpiry(a) {
+			return codedError("APPROVAL_EXPIRED")
+		}
+		r, err := tx.Exec("UPDATE product_actions SET status='EXECUTING',consumed=1,updated_at=? WHERE id=? AND status='PENDING' AND consumed=0 AND hash=? AND expires_at=?", a.UpdatedAt, a.ID, hash, a.ExpiresAt)
 		if err != nil {
 			return err
 		}
@@ -251,10 +291,22 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 				return codedError("TASK_STATE")
 			}
 			if t.Agent != nil {
+				if !t.Agent.Deadline.Equal(deadline) || !t.Agent.Deadline.After(time.Now()) {
+					return codedError("AGENT_DEADLINE_EXCEEDED")
+				}
 				version := a.Proposal.PlanVersion
 				if a.Proposal.PolicyVersion != agent02Policy || version != len(t.Agent.Rounds) || version < 1 || t.Agent.Rounds[version-1].ActionID != a.ID || t.CurrentStep < 0 || t.CurrentStep >= len(t.Steps) || t.Steps[t.CurrentStep].ID != a.Proposal.StepID || t.Steps[t.CurrentStep].ActionID != a.ID {
 					return codedError("APPROVAL_MISMATCH")
 				}
+			}
+		}
+		if skill := a.Proposal.Skill; skill != nil {
+			cmd := a.Proposal.Command
+			if cmd == nil || cmd.ID != skill.Tool || !slices.Equal(cmd.Args, append([]string{"test"}, skill.Args...)) {
+				return codedError("APPROVAL_MISMATCH")
+			}
+			if err := validateAgentSkillDispatch(tx, a.Proposal.WorkspaceID, skill); err != nil {
+				return err
 			}
 		}
 		if _, err = tx.Exec("INSERT INTO product_action_intents(action_id,proposal_json,hash,created_at,updated_at) VALUES(?,?,?,?,?)", a.ID, encode(a.Proposal), hash, now(), now()); err != nil {
@@ -263,10 +315,25 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 		if err = productEvent(tx, a, "CONSUMED"); err != nil {
 			return err
 		}
-		return finishAgentAction(tx, a)
+		if err = finishAgentAction(tx, a); err != nil {
+			return err
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return codedError("AGENT_DEADLINE_EXCEEDED")
+		}
+		if !validProductExpiry(a) {
+			return codedError("APPROVAL_EXPIRED")
+		}
+		return nil
 	})
 	if e != nil {
 		cancel()
+		if code := errorCode(e); code == "AGENT_DEADLINE_EXCEEDED" || code == "APPROVAL_EXPIRED" || code == "COGNITION_REVIEW_STALE" {
+			a, e = s.finishPendingAction(id, "EXPIRED", code)
+			if e == nil {
+				e = codedError(code)
+			}
+		}
 		s.mvp.mu.Unlock()
 		return a, e
 	}
@@ -321,7 +388,11 @@ func (s *Service) approveProduct(id, hash string, networkConsent ...bool) (Produ
 	if effectErr != nil {
 		a.Status = "FAILED"
 		a.Error = errorCode(effectErr)
-		if ctx.Err() != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			if a.Error != "UNKNOWN_RESULT" && a.Error != "FILE_RECOVERY_REQUIRED" {
+				a.Error = "AGENT_DEADLINE_EXCEEDED"
+			}
+		} else if ctx.Err() != nil {
 			a.Status = "CANCELLED"
 		}
 		if a.Error == "UNKNOWN_RESULT" || a.Error == "CONTROL_UNKNOWN_RESULT" || a.Error == "FILE_RECOVERY_REQUIRED" {

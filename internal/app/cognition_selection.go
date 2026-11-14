@@ -41,6 +41,16 @@ func (s *Service) setAgentCognitionCorrection(payload string) (AgentTask, error)
 	if task.Agent == nil || task.Status != "NEEDS_REVIEW" {
 		return task, codedError("TASK_STATE")
 	}
+	// Clarification may establish an unknown acceptance contract, but must
+	// not silently weaken a contract already attached to the original goal.
+	if task.Agent.Acceptance == nil || task.Agent.Acceptance.Kind == "clarify" {
+		acceptance := agentAcceptanceForGoal(task.Goal)
+		if acceptance.Kind == "clarify" {
+			acceptance = agentAcceptanceForGoal(in.Correction)
+		}
+		task.Agent.Acceptance = &acceptance
+	}
+	task.Agent.Verification = nil
 	task.Agent.CognitionCorrection = in.Correction
 	task.UpdatedAt = now()
 	err = s.transaction(func(tx *sql.Tx) error {

@@ -287,12 +287,20 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 				return codedError("TASK_CONTEXT_CHANGED")
 			}
 		}
-		if create {
-			title := []rune(c.Title)
-			if len(title) > 80 {
-				title = title[:80]
+		title := conversationTitle(in.Content)
+		if title == "" && hasImages {
+			title = "Image discussion"
+			if strings.HasPrefix(lang, "zh") {
+				title = "图片分析"
 			}
-			if _, e := tx.Exec("INSERT INTO conversations(id,title,created_at,updated_at) VALUES(?,?,?,?)", c.ID, string(title), c.CreatedAt, c.UpdatedAt); e != nil {
+		}
+		if create {
+			if _, e := tx.Exec("INSERT INTO conversations(id,title,created_at,updated_at) VALUES(?,?,?,?)", c.ID, title, c.CreatedAt, c.UpdatedAt); e != nil {
+				return e
+			}
+		}
+		if !create && strings.TrimSpace(c.Title) == "" && !test {
+			if _, e := tx.Exec("UPDATE conversations SET title=? WHERE id=? AND TRIM(title)=''", title, c.ID); e != nil {
 				return e
 			}
 		}

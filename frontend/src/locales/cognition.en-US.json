@@ -1,5 +1,9 @@
 {
   "cognition": {
+    "proposedMemory": "Proposed preference",
+    "acceptPreference": "Use the new preference",
+    "keepPreference": "Keep the current preference",
+    "executableGoCheck": "After a verified Go edit, this workflow prepares a test for the changed package and waits for command approval.",
     "memoryPage": "Memory",
     "growthPage": "Agent growth",
     "recentSkills": "Recent local skills",

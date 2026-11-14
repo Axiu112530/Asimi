@@ -28,6 +28,9 @@ type controlState struct {
 	signalMu     sync.Mutex
 	working      bool
 	cancel       context.CancelFunc
+
+	// Nil uses the OS reader, sampled only during an approved action.
+	escapePressed func() bool
 }
 
 func (c *controlState) time() time.Time {
@@ -119,13 +122,19 @@ func (s *Service) callControl(method, payload string) (domain.Reply, bool) {
 			available = d.Available()
 		}
 		c.mu.Lock()
+		if err := s.expireControlPending(); err != nil {
+			c.mu.Unlock()
+			return result(nil, err), true
+		}
+		working := c.working
 		notepadText := false
 		if o := c.observation; o != nil {
 			stamp, err := time.Parse(chatTimeFormat, o.ObservedAt)
 			notepadText = err == nil && c.time().Sub(stamp) <= time.Minute && computer.NotepadTextTarget(*o, "")
 		}
 		c.mu.Unlock()
-		return result(map[string]any{"stopped": stopped, "available": available, "permissionMode": "PER_ACTION_APPROVAL", "rawInput": false, "notepadText": available && !stopped && notepadText, "notepadTextStatus": "CONDITIONAL"}, nil), true
+		nativeEscape := nativeControlEscapeAvailable()
+		return result(map[string]any{"stopped": stopped, "available": available, "working": working, "nativeEscape": nativeEscape, "escapeAvailable": available && working && nativeEscape && !stopped, "permissionMode": "PER_ACTION_APPROVAL", "rawInput": false, "notepadText": available && !stopped && notepadText, "notepadTextStatus": "CONDITIONAL"}, nil), true
 	case "StopComputerControl":
 		return result(true, s.stopDesktopControl()), true
 	case "ResumeComputerControl":
@@ -198,87 +207,14 @@ func (s *Service) callControl(method, payload string) (domain.Reply, bool) {
 		c.observation = &observation
 		return result(observation, nil), true
 	case "ProposeControlAction":
-		var q struct {
-			Type          computer.ActionType `json:"type"`
-			ObservationID string              `json:"observationId"`
-			ElementID     string              `json:"elementId"`
-			Text          string              `json:"text"`
-			TaskID        string              `json:"taskId"`
-		}
-		if e := decode(payload, &q); e != nil {
-			return fail(errorCode(e)), true
+		var q desktopTaskInput
+		if err := decode(payload, &q); err != nil || q.WorkspaceID != "" {
+			return fail("INVALID_REQUEST"), true
 		}
 		c.mu.Lock()
-		defer c.mu.Unlock()
-		if c.halted.Load() || s.lifetime.Err() != nil {
-			return fail("CONTROL_STOPPED"), true
-		}
-		if e := s.expireControlPending(); e != nil {
-			return result(nil, e), true
-		}
-		if c.working || c.pending != nil {
-			return fail("CONTROL_BUSY"), true
-		}
-		p := computer.Proposal{ID: newID(), TaskID: q.TaskID, Type: q.Type, Text: q.Text, PolicyVersion: computer.PolicyVersion, Status: "AWAITING_APPROVAL", ObservedAt: c.time().Format(chatTimeFormat), ExpiresAt: c.time().Add(45 * time.Second).Format(chatTimeFormat)}
-		if q.Type == computer.LaunchHost {
-			if q.ObservationID != "" || q.ElementID != "" || q.Text != "" || q.TaskID != "" {
-				return fail("CONTROL_ACTION_DENIED"), true
-			}
-			p.Expected = "HOST_VISIBLE"
-		} else {
-			o := c.observation
-			if o == nil || o.ID != q.ObservationID || o.Modal || o.Truncated {
-				return fail("CONTROL_STALE_TARGET"), true
-			}
-			observed, e := time.Parse(chatTimeFormat, o.ObservedAt)
-			if e != nil || c.time().Sub(observed) > time.Minute {
-				return fail("CONTROL_STALE_TARGET"), true
-			}
-			if o.Window.App != computer.TestHost && o.Window.App != computer.Notepad {
-				return fail("CONTROL_ACTION_DENIED"), true
-			}
-			if o.Window.App == computer.Notepad && (q.Type != computer.SetValue && q.Type != computer.TypeText || !computer.NotepadTextTarget(*o, q.ElementID)) {
-				return fail("CONTROL_ACTION_DENIED"), true
-			}
-			w := o.Window
-			p.Window = &w
-			if q.Type == computer.Focus {
-				if q.ElementID != "" || q.Text != "" {
-					return fail("CONTROL_ACTION_DENIED"), true
-				}
-				p.Expected = "TARGET_FOREGROUND"
-			} else {
-				for _, element := range o.Elements {
-					if element.ID == q.ElementID {
-						copy := element
-						p.Element = &copy
-						break
-					}
-				}
-				if !validControlAction(p) {
-					return fail("CONTROL_ACTION_DENIED"), true
-				}
-				if q.Type == computer.Invoke {
-					if p.Element.AutomationID == "SubmitButton" {
-						p.Expected = "TEST_SUBMITTED"
-					} else {
-						p.Expected = "TEST_RESET"
-					}
-				} else {
-					if !computer.ValidateText(q.Text) {
-						return fail("CONTROL_INPUT_REJECTED"), true
-					}
-					p.Expected = "TEXT_MATCH"
-				}
-			}
-		}
-		p.TargetHash = controlTargetHash(p)
-		p.Hash = proposalHash(p)
-		if e := saveControlProposal(s.db, p); e != nil {
-			return result(nil, e), true
-		}
-		c.pending = &p
-		return result(p, nil), true
+		p, err := s.proposeControlLocked(q, nil)
+		c.mu.Unlock()
+		return result(p, err), true
 	case "ApproveControlAction", "RejectControlAction":
 		var q struct {
 			ActionID   string `json:"actionId"`
@@ -291,6 +227,85 @@ func (s *Service) callControl(method, payload string) (domain.Reply, bool) {
 		return result(row, e), true
 	}
 	return fail("CONTROL_ACTION_DENIED"), true
+}
+
+func (s *Service) proposeControlLocked(q desktopTaskInput, task *AgentTask) (computer.Proposal, error) {
+	c := &s.desktopControl
+	if c.halted.Load() || s.lifetime.Err() != nil {
+		return computer.Proposal{}, codedError("CONTROL_STOPPED")
+	}
+	if e := s.expireControlPending(); e != nil {
+		return computer.Proposal{}, e
+	}
+	if c.working || c.pending != nil {
+		return computer.Proposal{}, codedError("CONTROL_BUSY")
+	}
+	p := computer.Proposal{ID: newID(), TaskID: q.TaskID, Type: q.Type, Text: q.Text, PolicyVersion: computer.PolicyVersion, Status: "AWAITING_APPROVAL", ObservedAt: c.time().Format(chatTimeFormat), ExpiresAt: c.time().Add(45 * time.Second).Format(chatTimeFormat)}
+	if q.Type == computer.LaunchHost {
+		if q.ObservationID != "" || q.ElementID != "" || q.Text != "" || q.TaskID != "" {
+			return computer.Proposal{}, codedError("CONTROL_ACTION_DENIED")
+		}
+		p.Expected = "HOST_VISIBLE"
+	} else {
+		o := c.observation
+		if o == nil || o.ID != q.ObservationID || o.Modal || o.Truncated {
+			return computer.Proposal{}, codedError("CONTROL_STALE_TARGET")
+		}
+		observed, e := time.Parse(chatTimeFormat, o.ObservedAt)
+		if e != nil || c.time().Sub(observed) > time.Minute {
+			return computer.Proposal{}, codedError("CONTROL_STALE_TARGET")
+		}
+		if o.Window.App != computer.TestHost && o.Window.App != computer.Notepad {
+			return computer.Proposal{}, codedError("CONTROL_ACTION_DENIED")
+		}
+		if o.Window.App == computer.Notepad && (q.Type != computer.SetValue && q.Type != computer.TypeText || !computer.NotepadTextTarget(*o, q.ElementID)) {
+			return computer.Proposal{}, codedError("CONTROL_ACTION_DENIED")
+		}
+		if task != nil {
+			p.HarnessTask = true
+			p.ObservationID = o.ID
+			p.ObservedAt = o.ObservedAt
+			p.ExpiresAt = minTime(c.time().Add(45*time.Second), observed.Add(time.Minute)).Format(chatTimeFormat)
+		}
+		w := o.Window
+		p.Window = &w
+		if q.Type == computer.Focus {
+			if q.ElementID != "" || q.Text != "" {
+				return computer.Proposal{}, codedError("CONTROL_ACTION_DENIED")
+			}
+			p.Expected = "TARGET_FOREGROUND"
+		} else {
+			for _, element := range o.Elements {
+				if element.ID == q.ElementID {
+					copy := element
+					p.Element = &copy
+					break
+				}
+			}
+			if !validControlAction(p) {
+				return computer.Proposal{}, codedError("CONTROL_ACTION_DENIED")
+			}
+			if q.Type == computer.Invoke {
+				if p.Element.AutomationID == "SubmitButton" {
+					p.Expected = "TEST_SUBMITTED"
+				} else {
+					p.Expected = "TEST_RESET"
+				}
+			} else {
+				if !computer.ValidateText(q.Text) {
+					return computer.Proposal{}, codedError("CONTROL_INPUT_REJECTED")
+				}
+				p.Expected = "TEXT_MATCH"
+			}
+		}
+	}
+	p.TargetHash = controlTargetHash(p)
+	p.Hash = proposalHash(p)
+	if e := saveControlProposalSource(s.db, p, nil, task); e != nil {
+		return computer.Proposal{}, e
+	}
+	c.pending = &p
+	return p, nil
 }
 
 func validControlWindow(w computer.Window) bool {
@@ -349,6 +364,9 @@ func (s *Service) decideControl(id, hash string, approve bool) (computer.Record,
 		e = finishControl(s.db, row, "AWAITING_APPROVAL")
 		if e == nil {
 			c.pending = nil
+			if p.TaskID != "" {
+				s.changed("", p.TaskID)
+			}
 		}
 		c.mu.Unlock()
 		if e != nil {
@@ -361,17 +379,31 @@ func (s *Service) decideControl(id, hash string, approve bool) (computer.Record,
 		e = finishControl(s.db, row, "AWAITING_APPROVAL")
 		if e == nil {
 			c.pending = nil
+			if p.TaskID != "" {
+				s.changed("", p.TaskID)
+			}
 		}
 		c.mu.Unlock()
 		return row, e
+	}
+	managed := p.HarnessTask
+	epoch := s.mvpGeneration()
+	if managed && !s.mvpAdmission(epoch, p.TaskID) {
+		c.mu.Unlock()
+		return computer.Record{}, codedError("CONTROL_STOPPED")
 	}
 	if e = saveControlApproval(s.db, p, stamp.Format(chatTimeFormat)); e != nil {
 		c.mu.Unlock()
 		return computer.Record{}, e
 	}
 	ctx, cancel := context.WithTimeout(s.lifetime, 20*time.Second)
+	if managed {
+		cancel()
+		ctx, cancel = context.WithDeadline(s.lifetime, desktopExecutionDeadline(expiry))
+		s.registerMVPControl("effect:"+p.TaskID, cancel, epoch, p.TaskID)
+	}
 	c.pending = nil
-	if p.Window != nil && p.Window.App == computer.Notepad {
+	if p.Window != nil && p.Window.App == computer.Notepad && p.ObservationID == "" {
 		c.observation = nil
 	}
 	c.working = true
@@ -379,13 +411,22 @@ func (s *Service) decideControl(id, hash string, approve bool) (computer.Record,
 	c.cancel = cancel
 	c.signalMu.Unlock()
 	driver := c.driver
+	escapePressed := c.escapePressed
 	c.mu.Unlock()
+	if escapePressed == nil {
+		escapePressed = nativeControlEscapeReader()
+	}
+	stopEscape := watchControlEscape(ctx, escapePressed, c.signalStop)
 	defer func() {
 		cancel()
+		stopEscape()
 		c.mu.Lock()
 		c.signalMu.Lock()
 		c.cancel = nil
 		c.signalMu.Unlock()
+		if managed {
+			s.removeMVPControl("effect:" + p.TaskID)
+		}
 		if p.TaskID != "" {
 			// A new task-linked action requires an observation made after this
 			// effect settles, including when the result could not be verified.
@@ -397,10 +438,20 @@ func (s *Service) decideControl(id, hash string, approve bool) (computer.Record,
 	before := "REVALIDATING"
 	finish := func(status, code string, verified bool) (computer.Record, error) {
 		row := computer.Record{ID: p.ID, Type: p.Type, Status: status, Code: code, Verified: verified, At: time.Now().UTC().Format(chatTimeFormat)}
-		return row, finishControl(s.db, row, before)
+		err := finishControl(s.db, row, before)
+		if err == nil && p.TaskID != "" {
+			s.changed("", p.TaskID)
+		}
+		return row, err
+	}
+	if ctx.Err() != nil {
+		return finish("CANCELLED", "CONTROL_STOPPED", false)
 	}
 	if p.Window != nil {
 		o, err := driver.Inspect(ctx, *p.Window)
+		if ctx.Err() != nil {
+			return finish("CANCELLED", "CONTROL_STOPPED", false)
+		}
 		if err != nil {
 			return finish("STALE_TARGET", driverCode(err, "CONTROL_STALE_TARGET"), false)
 		}
@@ -423,7 +474,7 @@ func (s *Service) decideControl(id, hash string, approve bool) (computer.Record,
 		}
 	}
 	c.mu.Lock()
-	if c.halted.Load() || ctx.Err() != nil {
+	if c.halted.Load() || ctx.Err() != nil || (managed && !s.mvpAdmission(epoch, p.TaskID)) {
 		c.mu.Unlock()
 		return finish("CANCELLED", "CONTROL_STOPPED", false)
 	}
@@ -505,6 +556,9 @@ func (s *Service) stopDesktopControl() error {
 	// An in-memory authorization is revoked even if its cancellation cannot be
 	// persisted. Startup recovery will invalidate the remaining durable row.
 	c.pending = nil
+	if e == nil && p.TaskID != "" {
+		s.changed("", p.TaskID)
+	}
 	return e
 }
 
@@ -522,6 +576,9 @@ func (s *Service) expireControlPending() error {
 	e = finishControl(s.db, computer.Record{ID: p.ID, Type: p.Type, Status: "EXPIRED", Code: "CONTROL_EXPIRED", At: c.time().Format(chatTimeFormat)}, "AWAITING_APPROVAL")
 	if e == nil {
 		c.pending = nil
+		if p.TaskID != "" {
+			s.changed("", p.TaskID)
+		}
 	}
 	return e
 }

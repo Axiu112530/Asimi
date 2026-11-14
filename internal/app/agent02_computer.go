@@ -17,7 +17,7 @@ CREATE TABLE computer_task_evidence (
 CREATE INDEX computer_task_evidence_by_task ON computer_task_evidence(task_id, created_at DESC, id);`
 
 // The linked journal or request remains the source of execution status, including
-// recovery. Computer evidence does not advance the task's independently run plan.
+// recovery. Linked evidence advances only tasks created for that desktop action.
 type computerTaskEvidence struct {
 	ID             string `json:"id"`
 	Kind           string `json:"kind"`
@@ -64,8 +64,8 @@ WITH model_actions AS (
  SELECT r.id,r.message_id,r.conversation_id,meta.json,
         json_extract(meta.json,'$.computerSuggestion.actionId') AS action_id
  FROM computer_task_evidence source_e
- JOIN ai_requests r ON r.id=source_e.request_id
- JOIN ai_message_metadata meta ON meta.message_id=r.message_id
+ JOIN ai_message_metadata meta ON json_extract(meta.json,'$.computerSuggestion.actionId')=source_e.action_id
+ JOIN ai_requests r ON r.message_id=meta.message_id
  WHERE source_e.task_id=?1 AND json_type(meta.json,'$.computerSuggestion.actionId')='text'
 )
 SELECT e.id, CASE WHEN a.id IS NULL THEN 'computer.screen_analysis' ELSE 'computer.action' END,

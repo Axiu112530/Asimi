@@ -67,7 +67,7 @@ func saveControlProposal(db *sql.DB, p computer.Proposal) error {
 	return saveControlProposalSource(db, p, nil)
 }
 
-func saveControlProposalSource(db *sql.DB, p computer.Proposal, source *computerSuggestionRow) error {
+func saveControlProposalSource(db *sql.DB, p computer.Proposal, source *computerSuggestionRow, tasks ...*AgentTask) error {
 	textHash := ""
 	if p.Text != "" {
 		textHash = hashControlText(p.Text)
@@ -94,6 +94,11 @@ WHERE message_id=? AND json_type(json,'$.computerSuggestion')='object'
 				return e
 			}
 		}
+		if len(tasks) > 0 {
+			if err := startDesktopTask(tx, p, tasks[0]); err != nil {
+				return err
+			}
+		}
 		return linkComputerTask(tx, p.TaskID, p.ID, "")
 	})
 }
@@ -103,11 +108,17 @@ func controlTransition(tx *sql.Tx, record computer.Record, before string) error 
 WHERE id=? AND status=?`, record.Status, record.Code, record.At, record.Verified, record.ID, before)); e != nil {
 		return e
 	}
-	return controlEvent(tx, record.ID, record.Status, record.Code, record.At)
+	if err := controlEvent(tx, record.ID, record.Status, record.Code, record.At); err != nil {
+		return err
+	}
+	return updateDesktopTask(tx, record)
 }
 
 func saveControlApproval(db *sql.DB, p computer.Proposal, stamp string) error {
 	return storeTransaction(db, func(tx *sql.Tx) error {
+		if err := validateDesktopTaskApproval(tx, p, "WAITING_APPROVAL"); err != nil {
+			return err
+		}
 		r := computer.Record{ID: p.ID, Type: p.Type, Status: "APPROVED", At: stamp}
 		if e := controlTransition(tx, r, "AWAITING_APPROVAL"); e != nil {
 			return e
@@ -123,6 +134,9 @@ VALUES(?,?,?,?,?,?,'APPROVED')`, newID(), p.ID, p.Hash, p.TargetHash, stamp, p.E
 
 func consumeControlApproval(db *sql.DB, p computer.Proposal, stamp string) error {
 	return storeTransaction(db, func(tx *sql.Tx) error {
+		if err := validateDesktopTaskApproval(tx, p, "RUNNING"); err != nil {
+			return err
+		}
 		if e := controlChanged(tx.Exec(`UPDATE computer_approvals SET status='CONSUMED',consumed_at=?
 WHERE action_id=? AND action_hash=? AND target_hash=? AND status='APPROVED' AND consumed_at IS NULL AND expires_at>?`,
 			stamp, p.ID, p.Hash, p.TargetHash, stamp)); e != nil {

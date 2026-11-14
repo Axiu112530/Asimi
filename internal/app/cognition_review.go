@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 
 	"asimi/internal/developer"
@@ -38,6 +39,10 @@ func queueCognitionCandidate(tx *sql.Tx, task AgentTask, goal string, checks, wo
 		Validation:       "Inspect the actual exit status and report any remaining failures.",
 		Limitations:      "Observed on one completed task. Adapt to the current workspace and objective.",
 		SourceExperience: task.ID, Triggers: []string{checks[0]}, AllowedTools: checks}
+	if task.Agent != nil && task.Agent.Acceptance != nil && task.Agent.Acceptance.Kind == "repair" &&
+		task.Agent.Verification != nil && task.Agent.Verification.Passed && slices.Contains(checks, "go.test") {
+		in.Execution = []cognitionSkillStep{{Tool: "go.test", Target: "changed-package"}}
+	}
 	if len(goal) > 0 && len(goal) <= 100 {
 		in.Triggers = append(in.Triggers, goal)
 	}
@@ -111,7 +116,7 @@ func queuePersonalCognitionCandidate(tx *sql.Tx, task AgentTask) (bool, error) {
 }
 
 func sameCognitionWorkflow(a, b cognitionSkillInput) bool {
-	return a.Instructions == b.Instructions && encode(a.Workflow) == encode(b.Workflow) && encode(a.AllowedTools) == encode(b.AllowedTools)
+	return a.Instructions == b.Instructions && encode(a.Workflow) == encode(b.Workflow) && encode(a.AllowedTools) == encode(b.AllowedTools) && slices.Equal(a.Execution, b.Execution)
 }
 
 func (s *Service) cognitionCandidates(project string) ([]cognitionCandidate, error) {

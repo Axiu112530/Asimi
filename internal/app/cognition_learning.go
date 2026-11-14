@@ -32,10 +32,14 @@ func (s *Service) cognitionLoop() {
 	defer s.wg.Done()
 	ticker := time.NewTicker(350 * time.Millisecond)
 	defer ticker.Stop()
+	maintenanceTicker := time.NewTicker(time.Minute)
+	defer maintenanceTicker.Stop()
 	for {
 		select {
 		case <-s.lifetime.Done():
 			return
+		case <-maintenanceTicker.C:
+			_ = s.automaticMemoryMaintenance(time.Now())
 		case <-ticker.C:
 			if s.lifetime.Err() == nil {
 				s.processCognitionJob()
@@ -98,6 +102,9 @@ func (s *Service) processCognitionJob() {
 }
 
 func reflectCognitionTask(tx *sql.Tx, task AgentTask, settings cognitionSettings) error {
+	if task.Desktop {
+		return reflectDesktopTask(tx, task)
+	}
 	var root string
 	if err := tx.QueryRow("SELECT root FROM workspaces WHERE id=?", task.WorkspaceID).Scan(&root); err != nil {
 		return err
@@ -116,7 +123,7 @@ func reflectCognitionTask(tx *sql.Tx, task AgentTask, settings cognitionSettings
 	failures := []string{}
 	for _, step := range task.Steps[max(0, len(task.Steps)-24):] {
 		if step.ActionID == "" {
-			if step.Status == "FAILED" && cognitionText(step.Error, 100) {
+			if step.Status == "FAILED" && step.Kind != "agent.verify" && step.Kind != "agent.finalize" && cognitionText(step.Error, 100) {
 				failures = append(failures, step.Kind+" ("+step.Error+")")
 			}
 			continue
@@ -182,10 +189,11 @@ func reflectCognitionTask(tx *sql.Tx, task AgentTask, settings cognitionSettings
 	if len(failures) > 0 {
 		text += " Observed failures: " + strings.Join(failures, ", ") + "."
 	}
-	if err := saveCognitionMemory(tx, task.WorkspaceID, "episode", task.ID, text, "task:"+task.ID, task.Status == "COMPLETED" && verified && len(failures) == 0); err != nil {
+	accepted := task.Status == "COMPLETED" && (task.Agent == nil || task.Agent.Verification != nil && task.Agent.Verification.Passed)
+	if err := saveCognitionMemory(tx, task.WorkspaceID, "episode", task.ID, text, "task:"+task.ID, accepted && verified && len(failures) == 0); err != nil {
 		return err
 	}
-	if task.Status != "COMPLETED" || !verified || len(failures) > 0 {
+	if !accepted || !verified || len(failures) > 0 {
 		return nil
 	}
 	if len(workflow) > 0 {
@@ -222,13 +230,20 @@ func reflectCognitionTask(tx *sql.Tx, task AgentTask, settings cognitionSettings
 var cognitionPreference = regexp.MustCompile(`(?i)^(?:(?:please )?remember(?: that)? (?:i prefer |my preference is )?|(?:correction|preference)[:：][ \t]*|(?:请)?记住(?:我偏好|我喜欢)?[：:，, \t]*|(?:更正|偏好)[:：][ \t]*)(.+)$`)
 
 func captureCognitionPreference(q querier, messageID, content string) error {
-	match := cognitionPreference.FindStringSubmatch(strings.TrimSpace(content))
-	if len(match) != 2 || !cognitionText(match[1], 480) {
+	content = strings.TrimSpace(content)
+	match := cognitionPreference.FindStringSubmatch(content)
+	if len(match) != 2 && !naturalPreference.MatchString(content) {
 		return nil
 	}
 	settings, err := loadCognitionSettings(q)
 	if err != nil || !settings.Memory || !settings.AutomaticLearning {
 		return err
+	}
+	if len(match) != 2 {
+		return captureNaturalPreference(q, messageID, content)
+	}
+	if !cognitionText(match[1], 480) {
+		return nil
 	}
 	key, text := "preference", strings.TrimSpace(match[1])
 	if name, value, ok := strings.Cut(text, "="); ok && cognitionText(name, 100) && cognitionText(value, 480) {

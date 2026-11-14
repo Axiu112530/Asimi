@@ -36,11 +36,11 @@ async function trackRound(want,actionKind=''){
     throw Error(`Round ${want} ${round.error}`);
   }
   check(`modelPlan${want}`,round.status==='COMPLETED'&&round.version===before.agent.rounds.length+1&&round.contextHash.length===64&&!!round.plan);
-  if(!actionKind){check('finalTaskReport',t.status==='COMPLETED'&&t.summary.length>3);return true;}
+  if(!actionKind){check('finalTaskReport',t.status==='COMPLETED'&&t.summary.length>3&&t.agent.verification?.passed===true&&t.agent.verification.conditions.every(c=>c.status==='SATISFIED'&&c.evidence?.length));return true;}
   check(`waiting${want}`,t.status==='WAITING_APPROVAL'&&!!round.actionId);
   const readAction=async()=> (await call('GetMVPState')).actions.find(a=>a.id===round.actionId);
   const proposal=await readAction();
-  check(`boundProposal${want}`,proposal.kind===actionKind&&proposal.taskId===taskId&&proposal.proposal.planVersion===round.version&&proposal.proposal.policyVersion==='agent-02-v1'&&proposal.proposal.stepId===t.steps.at(-1).id);
+  check(`boundProposal${want}`,proposal.kind===actionKind&&proposal.taskId===taskId&&proposal.proposal.planVersion===round.version&&proposal.proposal.policyVersion==='agent-02-v2'&&proposal.proposal.stepId===t.steps.at(-1).id);
   if(actionKind==='file'){
     if(params.has('gitFixture'))check('dirtyFileWarningAndExactBase',proposal.proposal.gitDirtyFile&&proposal.proposal.file.beforeContent.includes('Workspace author note')&&!!await until('Git warning',()=>byId('preset-git-warning')));
     check('exactDiffVisible',!!await until('diff preview',()=>document.querySelector(`[data-action-id="${proposal.id}"] [data-testid="product-diff"]`)?.textContent.includes('a + b')));
@@ -67,6 +67,7 @@ async function run(){
    const current=await call('GetMVPState');
    const restored=current.agentTasks.find(t=>t.agent?.rounds.filter(round=>round.status==='COMPLETED').length===3&&t.status==='COMPLETED');
    check('threeRoundsRestored',!!restored);
+   check('completionEvidenceRestored',restored.agent.verification?.passed===true&&restored.agent.verification.conditions.length===2);
    check('effectsRestored',current.actions.filter(a=>a.taskId===restored.id&&a.status==='SUCCEEDED').length===2);
    check('noReplay',current.actions.filter(a=>a.taskId===restored.id).length===2);
    const cognition=await call('GetCognitionState',{workspaceId:restored.workspaceId});

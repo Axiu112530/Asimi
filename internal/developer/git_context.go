@@ -2,6 +2,7 @@ package developer
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -64,15 +65,24 @@ func (g GitContext) DirtyPath(name string) bool {
 }
 
 func ReadGitContext(root string) (GitContext, error) {
+	return ReadGitContextUntil(context.Background(), root)
+}
+
+func ReadGitContextUntil(ctx context.Context, root string) (GitContext, error) {
+	if err := ctx.Err(); err != nil {
+		return GitContext{}, err
+	}
 	w, err := openWorkspace(root, false)
 	if err != nil {
 		return GitContext{}, err
 	}
 	defer w.Close()
-	return inspectGit(w, nil), nil
+	result := inspectGitUntil(ctx, w, nil)
+	return result, ctx.Err()
 }
 
 type gitScan struct {
+	ctx        context.Context
 	w          *workspace
 	config     gitConfig
 	metadata   map[string][]byte
@@ -89,6 +99,10 @@ type gitScan struct {
 }
 
 func inspectGit(w *workspace, exclusions []string) GitContext {
+	return inspectGitUntil(context.Background(), w, exclusions)
+}
+
+func inspectGitUntil(ctx context.Context, w *workspace, exclusions []string) GitContext {
 	gitPin, err := w.pinGitDirectory()
 	if errors.Is(err, fs.ErrNotExist) {
 		return GitContext{Status: "NOT_REPOSITORY"}
@@ -98,7 +112,7 @@ func inspectGit(w *workspace, exclusions []string) GitContext {
 	}
 	defer gitPin.Close()
 	scan := gitScan{
-		w: w, gitPin: gitPin, metadata: map[string][]byte{}, absent: map[string]bool{},
+		ctx: ctx, w: w, gitPin: gitPin, metadata: map[string][]byte{}, absent: map[string]bool{},
 		attributes: map[string][]gitAttributeRule{}, budget: gitMaxTotal, metaBudget: 32 << 20, exclusions: exclusions,
 	}
 	defer func() {
@@ -118,6 +132,11 @@ func inspectGit(w *workspace, exclusions []string) GitContext {
 }
 
 func (s *gitScan) metadataFile(name string, limit int) ([]byte, error) {
+	if s.ctx != nil {
+		if err := s.ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
 	if data, ok := s.metadata[name]; ok {
 		return data, nil
 	}
@@ -220,6 +239,9 @@ func (s *gitScan) run() (GitContext, error) {
 	slices.Sort(names)
 	tracked := map[string]bool{}
 	for _, name := range names {
+		if err := s.ctx.Err(); err != nil {
+			return GitContext{}, err
+		}
 		entry := index[name]
 		tracked[strings.ToLower(name)] = true
 		if excluded(name, s.exclusions) {
@@ -455,6 +477,9 @@ func (s *gitScan) scanUntracked(dir string, rules []gitIgnoreRule, tracked map[s
 	s.entries += len(entries)
 	*truncated = *truncated || limited
 	for _, entry := range entries {
+		if err := s.ctx.Err(); err != nil {
+			return err
+		}
 		name := path.Join(dir, entry.name)
 		if strings.EqualFold(entry.name, ".git") || gitIgnored(rules, name, entry.directory) {
 			continue

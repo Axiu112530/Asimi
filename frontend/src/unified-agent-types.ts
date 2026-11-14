@@ -1,0 +1,11 @@
+export type GoalKind = 'auto'|'chat'|'development'|'desktop'|'communication';
+export interface UnifiedRun { id:string;goal:string;kind:GoalKind;status:string;taskId?:string;requestId?:string;conversationId?:string;actionId?:string;parentId?:string;createdAt:string;updatedAt:string;error?:string;result?:unknown;proposal?:unknown }
+export interface UnifiedSummary { id:string;contextHash:string;content:string;providerId:string;modelId:string }
+export type ConnectionKind = 'github'|'gitlab'|'graph'|'slack'|'mcp';
+export interface Connection { id:string;name:string;kind:ConnectionKind;origin:string;scopes:{resource:string;operations:string[]}[];revision:number;enabled:boolean;credentialStatus:'missing'|'stored'|'not_required';identity?:{id:string;displayName:string;verifiedAt:string;revision:number};createdAt:string;updatedAt:string }
+export interface ConnectorAction { id:string;status:string;hash:string;expiresAt:string;connectionId:string;connectionRevision:number;origin:string;method:string;path:string;operation:string;resource:string;request:Record<string,unknown>;verified:boolean;result?:unknown;errorCode?:string;createdAt:string;updatedAt:string;untrusted:true }
+export interface EvolutionMetric { id:string;namespace:string;version:number;contextUses:number;executions:number;successes:number;failures:number;totalDurationMs:number;modelRequests:number;selectionAdjustment:number }
+export interface EvolutionInsights { skills:EvolutionMetric[];failures:{taskId:string;skillId:string;version:number;code:string;summary:string}[];memory:{expired:number;conflicted:number;archived:number;active:number};boundary:'local-profile' }
+export interface MemoryMaintenance { expiredIds:string[];archiveIds:string[];preservedIds:string[];applied:boolean }
+export interface SkillCandidate { id:string;workspaceId:string;taskId:string;status:string;baseVersion:number;manifest:{name:string;instructions:string;allowedTools?:string[];[key:string]:unknown};previous?:unknown }
+export interface CognitionSkill { id:string;namespace:string;scope:'official'|'user'|'project';workspaceId?:string;slug:string;name:string;description:string;instructions:string;allowedTools?:string[];enabled:boolean;status?:string;source:string;version:number;checksum:string;[key:string]:unknown }

@@ -158,6 +158,9 @@ func (s *Service) callMVP(method, payload string) (domain.Reply, bool) {
 		if method == "GetAgentTask" {
 			s.mvp.mu.Lock()
 			v, e := loadAgentTask(s.db, q.ID)
+			if e == nil {
+				v, e = s.expireAgentReviewLocked(v)
+			}
 			if s.mvp.faults["task:"+q.ID] {
 				v.Status = "PAUSED"
 				v.Summary = "RECOVERY_REQUIRED"

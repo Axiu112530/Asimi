@@ -37,12 +37,17 @@ func (s *Service) archiveCognitionMemory(payload string) error {
 func cognitionFTS(goal string) string {
 	words := strings.FieldsFunc(strings.ToLower(goal), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	search := []string{}
+	for _, concept := range cognitionConceptMatches(goal) {
+		for _, phrase := range concept.phrases {
+			search = append(search, "\""+phrase+"\"")
+		}
+	}
 	for _, word := range words {
 		if len(word) < 2 || len(word) > 80 {
 			continue
 		}
 		search = append(search, "\""+word+"\"")
-		if len(search) == 20 {
+		if len(search) >= 32 {
 			break
 		}
 	}
@@ -54,7 +59,9 @@ func (s *Service) searchCognitionMemories(project, goal string, includeArchived 
 	query := `SELECT m.id,COALESCE(m.workspace_id,''),m.kind,m.key,m.text,m.source,m.verified,m.updated_at,
  COALESCE(a.archived,0),COALESCE(a.priority,0) FROM memory_records m
  LEFT JOIN cognition_memory_state a ON a.memory_id=m.id
- WHERE (m.workspace_id IS NULL OR m.workspace_id=?) AND (? OR COALESCE(a.archived,0)=0)`
+ WHERE (m.workspace_id IS NULL OR m.workspace_id=?) AND (? OR (COALESCE(a.archived,0)=0
+ AND NOT EXISTS(SELECT 1 FROM cognition_memory_lifetime l WHERE l.memory_id=m.id AND l.expires_at<>'' AND julianday(l.expires_at)<=julianday('now'))
+ AND NOT EXISTS(SELECT 1 FROM cognition_preference_reviews r WHERE r.memory_id=m.id AND r.status='pending')))`
 	args := []any{project, includeArchived}
 	order := " ORDER BY m.updated_at DESC,m.id LIMIT 100"
 	if term := cognitionFTS(goal); term != "" {

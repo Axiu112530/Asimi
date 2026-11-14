@@ -1,10 +1,15 @@
 import { defineComponent, h, reactive, ref, watch, type VNodeChild } from 'vue';
 import { call } from './bridge';
-import { date, t } from './i18n';
+import { date, i18n, number, t } from './i18n';
 import { product } from './product-store';
 import { fail, state } from './store';
-import { button } from './ui';
+import { button, icon } from './ui';
+import layoutEn from './locales/cognition-layout.en-US.json';
+import layoutZh from './locales/cognition-layout.zh-CN.json';
 import './cognition.css';
+
+i18n.global.mergeLocaleMessage('en-US', layoutEn);
+i18n.global.mergeLocaleMessage('zh-CN', layoutZh);
 
 interface Settings {
   memory: boolean;
@@ -36,6 +41,7 @@ interface SkillInput {
   applicability?: string;
   prerequisites?: string;
   workflow?: string[];
+  execution?: {tool: string; target: string}[];
   expectedOutputs?: string;
   validation?: string;
   limitations?: string;
@@ -77,7 +83,7 @@ interface LearningRecord {
   createdAt: string;
 }
 interface CognitionState {
-  memoryChanges: {id:number;previous:string;current:string;source:string;at:string}[];
+  memoryChanges: {id:number;previous:string;current:string;source:string;at:string;pending?:boolean}[];
   settings: Settings;
   memories: Memory[];
   skills: Skill[];
@@ -190,11 +196,14 @@ export const MemoryPage = defineComponent({
       ]),
       data.value && data.value.memoryChanges.length>0 && h('article',{class:'product-card'},[
         h('h2',t('cognition.conflictReview')),
-        ...data.value.memoryChanges.map(change=>h('div',{class:'product-card',key:change.id},[
+        ...data.value.memoryChanges.map(change=>h('div',{class:'product-card',key:(change.pending?'pending:':'history:')+change.id},[
           h('p',t('cognition.previousMemory')),h('pre',change.previous),
-          h('p',t('cognition.currentMemory')),h('pre',change.current),
+          h('p',t(change.pending?'cognition.proposedMemory':'cognition.currentMemory')),h('pre',change.current),
           h('p',change.source+' · '+date(change.at)),
-          localButton('dismissConflict',()=>work(()=>call('DismissCognitionMemoryChange',{id:change.id,workspaceId:workspaceId.value})),busy.value),
+          change.pending ? h('div',{class:'product-row'},[
+            localButton('acceptPreference',()=>work(()=>call('ResolveCognitionMemoryChange',{id:change.id,decision:'accept',pending:true})),busy.value),
+            localButton('keepPreference',()=>work(()=>call('ResolveCognitionMemoryChange',{id:change.id,decision:'keep',pending:true})),busy.value),
+          ]) : localButton('dismissConflict',()=>work(()=>call('DismissCognitionMemoryChange',{id:change.id,workspaceId:workspaceId.value})),busy.value),
         ])),
       ]),
       label('memorySearch',h('input',{type:'search',value:search.value,onInput:(event:Event)=>{search.value=textValue(event);}})),
@@ -226,57 +235,192 @@ export const MemoryPage = defineComponent({
   },
 });
 
-export const GrowthPage = defineComponent({
-  setup(){
-    const {data,busy,projectPicker,work}=useCognition();
-    return ()=>h('section',{class:'product-page','data-testid':'cognition-growth'},[
-      h('header',{class:'product-heading'},[h('h1',t('cognition.growthPage'))]),
-      h('div',{class:'product-row cognition-toolbar'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
-      data.value && h('article',{class:'product-card'},[
-        h('p',t('cognition.queue',{pending:data.value.pending,paused:data.value.paused,completed:data.value.completed})),
-        h('div',{class:'product-row'},[
-          localButton('memoryPage',()=>{state.route='memory';}),
-          localButton('localSkills',()=>{state.route='skills';}),
-          localButton('learningPage',()=>{state.route='learning';}),
-        ]),
-        h('h2',t('cognition.recentSkills')),
-        ...data.value.skills.filter(skill=>skill.scope!=='official').slice(0,5).map(skill=>h('p',{key:skill.id},
-          t('cognition.skillMeta',{namespace:skill.namespace,version:skill.version,usage:skill.usage}))),
-        h('h2',t('cognition.recentKnowledge')),
-        ...data.value.memories.filter(item=>!item.archived).slice(0,5).map(item=>h('p',{key:item.id},
-          item.text+' · '+t(item.verified?'cognition.verified':'cognition.unverified'))),
+const layoutText = (key: string) => t('cognitionLayout.' + key);
+type CognitionRoute = 'memory' | 'skills' | 'learning' | 'workflows';
+
+function cognitionLink(key: string, route: CognitionRoute, testId: string) {
+  return button('cognitionLayout.' + key, () => { state.route = route; }, {
+    class: 'cognition-text-link', 'data-testid': testId,
+  }, [layoutText(key), icon('arrow', 15)]);
+}
+
+function cognitionTile(key: string, route: CognitionRoute, symbol: string) {
+  return button('cognitionLayout.' + key, () => { state.route = route; }, {
+    class: 'cognition-nav-tile', 'data-testid': 'cognition-open-' + route,
+  }, [
+    h('span', { class: 'cognition-tile-icon' }, [icon(symbol, 19)]),
+    h('span', { class: 'cognition-tile-copy' }, [h('strong', layoutText(key)), h('span', layoutText(key + 'Hint'))]),
+    icon('chevron', 16),
+  ]);
+}
+
+function cognitionHeading(page: 'growth' | 'learning', picker: VNodeChild, refresh: () => unknown, disabled: boolean) {
+  return h('header', { class: 'cognition-page-heading' }, [
+    h('div', { class: 'cognition-page-intro' }, [
+      h('h1', { id: 'cognition-' + page + '-title' }, t('cognition.' + page + 'Page')),
+      h('p', layoutText(page + 'Intro')),
+    ]),
+    h('div', { class: 'product-row cognition-toolbar' }, [
+      picker,
+      button('cognition.refresh', refresh, {
+        class: 'button secondary', disabled, 'data-testid': 'cognition-' + page + '-refresh',
+      }, [icon('refresh', 15), t('cognition.refresh')]),
+    ]),
+  ]);
+}
+
+function cognitionStats(data: CognitionState | undefined) {
+  const items = [
+    { key: 'pending', icon: 'clock', value: data?.pending },
+    { key: 'paused', icon: 'stop', value: data?.paused },
+    { key: 'completed', icon: 'check', value: data?.completed },
+  ];
+  return h('div', { class: 'cognition-stats', role: 'group', 'aria-label': layoutText('activity') }, items.map(item =>
+    h('article', { class: 'cognition-stat', key: item.key, 'data-testid': 'cognition-stat-' + item.key }, [
+      h('dl', [
+        h('dt', [h('span', { class: 'cognition-stat-icon cognition-tone-' + item.key }, [icon(item.icon, 15)]), layoutText(item.key)]),
+        h('dd', item.value === undefined ? '—' : number(item.value)),
       ]),
-    ]);
+      h('p', layoutText(item.key + 'Hint')),
+    ])));
+}
+
+function cognitionEmpty(symbol: string, title: string, description: string, action?: VNodeChild) {
+  return h('div', { class: 'cognition-empty' }, [
+    h('span', { class: 'cognition-empty-icon' }, [icon(symbol, 22)]),
+    h('h3', layoutText(title)), h('p', layoutText(description)), action,
+  ]);
+}
+
+function cognitionSectionHeading(key: string, count?: number) {
+  return h('header', { class: 'cognition-section-heading' }, [
+    h('h2', t('cognition.' + key)),
+    count === undefined ? null : h('span', { class: 'cognition-count' }, number(count)),
+  ]);
+}
+
+export const GrowthPage = defineComponent({
+  setup() {
+    const { data, busy, workspaceId, projectPicker, work } = useCognition();
+    return () => {
+      const skills = (data.value?.skills ?? []).filter(skill => skill.scope !== 'official');
+      const memories = (data.value?.memories ?? []).filter(item => !item.archived)
+        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+      return h('section', {
+        class: 'product-page cognition-page', 'data-testid': 'cognition-growth', 'aria-labelledby': 'cognition-growth-title',
+      }, [h('div', { class: 'cognition-page-content' }, [
+        cognitionHeading('growth', projectPicker(), () => work(async () => {}), busy.value || !state.connected),
+        cognitionStats(data.value),
+        !workspaceId.value ? h('p', { class: 'cognition-scope-note' }, [icon('info', 14), layoutText('personalScope')]) : null,
+        h('div', { class: 'cognition-content-grid' }, [
+          h('section', { class: 'cognition-panel', 'data-testid': 'cognition-recent-skills' }, [
+            cognitionSectionHeading('recentSkills', data.value ? skills.length : undefined),
+            !data.value ? h('p', { class: 'cognition-loading', role: 'status' }, t(state.connected ? 'common.loading' : 'app.connecting')) :
+              skills.length ? h('ul', { class: 'cognition-item-list' }, skills.slice(0, 5).map(skill => h('li', { key: skill.id }, [
+                h('div', { class: 'cognition-item-heading' }, [
+                  h('h3', skill.name),
+                  h('span', { class: 'cognition-item-scope' }, t('cognition.' + skill.scope)),
+                ]),
+                h('p', { class: 'cognition-item-description' }, skill.description),
+                h('p', { class: 'cognition-item-meta' }, t('cognitionLayout.skillUsage', { version: skill.version, count: skill.usage })),
+                state.settings.interfaceMode === 'developer' ? h('code', { class: 'cognition-developer' }, skill.namespace) : null,
+              ]))) : cognitionEmpty('skills', 'emptySkillsTitle', 'emptySkillsHint', cognitionLink('openSkills', 'skills', 'cognition-growth-add-skill')),
+          ]),
+          h('section', { class: 'cognition-panel', 'data-testid': 'cognition-recent-knowledge' }, [
+            cognitionSectionHeading('recentKnowledge', data.value ? memories.length : undefined),
+            !data.value ? h('p', { class: 'cognition-loading', role: 'status' }, t(state.connected ? 'common.loading' : 'app.connecting')) :
+              memories.length ? h('ul', { class: 'cognition-item-list' }, memories.slice(0, 5).map(item => h('li', { key: item.id }, [
+                h('div', { class: 'cognition-item-heading' }, [
+                  h('h3', item.kind === 'episode' || item.kind === 'procedure' ? t('cognition.' + item.kind) : item.key),
+                  h('span', { class: ['cognition-item-scope', { 'cognition-verified': item.verified }] }, t(item.verified ? 'cognition.verified' : 'cognition.unverified')),
+                ]),
+                h('p', { class: 'cognition-item-description' }, item.text),
+                h('time', { class: 'cognition-item-meta', datetime: item.updatedAt }, date(item.updatedAt)),
+              ]))) : cognitionEmpty('memory', 'emptyKnowledgeTitle', 'emptyKnowledgeHint', cognitionLink('openMemory', 'memory', 'cognition-growth-add-memory')),
+          ]),
+        ]),
+        h('nav', { class: 'cognition-navigation', 'aria-label': layoutText('explore') }, [
+          cognitionTile('memory', 'memory', 'memory'), cognitionTile('skills', 'skills', 'skills'), cognitionTile('learning', 'learning', 'learning'),
+        ]),
+      ])]);
+    };
   },
 });
 
 export const LearningPage = defineComponent({
   setup() {
-    const {data,busy,workspaceId,projectPicker,work}=useCognition();
-    function change(job:LearningRecord,operation:string) {
-      return work(()=>call('ChangeCognitionJob',{id:job.taskId,workspaceId:workspaceId.value,operation}));
+    const { data, busy, workspaceId, projectPicker, work } = useCognition();
+    const controlNotice = ref('');
+    function change(job: LearningRecord, operation: string) {
+      return work(() => call('ChangeCognitionJob', { id: job.taskId, workspaceId: workspaceId.value, operation }));
     }
-    return ()=>h('section',{class:'product-page','data-testid':'cognition-learning'},[
-      h('header',{class:'product-heading'},[h('h1',t('cognition.learningPage'))]),
-      h('div',{class:'product-row cognition-toolbar'},[projectPicker(),localButton('refresh',()=>work(async()=>{}),busy.value)]),
-      data.value && h('article',{class:'product-card'},[
-        h('p',t('cognition.queue',{pending:data.value.pending,paused:data.value.paused,completed:data.value.completed})),
-        h('div',{class:'product-row'},[
-          localButton('pause',()=>work(()=>call('PauseCognitionLearning')),busy.value),
-          localButton('resume',()=>work(()=>call('ResumeCognitionLearning')),busy.value),
+    function control(pause: boolean) {
+      return work(async () => {
+        controlNotice.value = '';
+        await call(pause ? 'PauseCognitionLearning' : 'ResumeCognitionLearning');
+        controlNotice.value = pause ? 'pauseConfirmed' : 'resumeConfirmed';
+      });
+    }
+    function jobTitle(job: LearningRecord) {
+      return product.data.agentTasks.find(task => task.id === job.taskId)?.goal || t('cognition.episode');
+    }
+    return () => {
+      const jobs = data.value?.learning ?? [];
+      const disabled = busy.value || !state.connected || !data.value;
+      return h('section', {
+        class: 'product-page cognition-page', 'data-testid': 'cognition-learning', 'aria-labelledby': 'cognition-learning-title',
+      }, [h('div', { class: 'cognition-page-content' }, [
+        cognitionHeading('learning', projectPicker(), () => work(async () => {}), busy.value || !state.connected),
+        cognitionStats(data.value),
+        !workspaceId.value ? h('p', { class: 'cognition-scope-note' }, [icon('info', 14), layoutText('personalScope')]) : null,
+        h('section', { class: 'cognition-panel cognition-learning-controls', 'data-testid': 'cognition-learning-controls' }, [
+          h('div', { class: 'cognition-controls-copy' }, [
+            h('h2', layoutText('controls')), h('p', layoutText('controlsHint')),
+            cognitionLink('learningSettings', 'memory', 'cognition-learning-settings'),
+          ]),
+          h('div', { class: 'cognition-controls-actions' }, [
+            button('cognition.pause', () => control(true), { class: 'button secondary', disabled, 'data-testid': 'cognition-learning-pause' }, [icon('stop', 14), t('cognition.pause')]),
+            button('cognition.resume', () => control(false), { class: 'button secondary', disabled, 'data-testid': 'cognition-learning-resume' }, [icon('arrow', 14), t('cognition.resume')]),
+          ]),
+          controlNotice.value ? h('p', { class: 'cognition-control-notice', role: 'status' }, layoutText(controlNotice.value)) : null,
         ]),
-        h('h2',t('cognition.history')),
-        !data.value.learning.length && h('p',t('cognition.noHistory')),
-        ...data.value.learning.map(job=>h('article',{key:job.taskId,class:'product-card'},[
-          h('strong',t('cognition.job.'+job.status)),
-          h('p',t('cognition.attempts',{count:job.attempts,ms:job.durationMs})+' · '+date(job.createdAt)),
-          h('p',t('cognition.sourceTask',{id:job.taskId})),
-          job.error && h('code',job.error),
-          job.status==='pending'||job.status==='paused' ? localButton('cancelJob',()=>change(job,'cancel'),busy.value) : null,
-          ['failed','cancelled','expired'].includes(job.status) && localButton('retry',()=>change(job,'retry'),busy.value),
-        ])),
-      ]),
-    ]);
+        h('section', { class: 'cognition-panel cognition-history', 'data-testid': 'cognition-learning-history' }, [
+          cognitionSectionHeading('history', data.value ? jobs.length : undefined),
+          !data.value ? h('p', { class: 'cognition-loading', role: 'status' }, t(state.connected ? 'common.loading' : 'app.connecting')) :
+            !jobs.length ? cognitionEmpty('learning', 'emptyHistoryTitle', workspaceId.value ? 'emptyHistoryHint' : 'chooseWorkspaceHint',
+              h('div', { class: 'cognition-empty-actions' }, [
+                state.settings.interfaceMode === 'developer' ? cognitionLink('openTasks', 'workflows', 'cognition-learning-open-tasks') : null,
+                cognitionLink('openMemory', 'memory', 'cognition-learning-open-memory'),
+              ])) : h('ol', { class: 'cognition-job-list' }, jobs.map(job => h('li', {
+                key: job.taskId, class: 'cognition-job', 'data-testid': 'cognition-learning-job', 'data-status': job.status,
+              }, [
+                h('div', { class: 'cognition-job-summary' }, [
+                  h('h3', jobTitle(job)),
+                  h('time', { datetime: job.createdAt }, date(job.createdAt)),
+                  job.status === 'failed' ? h('p', { class: 'cognition-job-error' }, layoutText('jobFailed')) : null,
+                  state.settings.interfaceMode === 'developer' ? h('details', { class: 'cognition-developer' }, [
+                    h('summary', layoutText('technicalDetails')),
+                    h('p', t('cognition.attempts', { count: job.attempts, ms: job.durationMs })),
+                    h('code', t('cognition.sourceTask', { id: job.taskId })),
+                    job.error ? h('code', job.error) : null,
+                  ]) : null,
+                ]),
+                h('span', { class: ['cognition-status', 'cognition-status-' + job.status] }, [
+                  icon(job.status === 'done' ? 'check' : job.status === 'failed' ? 'warning' : job.status === 'paused' ? 'stop' : 'clock', 13),
+                  t('cognition.job.' + job.status),
+                ]),
+                h('div', { class: 'cognition-job-actions' }, [
+                  job.status === 'pending' || job.status === 'paused' ? button('cognition.cancelJob', () => change(job, 'cancel'), {
+                    class: 'button secondary', disabled, 'data-testid': 'cognition-learning-cancel-job',
+                  }) : null,
+                  ['failed', 'cancelled', 'expired'].includes(job.status) ? button('cognition.retry', () => change(job, 'retry'), {
+                    class: 'button secondary', disabled, 'data-testid': 'cognition-learning-retry-job',
+                  }) : null,
+                ]),
+              ]))),
+        ]),
+      ])]);
+    };
   },
 });
 
@@ -369,6 +513,7 @@ export const CognitionSkillsPanel = defineComponent({
           ...candidates.map(candidate=>h('article',{class:'product-card',key:candidate.id},[
             h('h3',candidate.manifest.name),
             h('p',candidate.manifest.description),
+            candidate.manifest.execution?.some(step=>step.tool==='go.test'&&step.target==='changed-package') ? h('p',t('cognition.executableGoCheck')) : null,
             h('p',t('cognition.sourceTask',{id:candidate.taskId})),
             candidate.previous && h('details',[h('summary',t('cognition.previousVersion',{version:candidate.baseVersion})),h('pre',JSON.stringify(candidate.previous,null,2))]),
             h('details',{open:true},[h('summary',t('cognition.proposedVersion')),h('pre',JSON.stringify(candidate.manifest,null,2))]),
@@ -418,6 +563,7 @@ export const CognitionSkillsPanel = defineComponent({
           h('code', skill.source),
           h('details', [h('summary', t('cognition.instructions')), h('pre', skill.instructions),
             skill.workflow?.length && h('ol',skill.workflow.map(step=>h('li',step))),
+            skill.source.startsWith('reviewed:') && skill.execution?.some(step=>step.tool==='go.test'&&step.target==='changed-package') ? h('p',t('cognition.executableGoCheck')) : null,
             skill.sourceExperience && h('p',t('cognition.sourceTask',{id:skill.sourceExperience})),
           ]),
           h('div', { class: 'product-row' }, [

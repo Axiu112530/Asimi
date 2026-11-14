@@ -268,7 +268,7 @@ func (s *Service) listComputerSuggestions(taskID string) ([]computerSuggestionIt
 	return items, nil
 }
 
-func (s *Service) stageComputerSuggestion(taskID, requestID string) (computer.Proposal, error) {
+func (s *Service) stageComputerSuggestion(taskID, requestID string, asTask bool) (computer.Proposal, error) {
 	c := &s.desktopControl
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -314,11 +314,26 @@ func (s *Service) stageComputerSuggestion(taskID, requestID string) (computer.Pr
 			p.Expected = "TEST_SUBMITTED"
 		}
 	}
+	var desktop *AgentTask
+	if asTask {
+		original, err := loadAgentTask(s.db, taskID)
+		if err != nil {
+			return computer.Proposal{}, err
+		}
+		stamp := s.desktopControl.time().Format(chatTimeFormat)
+		desktop = &AgentTask{ID: newID(), Desktop: true, WorkspaceID: original.WorkspaceID, Goal: "DESKTOP_TASK",
+			Status: "WAITING_APPROVAL", Summary: "AGENT_ACTION_REVIEW", CreatedAt: stamp, UpdatedAt: stamp}
+		p.HarnessTask, p.TaskID = true, desktop.ID
+		p.ObservedAt = source.scope.ObservedAt
+	}
 	p.Hash = proposalHash(p)
-	if err := saveControlProposalSource(s.db, p, &source); err != nil {
+	if err := saveControlProposalSource(s.db, p, &source, desktop); err != nil {
 		return computer.Proposal{}, err
 	}
 	c.pending = &p
+	if desktop != nil {
+		s.changed("", desktop.ID)
+	}
 	return p, nil
 }
 
@@ -337,6 +352,7 @@ func (s *Service) callComputerSuggestion(method, payload string) (domain.Reply, 
 		var q struct {
 			TaskID    string `json:"taskId"`
 			RequestID string `json:"requestId"`
+			AsTask    bool   `json:"asTask,omitempty"`
 		}
 		if err := decode(payload, &q); err != nil {
 			return result(nil, err), true
@@ -344,7 +360,7 @@ func (s *Service) callComputerSuggestion(method, payload string) (domain.Reply, 
 		if len(q.RequestID) != 32 || q.TaskID == "" || len(q.TaskID) > 128 {
 			return fail("INVALID_REQUEST"), true
 		}
-		p, err := s.stageComputerSuggestion(q.TaskID, q.RequestID)
+		p, err := s.stageComputerSuggestion(q.TaskID, q.RequestID, q.AsTask)
 		return result(p, err), true
 	default:
 		return domain.Reply{}, false

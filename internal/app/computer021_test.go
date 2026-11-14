@@ -48,6 +48,9 @@ func TestComputerSuggestionRequiresReviewedVisionAndExactApproval(t *testing.T) 
 	clock := time.Now()
 	s.desktopControl.clock = func() time.Time { return clock }
 	s.SetAcceptanceScreenDriver(&fakeScreen{})
+	if err := s.initializeMVP(); err != nil {
+		t.Fatal(err)
+	}
 	task := AgentTask{ID: newID()}
 	workspaceID, stamp := newID(), now()
 	if _, err := s.db.Exec("INSERT INTO workspaces(id,root,name,created_at,last_used_at,trust_status) VALUES(?,?,?,?,?,'USER_SELECTED')",
@@ -55,7 +58,7 @@ func TestComputerSuggestionRequiresReviewedVisionAndExactApproval(t *testing.T) 
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec("INSERT INTO agent_tasks(id,workspace_id,status,json,created_at,updated_at) VALUES(?,?,'PLANNED',?,?,?)",
-		task.ID, workspaceID, encode(task), stamp, stamp); err != nil {
+		task.ID, workspaceID, encode(AgentTask{ID: task.ID, WorkspaceID: workspaceID}), stamp, stamp); err != nil {
 		t.Fatal(err)
 	}
 	const raw = `{"summary":"A fixture input","action":{"type":"uia.set_value","text":"Hello Asimi"}}`
@@ -138,6 +141,24 @@ func TestComputerSuggestionRequiresReviewedVisionAndExactApproval(t *testing.T) 
 	}
 	if !found {
 		t.Fatal("task history lost action provenance or verification")
+	}
+	fresh = observeControlFixture(t, s)
+	visionRequest := analyze(fresh)
+	managed := mustCall(t, s, "ProposeComputerSuggestion", map[string]any{
+		"requestId": visionRequest, "taskId": task.ID, "asTask": true,
+	}).(computer.Proposal)
+	if !managed.HarnessTask || managed.TaskID == task.ID || driver.calls != 1 {
+		t.Fatal("vision did not create a new task with a pending approval")
+	}
+	mustCall(t, s, "ApproveControlAction", controlApproval(managed))
+	desktop := mustCall(t, s, "GetAgentTask", map[string]string{"id": managed.TaskID}).(AgentTask)
+	if desktop.Status != "COMPLETED" || driver.calls != 2 || !strings.Contains(string(desktop.Steps[0].Result), visionRequest) ||
+		strings.Contains(encode(desktop), "Hello Asimi") {
+		t.Fatalf("vision-to-UIA task lost verification, provenance or privacy: %s", desktop.Status)
+	}
+	evidence := readComputerEvidence(t, s, managed.TaskID)
+	if len(evidence) != 1 || evidence[0]["requestId"] != visionRequest || evidence[0]["selector"] != "TestInput" {
+		t.Fatalf("desktop evidence lost the reviewed visual source: %v", evidence)
 	}
 	driver.window.App = computer.Notepad
 	notepad := observeControlFixture(t, s)

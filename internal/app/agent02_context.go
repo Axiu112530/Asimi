@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -12,16 +14,17 @@ import (
 )
 
 type agent02Preview struct {
-	TaskID               string   `json:"taskId"`
-	Provider             string   `json:"provider"`
-	Endpoint             string   `json:"endpoint"`
-	Model                string   `json:"model"`
-	Files                []string `json:"files"`
-	Content              string   `json:"content"`
-	Hash                 string   `json:"hash"`
-	MaxRequestUSD        float64  `json:"maxRequestUsd"`
-	RemainingUSD         float64  `json:"remainingUsd"`
-	RemainingRequests    int      `json:"remainingRequests"`
+	LocalSkill           *agentSkillDispatch `json:"localSkill,omitempty"`
+	TaskID               string              `json:"taskId"`
+	Provider             string              `json:"provider"`
+	Endpoint             string              `json:"endpoint"`
+	Model                string              `json:"model"`
+	Files                []string            `json:"files"`
+	Content              string              `json:"content"`
+	Hash                 string              `json:"hash"`
+	MaxRequestUSD        float64             `json:"maxRequestUsd"`
+	RemainingUSD         float64             `json:"remainingUsd"`
+	RemainingRequests    int                 `json:"remainingRequests"`
 	profile              ai.Profile
 	model                ai.Model
 	language             string
@@ -48,9 +51,19 @@ type agent02Observation struct {
 func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 	s.mvp.mu.Lock()
 	t, err := loadAgentTask(s.db, id)
+	if err == nil {
+		t, err = s.expireAgentReviewLocked(t)
+	}
 	s.mvp.mu.Unlock()
 	if err != nil {
 		return agent02Preview{}, err
+	}
+	if t.Agent != nil && t.Status == "NEEDS_REVIEW" && t.Agent.Acceptance == nil {
+		acceptance := agentAcceptanceForGoal(t.Goal)
+		t.Agent.Acceptance = &acceptance
+	}
+	if t.Summary == "AGENT_DEADLINE_EXCEEDED" {
+		return agent02Preview{}, codedError("AGENT_DEADLINE_EXCEEDED")
 	}
 	if t.Agent == nil || t.Status != "NEEDS_REVIEW" {
 		return agent02Preview{}, codedError("TASK_STATE")
@@ -60,7 +73,10 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 		return agent02Preview{}, err
 	}
 	limits := config.Agent
-	if len(t.Agent.Rounds) >= limits.Requests || !t.Agent.Deadline.After(time.Now()) {
+	if !t.Agent.Deadline.After(time.Now()) {
+		return agent02Preview{}, codedError("AGENT_DEADLINE_EXCEEDED")
+	}
+	if len(t.Agent.Rounds) >= limits.Requests {
 		return agent02Preview{}, codedError("AGENT_BUDGET_EXHAUSTED")
 	}
 	profile, model, language, err := s.agent02Provider(t.Agent.ProviderID, t.Agent.ModelID, t.Goal)
@@ -74,7 +90,12 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 	if err = agent02CheckRoot(t, workspace.Root); err != nil {
 		return agent02Preview{}, err
 	}
-	project, err := developer.BuildAgentContextWithExclusions(workspace.Root, t.Goal, t.Agent.Paths, t.Agent.Exclusions)
+	ctx, cancel := context.WithDeadline(s.lifetime, t.Agent.Deadline)
+	defer cancel()
+	project, err := developer.BuildAgentContextUntil(ctx, workspace.Root, t.Goal, t.Agent.Paths, t.Agent.Exclusions)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return agent02Preview{}, codedError("AGENT_DEADLINE_EXCEEDED")
+	}
 	if err != nil {
 		return agent02Preview{}, err
 	}
@@ -96,8 +117,9 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 		RemainingRounds  int                    `json:"remainingRounds"`
 		MaxSteps         int                    `json:"maxSteps"`
 		FinalizeOnly     bool                   `json:"finalizeOnly"`
+		Acceptance       *agentAcceptance       `json:"acceptance,omitempty"`
 		Correction       string                 `json:"currentUserCorrection,omitempty"`
-	}{project, commands, observations, len(t.Agent.Rounds) + 1, limits.Requests - len(t.Agent.Rounds), limits.StepsPerPlan, len(t.Agent.Rounds)+1 == limits.Requests, boundedAgentText(t.Agent.CognitionCorrection, workspace.Root, 1250)})
+	}{project, commands, observations, len(t.Agent.Rounds) + 1, limits.Requests - len(t.Agent.Rounds), limits.StepsPerPlan, len(t.Agent.Rounds)+1 == limits.Requests, t.Agent.Acceptance, boundedAgentText(t.Agent.CognitionCorrection, workspace.Root, 1250)})
 	if err != nil {
 		return agent02Preview{}, err
 	}
@@ -117,6 +139,16 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 		knowledgeBytes = len(body)
 		content = append(content[:len(content)-1], []byte(",\"localKnowledge\":"+body+"}")...)
 	}
+	var localSkill *agentSkillDispatch
+	if len(t.Agent.Rounds)+1 < limits.Requests {
+		localSkill, err = s.selectAgentSkillDispatch(ctx, t, workspace, knowledge.Skills)
+		if err != nil {
+			return agent02Preview{}, err
+		}
+	}
+	if localSkill != nil {
+		content = append(content[:len(content)-1], []byte(",\"localSkill\":"+encode(localSkill)+"}")...)
+	}
 	current, err := cognitionRevision(s.db)
 	if err != nil {
 		return agent02Preview{}, err
@@ -133,17 +165,27 @@ func (s *Service) previewAgent02(id string) (agent02Preview, error) {
 		inputRate = max(inputRate, *model.Pricing.CachedInputPerMillion)
 	}
 	reserve := (float64(inputTokensUpperBound)*inputRate + float64(limits.OutputTokens)*model.Pricing.OutputPerMillion) / 1_000_000
+	if localSkill != nil {
+		reserve = 0
+		inputTokensUpperBound = 0
+	}
 	remaining := limits.BudgetUSD - t.Agent.ReservedUSD
 	if reserve > remaining {
 		return agent02Preview{}, codedError("AGENT_BUDGET_EXHAUSTED")
 	}
-	p := agent02Preview{TaskID: t.ID, Provider: profile.Name, Endpoint: profile.BaseURL, Model: model.ID, Content: string(content), Files: []string{}, MaxRequestUSD: reserve, RemainingUSD: remaining, RemainingRequests: limits.Requests - len(t.Agent.Rounds), profile: profile, model: model, language: language, project: project, task: t, workspace: workspace, limits: limits, matchedSkills: knowledge.Skills, KnowledgeMatches: knowledge.Matches, KnowledgeBytes: knowledgeBytes, InputTokenUpperBound: inputTokensUpperBound, SystemInstruction: instruction, knowledgeRevision: revision}
+	p := agent02Preview{LocalSkill: localSkill, TaskID: t.ID, Provider: profile.Name, Endpoint: profile.BaseURL, Model: model.ID, Content: string(content), Files: []string{}, MaxRequestUSD: reserve, RemainingUSD: remaining, RemainingRequests: limits.Requests - len(t.Agent.Rounds), profile: profile, model: model, language: language, project: project, task: t, workspace: workspace, limits: limits, matchedSkills: knowledge.Skills, KnowledgeMatches: knowledge.Matches, KnowledgeBytes: knowledgeBytes, InputTokenUpperBound: inputTokensUpperBound, SystemInstruction: instruction, knowledgeRevision: revision}
 	for _, file := range project.Files {
 		p.Files = append(p.Files, file.Path)
 	}
 	// Consent binds the exact bytes, system instruction version, provider,
 	// configured price and observed task/workspace version.
-	p.Hash = hashControlText(encode([]any{agent02Policy, instruction, t.ID, t.UpdatedAt, t.Agent.BoundWorkspace, profile.ID, profile.Protocol, profile.BaseURL, profile.CredentialID, profile.HasCredential, model, language, limits, p.Content}))
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return agent02Preview{}, codedError("AGENT_DEADLINE_EXCEEDED")
+	}
+	if err := ctx.Err(); err != nil {
+		return agent02Preview{}, err
+	}
+	p.Hash = hashControlText(encode([]any{agent02Policy, instruction, t.ID, t.UpdatedAt, t.Agent.BoundWorkspace, t.Agent.Deadline, profile.ID, profile.Protocol, profile.BaseURL, profile.CredentialID, profile.HasCredential, model, language, limits, p.Content}))
 	return p, nil
 }
 
@@ -196,7 +238,7 @@ func (s *Service) agent02Observations(t AgentTask, root string) []agent02Observa
 				result.Stderr = boundedAgentText(result.Stderr, root, 1000)
 				entry.Evidence = encode(result)
 			}
-		case "agent.read", "agent.search", "agent.environment":
+		case "agent.read", "agent.search", "agent.environment", "agent.workspace", "agent.analysis", "agent.verify", "agent.finalize":
 			entry.Evidence = boundedAgentText(string(step.Result), root, 1200)
 		}
 		observations = append(observations, entry)

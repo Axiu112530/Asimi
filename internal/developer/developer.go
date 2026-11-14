@@ -123,6 +123,13 @@ func RootIdentity(root string) (string, error) {
 }
 func Read(root, relative string) (File, error) { return ReadWithOptions(root, relative, Options{}) }
 func ReadWithOptions(root, relative string, options Options) (File, error) {
+	return ReadContext(context.Background(), root, relative, options)
+}
+
+func ReadContext(ctx context.Context, root, relative string, options Options) (File, error) {
+	if err := ctx.Err(); err != nil {
+		return File{}, err
+	}
 	options, err := checkedOptions(options)
 	if err != nil {
 		return File{}, err
@@ -136,7 +143,14 @@ func ReadWithOptions(root, relative string, options Options) (File, error) {
 		return File{}, err
 	}
 	defer w.Close()
-	return w.snapshot(relative)
+	if err := ctx.Err(); err != nil {
+		return File{}, err
+	}
+	file, err := w.snapshot(relative)
+	if err == nil {
+		err = ctx.Err()
+	}
+	return file, err
 }
 func Prepare(root, relative, content string) (Change, error) {
 	return PrepareWithOptions(root, relative, content, Options{})

@@ -77,6 +77,7 @@ type Observation struct {
 }
 
 type Proposal struct {
+	HarnessTask     bool       `json:"harnessTask,omitempty"`
 	ObservationID   string     `json:"observationId,omitempty"`
 	SourceRequestID string     `json:"sourceRequestId,omitempty"`
 	TaskID          string     `json:"taskId,omitempty"`

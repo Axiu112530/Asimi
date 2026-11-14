@@ -1,4 +1,4 @@
-﻿; Build with scripts\build-installer.ps1.
+; Build with scripts\build-installer.ps1.
 [Setup]
 AppId={{89F2F31F-83B1-4F15-A404-B1BF9AF913A7}
 AppName=Asimi
@@ -35,8 +35,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 #endif
 
-#ifdef IncludeChinese
 [Messages]
+english.WelcomeLabel2=Setup will install [name] in the folder you select.%n%nWhen upgrading, close Asimi before continuing.
+#ifdef IncludeChinese
+chinesesimplified.WelcomeLabel2=将在你选择的文件夹中安装 [name]。%n%n如需升级，请先关闭 Asimi。
 chinesesimplified.SelectTasksLabel2=如需桌面快捷方式，请勾选下方选项。%n点击“下一步”继续。
 chinesesimplified.FinishedLabel=已安装 [name]。%n可从开始菜单打开。
 chinesesimplified.FinishedLabelNoIcons=已安装 [name]。
@@ -74,6 +76,15 @@ chinesesimplified.ExistingInstallDir=Asimi 已安装在 %1。请选择该文件�
 #endif
 
 [Code]
+procedure InitializeWizard;
+begin
+  { Inno 6.7.4 reserves the cached system bitmap width, which can stay at
+    96 DPI while the themed checkbox is larger. Give both checklists a
+    scaled gutter so the native glyph stays inside the client rectangle. }
+  WizardForm.TasksList.Offset := ScaleX(16);
+  WizardForm.RunList.Offset := ScaleX(16);
+end;
+
 function CheckInstallDir: String;
 var
   PreviousDir: String;

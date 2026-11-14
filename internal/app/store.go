@@ -93,7 +93,7 @@ func openStore(dir string) (*sql.DB, error) {
 			return nil, fmt.Errorf("schema v6: %w", err)
 		}
 	}
-	if err := applyMigration(db, cognitionSchema+cognitionV11Schema); err != nil {
+	if err := applyMigration(db, cognitionSchema+cognitionV11Schema+cognitionPreferenceSchema+cognitionEvolutionSchema+unifiedAgentSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("cognition schema: %w", err)
 	}

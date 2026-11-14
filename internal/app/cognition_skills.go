@@ -14,21 +14,23 @@ import (
 )
 
 type cognitionSkillInput struct {
-	Scope            string   `json:"scope"`
-	WorkspaceID      string   `json:"workspaceId,omitempty"`
-	Slug             string   `json:"slug"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Instructions     string   `json:"instructions"`
-	Triggers         []string `json:"triggers"`
-	AllowedTools     []string `json:"allowedTools"`
-	Applicability    string   `json:"applicability,omitempty"`
-	Prerequisites    string   `json:"prerequisites,omitempty"`
-	Workflow         []string `json:"workflow,omitempty"`
-	ExpectedOutputs  string   `json:"expectedOutputs,omitempty"`
-	Validation       string   `json:"validation,omitempty"`
-	Limitations      string   `json:"limitations,omitempty"`
-	SourceExperience string   `json:"sourceExperience,omitempty"`
+	Dependencies     []cognitionSkillDependency `json:"dependencies,omitempty"`
+	Scope            string                     `json:"scope"`
+	WorkspaceID      string                     `json:"workspaceId,omitempty"`
+	Slug             string                     `json:"slug"`
+	Name             string                     `json:"name"`
+	Description      string                     `json:"description"`
+	Instructions     string                     `json:"instructions"`
+	Triggers         []string                   `json:"triggers"`
+	AllowedTools     []string                   `json:"allowedTools"`
+	Applicability    string                     `json:"applicability,omitempty"`
+	Prerequisites    string                     `json:"prerequisites,omitempty"`
+	Execution        []cognitionSkillStep       `json:"execution,omitempty"`
+	Workflow         []string                   `json:"workflow,omitempty"`
+	ExpectedOutputs  string                     `json:"expectedOutputs,omitempty"`
+	Validation       string                     `json:"validation,omitempty"`
+	Limitations      string                     `json:"limitations,omitempty"`
+	SourceExperience string                     `json:"sourceExperience,omitempty"`
 }
 
 type cognitionSkill struct {
@@ -89,7 +91,7 @@ func normalizeCognitionSkill(in *cognitionSkillInput) error {
 	}
 	slices.Sort(in.AllowedTools)
 	in.AllowedTools = slices.Compact(in.AllowedTools)
-	return nil
+	return validateCognitionSteps(*in)
 }
 
 func cognitionRegisteredTool(tool string) bool {
@@ -189,6 +191,9 @@ func (s *Service) manageCognitionSkill(method, payload string) (any, error) {
 }
 
 func saveCognitionSkill(tx *sql.Tx, in cognitionSkillInput, source string) error {
+	if err := validateCognitionDependencies(tx, in); err != nil {
+		return err
+	}
 	manifest := encode(in)
 	checksum := cognitionChecksum(manifest)
 	var id, currentSource, currentHash string
@@ -250,11 +255,9 @@ func (s *Service) cognitionSkillVersions(id string) ([]cognitionSkillVersion, er
 
 func (s *Service) cognitionSkills(project string) ([]cognitionSkill, error) {
 	rows, err := s.db.Query(`SELECT p.id,p.source,p.enabled,p.version,p.created_at,p.updated_at,v.manifest,v.checksum,
- (SELECT COUNT(*) FROM skill_usage u WHERE u.package_id=p.id),
+ 0,
  COALESCE((SELECT status FROM cognition_skill_state x WHERE x.package_id=p.id), CASE WHEN p.enabled=1 THEN 'active' ELSE 'disabled' END),
- (SELECT COUNT(DISTINCT u.task_id) FROM skill_usage u JOIN agent_tasks t ON t.id=u.task_id WHERE u.package_id=p.id AND t.status='COMPLETED'),
- (SELECT COUNT(DISTINCT u.task_id) FROM skill_usage u JOIN agent_tasks t ON t.id=u.task_id WHERE u.package_id=p.id AND t.status='FAILED')
- FROM skill_packages p JOIN skill_versions v
+ 0,0 FROM skill_packages p JOIN skill_versions v
  ON v.package_id=p.id AND v.version=p.version WHERE p.workspace_id IS NULL OR p.workspace_id=?
  ORDER BY p.workspace_id IS NULL,p.updated_at DESC,p.id LIMIT 100`, project)
 	if err != nil {
@@ -281,6 +284,20 @@ func (s *Service) cognitionSkills(project string) ([]cognitionSkill, error) {
 	rows.Close()
 	if err != nil {
 		return nil, err
+	}
+	insights, err := s.evolutionInsights(project)
+	if err != nil {
+		return nil, err
+	}
+	metrics := map[string]evolutionSkillMetric{}
+	for _, m := range insights.Skills {
+		metrics[evolutionKey(m.ID, m.Version)] = m
+	}
+	for i := range items {
+		m := metrics[evolutionKey(items[i].ID, items[i].Version)]
+		items[i].Usage = m.ContextUses
+		items[i].CompletedUses = m.Successes
+		items[i].FailedUses = m.Failures
 	}
 	for _, skill := range builtinSkills() {
 		item := cognitionSkill{cognitionSkillInput: cognitionSkillInput{Scope: "official", Slug: skill.ID, Name: skill.Name,

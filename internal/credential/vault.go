@@ -23,13 +23,32 @@ type Database interface {
 }
 type Vault struct{ DB Database }
 
-func (v Vault) StoreCredential(id, provider string, secret []byte) error {
+// Protect encrypts a bounded secret with the current operating-system account.
+func Protect(secret []byte) ([]byte, error) {
 	if len(secret) == 0 || len(secret) > 16384 {
-		return ErrUnavailable
+		return nil, ErrUnavailable
 	}
-	blob, e := protect(secret)
+	blob, err := protect(secret)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	return blob, nil
+}
+
+// Unprotect decrypts a stored secret for the current operating-system account.
+// The caller owns the returned buffer and should wipe it after use.
+func Unprotect(blob []byte) ([]byte, error) {
+	value, err := unprotect(blob)
+	if err != nil {
+		return nil, ErrDecrypt
+	}
+	return value, nil
+}
+
+func (v Vault) StoreCredential(id, provider string, secret []byte) error {
+	blob, e := Protect(secret)
 	if e != nil {
-		return ErrUnavailable
+		return e
 	}
 	defer Wipe(blob)
 	stamp := time.Now().UTC().Format(time.RFC3339Nano)
@@ -45,11 +64,7 @@ func (v Vault) GetCredential(provider string) ([]byte, error) {
 		return nil, ErrUnavailable
 	}
 	defer Wipe(blob)
-	value, e := unprotect(blob)
-	if e != nil {
-		return nil, ErrDecrypt
-	}
-	return value, nil
+	return Unprotect(blob)
 }
 func (v Vault) DeleteCredential(provider string) error {
 	_, e := v.DB.Exec("DELETE FROM ai_credentials WHERE provider_id=?", provider)
