@@ -81,7 +81,7 @@ const ConnectorActionCard = defineComponent({
   emits:['approve','reject','cancel'],
   setup(props,{emit}) {
     const consent=ref(false),consumed=ref(false),cancelling=ref(false);
-    watch(()=>[props.action.id,props.action.hash,props.connection?.revision],()=>{consent.value=false;});
+    watch([()=>props.action.id,()=>props.action.hash,()=>props.connection?.revision],()=>{consent.value=false;});
     const valid=()=>props.action.status==='NEEDS_APPROVAL'&&Date.parse(props.action.expiresAt)>Date.now()&&props.connection?.enabled&&props.connection.revision===props.action.connectionRevision&&!consumed.value;
     function decide(approve:boolean){if(props.busy||!state.connected||consumed.value||approve&&(!valid()||!consent.value))return;consumed.value=true;consent.value=false;emit(approve?'approve':'reject',props.action);}
     return ()=>{const a=props.action;return h('article',{class:'product-card unified-action','data-testid':'connector-action-'+a.id},[
@@ -131,9 +131,14 @@ export const UnifiedAgentPage=defineComponent({setup(){
         label('goal',h('textarea',{value:goal.value,rows:3,maxlength:16000,'data-testid':'unified-goal',placeholder:t('unified.goalPlaceholder'),disabled:busy.value,onInput:(e:Event)=>{goal.value=textValue(e);}})),
         h('div',{class:'product-row'},[label('taskType',h('select',{value:kind.value,disabled:busy.value,'data-testid':'unified-kind',onChange:(e:Event)=>{kind.value=textValue(e) as GoalKind;}},(['auto','chat','development','desktop','communication'] as const).map(k=>h('option',{value:k},t('unified.kind.'+k))))),workspacePicker(product.selectedWorkspace,value=>{product.selectedWorkspace=value;},busy.value)]),
         h('p',{class:'micro muted'},t('unified.routeHint')),
-        h('details',[h('summary',t('unified.modelOptions')),modelPicker(busy.value),label('paths',h('textarea',{value:paths.value,rows:2,disabled:busy.value,onInput:(e:Event)=>{paths.value=textValue(e);}})),
+        kind.value==='development'&&!product.selectedWorkspace?h('p',{class:'product-warning','data-testid':'unified-workspace-requirement'},t('unified.workspaceRequired')):null,
+        h('details',{open:needsModel,'data-testid':'unified-model-options'},[h('summary',t('unified.modelOptions')),modelPicker(busy.value),label('paths',h('textarea',{value:paths.value,rows:2,disabled:busy.value,onInput:(e:Event)=>{paths.value=textValue(e);}})),
           h('label',{class:'product-check'},[h('input',{type:'checkbox',checked:confirm.value,disabled:busy.value||!modelReady,'data-testid':'unified-model-consent',onChange:(e:Event)=>{confirm.value=(e.target as HTMLInputElement).checked;}}),t('unified.modelConsent',{provider:ai.profiles.find(p=>p.id===ai.assistant.providerId)?.name||'—',model:ai.assistant.modelId||'—'})]),
         ]),
+        needsModel&&(!modelReady||!confirm.value)?h('div',{'data-testid':'unified-model-requirement',role:'status'},[
+          h('p',{class:'micro muted'},t(modelReady?'unified.consentRequired':'unified.modelRequired')),
+          !modelReady?control('configureModel',()=>{state.route='models';},busy.value,'unified-configure-model'):null,
+        ]):null,
         kind.value==='desktop'?h('p',{class:'product-warning'},t('unified.observeFirst')):null,
         h('div',{class:'product-row'},[
           control('submit',submit,busy.value||!goal.value.trim()||kind.value==='desktop'||needsModel&&(!modelReady||!confirm.value)||kind.value==='development'&&!product.selectedWorkspace,'unified-submit',true),

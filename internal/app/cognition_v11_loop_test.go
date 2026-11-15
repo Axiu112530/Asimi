@@ -231,6 +231,7 @@ func TestCognitionV11VerifiedWorkflowReviewAndReuse(t *testing.T) {
 	if id == "" {
 		t.Fatal("reviewed skill missing")
 	}
+	awaitLearnedSkillProjection(t, s, project.ID, candidate.Manifest.Slug, first.ID)
 	other := mvpWorkspace(t, s, t.TempDir())
 	foreign := mustCall(t, s, "CreateAgentRun", agent02CreateInput{WorkspaceID: other.ID, Goal: first.Goal,
 		ProviderID: first.Agent.ProviderID, ModelID: first.Agent.ModelID}).(AgentTask)

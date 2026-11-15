@@ -18,6 +18,8 @@
     "openSkills": "浏览技能",
     "openMemory": "打开记忆",
     "openTasks": "查看任务",
+    "openGoals": "创建任务",
+    "reviewSourceTask": "查看来源任务",
     "explore": "管理知识与技能",
     "memory": "记忆",
     "memoryHint": "查看保存的偏好与知识",
@@ -34,6 +36,9 @@
     "emptyHistoryHint": "开启学习后，已完成的工作区任务可用于积累知识，处理记录会显示在这里。",
     "chooseWorkspaceHint": "在上方选择工作区以查看学习历史，或前往记忆管理个人知识。",
     "jobFailed": "本次学习未能完成，可以重试。",
+    "jobDraftPending": "已生成可复用的技能草案，等待审阅。",
+    "jobReviewedSkill": "来自此经验的已审阅技能已启用，可供使用。",
+    "jobExperienceOnly": "经验已处理，当前没有可复用的技能草案。",
     "technicalDetails": "技术详情"
   }
 }

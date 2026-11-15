@@ -18,6 +18,8 @@
     "openSkills": "Browse skills",
     "openMemory": "Open Memory",
     "openTasks": "Open tasks",
+    "openGoals": "Create a task",
+    "reviewSourceTask": "Review source task",
     "explore": "Explore your knowledge",
     "memory": "Memory",
     "memoryHint": "Review saved preferences and facts",
@@ -34,6 +36,9 @@
     "emptyHistoryHint": "Completed workspace tasks can contribute knowledge when learning is enabled. Activity will appear here.",
     "chooseWorkspaceHint": "Choose a workspace above to view its learning history, or open Memory to manage personal knowledge.",
     "jobFailed": "Learning could not finish. You can retry this task.",
+    "jobDraftPending": "A reusable skill draft is awaiting review.",
+    "jobReviewedSkill": "A reviewed skill from this experience is enabled and available.",
+    "jobExperienceOnly": "Experience processed. No reusable skill draft is currently available.",
     "technicalDetails": "Technical details"
   }
 }

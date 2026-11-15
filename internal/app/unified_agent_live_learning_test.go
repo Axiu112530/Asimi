@@ -113,7 +113,15 @@ func TestLiveDevelopmentLearnsAndReusesReviewedSkill(t *testing.T) {
 		t.Logf("recorded actions: %s", encode(first.Steps))
 		t.Fatal("real repair produced no reviewable skill candidate")
 	}
+	// Automatic creation persists a reviewable candidate, never an enabled skill.
+	pending := mustCall(t, s, "GetCognitionState", map[string]string{"workspaceId": project.ID}).(cognitionState)
+	for _, skill := range pending.Skills {
+		if skill.Slug == candidate.Manifest.Slug {
+			t.Fatal("automatic candidate was enabled before explicit review")
+		}
+	}
 	mustCall(t, s, "ReviewCognitionCandidate", map[string]any{"id": candidate.ID, "workspaceId": project.ID, "approve": true})
+	projected, markdown, manifest := awaitLearnedSkillProjection(t, s, project.ID, candidate.Manifest.Slug, first.ID)
 	// The second task has a distinct source file while retaining the same tests.
 	if err := os.WriteFile(filepath.Join(project.Root, "calc.go"), []byte("package calc\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -123,12 +131,17 @@ func TestLiveDevelopmentLearnsAndReusesReviewedSkill(t *testing.T) {
 	}
 	second, secondRequests, local := runTask("more.go", true)
 	insights := mustCall(t, s, "GetEvolutionInsights", map[string]string{"workspaceId": project.ID})
-	report := map[string]any{"passed": true, "provider": "DeepSeek", "model": "deepseek-flash", "scope": "two isolated repairs -> real test evidence -> learned candidate -> explicit review -> distinct next-task local skill execution", "firstTaskId": first.ID, "secondTaskId": second.ID, "reviewedCandidateId": candidate.ID, "firstModelRequests": firstRequests, "secondModelRequests": secondRequests, "localSkillDispatches": local, "firstVerification": first.Agent.Verification, "secondVerification": second.Agent.Verification, "evolution": insights, "roundsFirst": first.Agent.Rounds, "roundsSecond": second.Agent.Rounds}
+	report := map[string]any{"passed": true, "provider": "DeepSeek", "model": "deepseek-flash", "scope": "two isolated repairs -> real test evidence -> learned candidate -> explicit review -> distinct next-task local skill execution", "firstTaskId": first.ID, "secondTaskId": second.ID, "reviewedCandidateId": candidate.ID, "automaticCandidateStatus": candidate.Status, "enabledBeforeReview": false, "learnedCandidate": candidate, "projectedPackage": projected, "projectedSkillMarkdownSha256": hashControlText(string(markdown)), "projectedManifestSha256": hashControlText(string(manifest)), "projectedFilesReadBack": true, "firstModelRequests": firstRequests, "secondModelRequests": secondRequests, "localSkillDispatches": local, "firstVerification": first.Agent.Verification, "secondVerification": second.Agent.Verification, "evolution": insights, "roundsFirst": first.Agent.Rounds, "roundsSecond": second.Agent.Rounds}
 	if directory := os.Getenv("ASIMI_LIVE_EVIDENCE_DIR"); directory != "" {
 		if err := os.MkdirAll(directory, 0700); err != nil {
 			t.Fatal(err)
 		}
 		body, _ := json.MarshalIndent(report, "", "  ")
+		for name, content := range map[string][]byte{"learned-SKILL.md": markdown, "learned-manifest.json": manifest} {
+			if err := os.WriteFile(filepath.Join(directory, name), content, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
 		if err := os.WriteFile(filepath.Join(directory, "live-development-learning.json"), body, 0600); err != nil {
 			t.Fatal(err)
 		}

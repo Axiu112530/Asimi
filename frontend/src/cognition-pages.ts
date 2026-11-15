@@ -1,7 +1,7 @@
-import { defineComponent, h, reactive, ref, watch, type VNodeChild } from 'vue';
-import { call } from './bridge';
+import { defineComponent, h, onUnmounted, reactive, ref, watch, type VNodeChild } from 'vue';
+import { call, subscribe } from './bridge';
 import { date, i18n, number, t } from './i18n';
-import { product } from './product-store';
+import { product, selectWorkspace } from './product-store';
 import { fail, state } from './store';
 import { button, icon } from './ui';
 import layoutEn from './locales/cognition-layout.en-US.json';
@@ -105,21 +105,47 @@ function useCognition() {
   const data = ref<CognitionState>();
   const busy = ref(false);
   let request = 0;
+  let active = true;
+  let disconnect: (() => void) | undefined;
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  const isCurrent = (current: number) => active && state.connected && request === current;
   async function load() {
+    if (!active || !state.connected) return;
     const current = ++request;
-    const result = await call<CognitionState>('GetCognitionState', { workspaceId: workspaceId.value });
-    if (request === current) data.value = result;
+    try {
+      const result = await call<CognitionState>('GetCognitionState', { workspaceId: workspaceId.value });
+      if (isCurrent(current)) data.value = result;
+    } catch (error) {
+      if (isCurrent(current)) fail(error);
+    }
   }
   watch(() => state.connected, connected => {
+    disconnect?.();
+    disconnect = undefined;
+    clearTimeout(refreshTimer);
     if (!connected) {
       request++;
       data.value = undefined;
+    } else {
+      disconnect = subscribe('asimi:changed', () => {
+        if (!active || !state.connected) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => void load(), 120);
+      });
     }
-  });
+  }, { immediate: true, flush: 'sync' });
   watch([workspaceId, () => state.connected], ([, connected]) => {
+    request++;
+    clearTimeout(refreshTimer);
     data.value = undefined;
-    if (connected) void load().catch(fail);
+    if (connected) void load();
   }, { immediate: true });
+  onUnmounted(() => {
+    active = false;
+    request++;
+    disconnect?.();
+    clearTimeout(refreshTimer);
+  });
   async function work(action: () => Promise<unknown>) {
     if (!state.connected || busy.value) return;
     busy.value = true;
@@ -134,7 +160,7 @@ function useCognition() {
   }
   function projectPicker() {
     return label('workspace', h('select', {
-      value: workspaceId.value, disabled: busy.value,
+      value: workspaceId.value, disabled: busy.value, 'data-testid': 'cognition-workspace',
       onChange: (event: Event) => { workspaceId.value = textValue(event); },
     }, [
       h('option', { value: '' }, t('cognition.noWorkspace')),
@@ -236,7 +262,7 @@ export const MemoryPage = defineComponent({
 });
 
 const layoutText = (key: string) => t('cognitionLayout.' + key);
-type CognitionRoute = 'memory' | 'skills' | 'learning' | 'workflows';
+type CognitionRoute = 'memory' | 'skills' | 'learning' | 'workflows' | 'goals';
 
 function cognitionLink(key: string, route: CognitionRoute, testId: string) {
   return button('cognitionLayout.' + key, () => { state.route = route; }, {
@@ -364,6 +390,11 @@ export const LearningPage = defineComponent({
     function jobTitle(job: LearningRecord) {
       return product.data.agentTasks.find(task => task.id === job.taskId)?.goal || t('cognition.episode');
     }
+    function jobOutcome(job: LearningRecord) {
+      if ((data.value?.candidates ?? []).some(candidate => candidate.taskId === job.taskId && candidate.status === 'pending')) return 'jobDraftPending';
+      if ((data.value?.skills ?? []).some(skill => skill.sourceExperience === job.taskId && skill.enabled && skill.source.startsWith('reviewed:'))) return 'jobReviewedSkill';
+      return 'jobExperienceOnly';
+    }
     return () => {
       const jobs = data.value?.learning ?? [];
       const disabled = busy.value || !state.connected || !data.value;
@@ -389,7 +420,7 @@ export const LearningPage = defineComponent({
           !data.value ? h('p', { class: 'cognition-loading', role: 'status' }, t(state.connected ? 'common.loading' : 'app.connecting')) :
             !jobs.length ? cognitionEmpty('learning', 'emptyHistoryTitle', workspaceId.value ? 'emptyHistoryHint' : 'chooseWorkspaceHint',
               h('div', { class: 'cognition-empty-actions' }, [
-                state.settings.interfaceMode === 'developer' ? cognitionLink('openTasks', 'workflows', 'cognition-learning-open-tasks') : null,
+                state.settings.interfaceMode === 'developer' ? cognitionLink('openTasks', 'workflows', 'cognition-learning-open-tasks') : cognitionLink('openGoals', 'goals', 'cognition-learning-open-goals'),
                 cognitionLink('openMemory', 'memory', 'cognition-learning-open-memory'),
               ])) : h('ol', { class: 'cognition-job-list' }, jobs.map(job => h('li', {
                 key: job.taskId, class: 'cognition-job', 'data-testid': 'cognition-learning-job', 'data-status': job.status,
@@ -397,6 +428,7 @@ export const LearningPage = defineComponent({
                 h('div', { class: 'cognition-job-summary' }, [
                   h('h3', jobTitle(job)),
                   h('time', { datetime: job.createdAt }, date(job.createdAt)),
+                  job.status === 'done' ? h('p', { class: 'micro', 'data-testid': 'cognition-learning-outcome-' + job.taskId, 'data-outcome': jobOutcome(job) }, layoutText(jobOutcome(job))) : null,
                   job.status === 'failed' ? h('p', { class: 'cognition-job-error' }, layoutText('jobFailed')) : null,
                   state.settings.interfaceMode === 'developer' ? h('details', { class: 'cognition-developer' }, [
                     h('summary', layoutText('technicalDetails')),
@@ -410,6 +442,11 @@ export const LearningPage = defineComponent({
                   t('cognition.job.' + job.status),
                 ]),
                 h('div', { class: 'cognition-job-actions' }, [
+                  button('cognitionLayout.reviewSourceTask', () => {
+                    selectWorkspace(workspaceId.value);
+                    product.selectedTask = job.taskId;
+                    state.route = 'workflows';
+                  }, { class: 'button secondary', disabled, 'data-testid': 'cognition-learning-source-' + job.taskId }),
                   job.status === 'pending' || job.status === 'paused' ? button('cognition.cancelJob', () => change(job, 'cancel'), {
                     class: 'button secondary', disabled, 'data-testid': 'cognition-learning-cancel-job',
                   }) : null,

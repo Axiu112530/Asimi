@@ -112,6 +112,40 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
   }
   await evaluate(`(async()=>{const {Call}=await import('/wails/runtime.js');const s=await Call.ByName('main.DesktopService.Call','GetSettings','{}');return Call.ByName('main.DesktopService.Call','UpdateSettings',JSON.stringify({...s.data,interfaceMode:'developer'}))})()`);
  }
+ if (ready.stage === 15) {
+  const updateSettings = async patch => evaluate(`(async()=>{const {Call}=await import('/wails/runtime.js');const s=await Call.ByName('main.DesktopService.Call','GetSettings','{}');return Call.ByName('main.DesktopService.Call','UpdateSettings',JSON.stringify({...s.data,...${JSON.stringify(patch)}}))})()`);
+  await updateSettings({appLanguage:'en-US'});
+  for (const page of ['home','goals','skills','learning','memory','workflows']) {
+   await evaluate(`document.querySelector('[data-testid="nav-${page}"]').click()`);
+   await pause(180);
+   if (page === 'learning') {
+    await evaluate(`(()=>{const select=document.querySelector('[data-testid="cognition-workspace"]');const project=[...select.options].find(option=>option.value);if(project){select.value=project.value;select.dispatchEvent(new Event('change',{bubbles:true}));}})()`);
+    await pause(300);
+   }
+   if (page === 'goals') {
+    await evaluate(`(()=>{const select=document.querySelector('[data-testid="unified-kind"]');select.value='development';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+    await pause(120);
+   }
+   await send('Emulation.setDeviceMetricsOverride',{width:1000,height:700,deviceScaleFactor:1,mobile:false});
+   await pause(120);
+   const dimensions=await evaluate(`(()=>{const main=document.querySelector('.workspace');return {language:document.documentElement.lang,width:innerWidth,noHorizontalOverflow:main.scrollWidth<=main.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth}})()`);
+   if(dimensions.language!=='en-US')throw new Error('English UI setting did not apply');
+   metrics.push({label:'english-'+page,...dimensions});
+   const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+   await fs.writeFile(path.join(output,`stage15-english-${page}.png`),Buffer.from(shot.data,'base64'));
+  }
+  await updateSettings({theme:'dark'});
+  await evaluate(`document.querySelector('[data-testid="nav-goals"]').click()`);
+  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await pause(180);
+  const reduced=await evaluate(`({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,transition:getComputedStyle(document.querySelector('.button')).transitionDuration})`);
+  if(!reduced.matches||reduced.transition.split(',').some(value=>parseFloat(value)>0.001))throw new Error('Reduced motion overrides not active');
+  metrics.push({label:'reduced-motion',...reduced});
+  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+  await fs.writeFile(path.join(output,'stage15-english-dark-goals.png'),Buffer.from(shot.data,'base64'));
+  await send('Emulation.setEmulatedMedia',{features:[]});
+  await updateSettings({appLanguage:'zh-CN',theme:'light'});
+ }
  await send('Emulation.clearDeviceMetricsOverride');
  await fs.writeFile(path.join(output,`visual-stage${ready.stage}.json`),JSON.stringify(metrics,null,2));
  await evaluate('globalThis.__asimiAcceptanceContinue=true');socket.close();

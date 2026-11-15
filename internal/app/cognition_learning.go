@@ -50,6 +50,13 @@ func (s *Service) cognitionLoop() {
 }
 
 func (s *Service) processCognitionJob() {
+	// Notify only after durable state changes and after releasing worker locks.
+	var changedTask string
+	defer func() {
+		if changedTask != "" && s.lifetime.Err() == nil {
+			s.changed("", changedTask)
+		}
+	}()
 	s.cognitionMu.Lock()
 	defer s.cognitionMu.Unlock()
 	s.mvp.signalMu.Lock()
@@ -96,8 +103,10 @@ func (s *Service) processCognitionJob() {
 		 duration_ms=?,completed_at=? WHERE task_id=?`, time.Since(start).Milliseconds(), now(), id)
 		return err
 	})
-	if err != nil && s.lifetime.Err() == nil {
-		_ = recordCognitionFailure(s.db, id, time.Since(start), err)
+	if id != "" && s.lifetime.Err() == nil {
+		if err == nil || recordCognitionFailure(s.db, id, time.Since(start), err) == nil {
+			changedTask = id
+		}
 	}
 }
 

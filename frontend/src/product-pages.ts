@@ -68,7 +68,7 @@ export const HomePage=defineComponent({props:{developer:Boolean},setup(props){us
  panel('currentProvider',h('div',[h('strong',current?.name||t('product.offline')),h('p',current?t('preset.activeModel',{model:ai.settings.defaultModelId}):t('preset.offlineSummary')),action('configure',()=>state.route='models')])),
  props.developer ? panel('workspaces',product.data.workspaces.length?product.data.workspaces.map(w=>h('button',{class:'product-list-button',onClick:()=>{selectWorkspace(w.id);state.route='developer';}},[h('strong',w.name),h('code',w.root)])):h('p',t('product.noWorkspace'))) : null,
  panel('recentConversations',recent.length?recent.map(c=>h('button',{class:'product-list-button',onClick:()=>openConversation(c.id)},[h('strong',c.title||t('assistant.newConversation')),h('time',date(c.updatedAt))])):h('p',t('preset.noConversations'))),
- props.developer ? panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button',onClick:()=>state.route='workflows'},[h('strong',task.goal),badge(task.status)])):h('p',t('preset.noTasks'))) : null,
+ props.developer ? panel('recentTasks',product.data.agentTasks.length?product.data.agentTasks.slice(0,5).map(task=>h('button',{class:'product-list-button','data-testid':'product-recent-task-'+task.id,onClick:()=>{selectWorkspace(task.workspaceId);product.selectedTask=task.id;state.route='workflows';}},[h('strong',task.goal),badge(task.status)])):h('p',t('preset.noTasks'))) : null,
  ]),
  ]);};}});
 
@@ -105,13 +105,26 @@ export const DeveloperPage=defineComponent({setup(){useProduct();const query=ref
  ]),
  ]);}});
 
-export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),paths=ref(''),selected=ref(''),context=ref<{id:string;content:string;hash:string}|null>(null);
+export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),paths=ref(''),selected=ref(product.selectedTask),context=ref<{id:string;content:string;hash:string}|null>(null);
+ let revealedTask='';
+ async function revealSelectedTask(){
+  if(!selected.value||selected.value===revealedTask)return;
+  const task=product.data.agentTasks.find(task=>task.id===selected.value);
+  if(task){selectWorkspace(task.workspaceId);product.selectedTask=task.id;}
+  await nextTick();
+  if(typeof document==='undefined')return;
+  const target=Array.from(document.querySelectorAll<HTMLElement>('[data-task-id]')).find(element=>element.dataset.taskId===selected.value);
+  if(target){target.scrollIntoView({block:'start'});target.focus({preventScroll:true});revealedTask=selected.value;}
+ }
+ watch(()=>product.selectedTask,id=>{selected.value=id;void revealSelectedTask();});
+ watch(()=>product.data.agentTasks,()=>void revealSelectedTask());
+ onMounted(()=>void revealSelectedTask());
  let disconnect:(()=>void)|undefined;let refreshTimer:ReturnType<typeof setTimeout>|undefined;
  onMounted(()=>{if(state.connected)disconnect=subscribe('asimi:changed',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,120);});});
  onUnmounted(()=>{disconnect?.();clearTimeout(refreshTimer);});
  const previewAI=(id:string)=>productWork(async()=>{const p=await call<{content:string;hash:string}>('PreviewAgentTaskContext',{id});context.value={id,...p};});
- const create=()=>productWork(async()=>{const task=await call<AgentTask>('CreateAgentTask',{workspaceId:product.selectedWorkspace,goal:goal.value});selected.value=task.id;goal.value='';await refreshProduct();});
- const createModelRun=()=>productWork(async()=>{const task=await call<AgentTask>('CreateAgentRun',{workspaceId:product.selectedWorkspace,goal:goal.value,providerId:ai.assistant.providerId,modelId:ai.assistant.modelId,paths:paths.value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),autoSelect:true,exclusions:product.exclusions.map(path=>path.trim()).filter(Boolean)});selected.value=task.id;goal.value='';await refreshProduct();});
+ const create=()=>productWork(async()=>{const task=await call<AgentTask>('CreateAgentTask',{workspaceId:product.selectedWorkspace,goal:goal.value});product.selectedTask=task.id;goal.value='';await refreshProduct();});
+ const createModelRun=()=>productWork(async()=>{const task=await call<AgentTask>('CreateAgentRun',{workspaceId:product.selectedWorkspace,goal:goal.value,providerId:ai.assistant.providerId,modelId:ai.assistant.modelId,paths:paths.value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),autoSelect:true,exclusions:product.exclusions.map(path=>path.trim()).filter(Boolean)});product.selectedTask=task.id;goal.value='';await refreshProduct();});
  const control=(method:string,id:string)=>productWork(async()=>{await call(method,{id});await refreshProduct();});
  const resume=(task:AgentTask)=>{if(!task.agent)return control('ResumeAgentTask',task.id);const recovery=task.steps.some(s=>s.status==='RECOVERY_REQUIRED');if(recovery&&!window.confirm(t('agent02.acknowledge')))return;return productWork(async()=>{await call('ResumeAgentRun',{id:task.id,acknowledgeRecovery:recovery});await refreshProduct();});};
  return()=>h('section',{class:'product-page','data-testid':'product-tasks'},[
@@ -120,8 +133,8 @@ export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),
  field('goal',area(goal.value,v=>goal.value=v,{'aria-label':t('product.goal')})),
  providerSelect(),h('details',{class:'preset-task-sources'},[h('summary',t('preset.taskSources')),h('p',{class:'micro muted'},t('preset.taskSourcesHint')),h('label',{class:'product-field'},[h('span',t('agent02.paths')),area(paths.value,v=>paths.value=v,{rows:3,placeholder:'src/calc.go'})])]),
  h('div',{class:'product-row'},[button('agent02.create',createModelRun,{class:'button primary',disabled:product.busy||!goal.value.trim()||!product.selectedWorkspace||model(ai.assistant)?.capabilities.text!=='SUPPORTED','data-testid':'agent02-create'}),action('createTask',create,!goal.value.trim()||!product.selectedWorkspace)]),
- ...product.data.agentTasks.map(task=>h('article',{class:'product-card','data-task-id':task.id},[
- h('div',{class:'split'},[h('button',{class:'text-button',onClick:()=>selected.value=task.id},task.desktop?t('product.desktopTask'):task.goal),badge(task.status)]),h('p',{class:'micro'},date(task.updatedAt)),
+ ...product.data.agentTasks.map(task=>h('article',{class:['product-card',{'product-task-selected':selected.value===task.id}],tabindex:-1,'aria-current':selected.value===task.id?'true':undefined,'data-testid':'product-task-'+task.id,'data-task-id':task.id},[
+ h('div',{class:'split'},[h('button',{class:'text-button','aria-expanded':selected.value===task.id,onClick:()=>{selected.value=task.id;product.selectedTask=task.id;}},task.desktop?t('product.desktopTask'):task.goal),badge(task.status)]),h('p',{class:'micro'},date(task.updatedAt)),
  h('div',{class:'product-row'},[action('pause',()=>control('PauseAgentTask',task.id),!['RUNNING','PLANNING','WAITING_APPROVAL','NEEDS_REVIEW'].includes(task.status)),action('resume',()=>resume(task),!!task.desktop||!['PAUSED','RECOVERY_REQUIRED'].includes(task.status)),action('cancel',()=>control('CancelAgentTask',task.id),['COMPLETED','CANCELLED','FAILED'].includes(task.status)),task.agent||task.desktop?null:action('analyzeWithAI',()=>previewAI(task.id)),task.agent||task.desktop?null:action('taskActions',()=>{selectWorkspace(task.workspaceId);product.selectedTask=task.id;state.route='developer';}),task.conversationId?action('taskConversation',()=>openConversation(task.conversationId!)):null]),
  task.agent?h(Agent02Panel,{task}):null,
  selected.value===task.id?h(ComputerTaskEvidence,{taskId:task.id}):null,

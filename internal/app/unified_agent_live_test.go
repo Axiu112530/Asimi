@@ -42,7 +42,7 @@ func TestLiveUnifiedPublicGitHubDeepSeek(t *testing.T) {
 		t.Fatal(err)
 	}
 	if run.Status != "COMPLETED" || !strings.Contains(encode(run.Result), "octocat/Hello-World") {
-		t.Fatal("public repository identity was not independently validated")
+		t.Fatalf("public repository identity was not independently validated: status=%s code=%s", run.Status, run.Error)
 	}
 	preview := mustCall(t, s, "PreviewUnifiedSummary", map[string]string{"id": run.ID, "providerId": profile.ID, "modelId": "deepseek-flash"}).(unifiedSummaryPreview)
 	if strings.Contains(preview.Content, secret) {

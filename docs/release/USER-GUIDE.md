@@ -31,6 +31,14 @@ Developer mode can expand today’s latest 25 requests for diagnostics. The Mode
 
 Use **Stop all** to cancel active tasks. The task history records proposed actions, approvals, execution results and recovery status.
 
+## Review learned skills
+
+Open **Memory** to manage memory and learning settings. Automatic skill creation is off in a new profile; enable it if you want eligible, verified project tasks to produce skill drafts. Choose the project scope in **Learning** to see its history. Completed processing can produce a draft, an enabled reviewed skill, or experience without a reusable draft; each outcome is shown separately.
+
+Review a draft before enabling it. Reviewed skill packages are stored locally with versioned `SKILL.md` and `manifest.json` files. Learning history can open the exact source task, and recent-task links select and focus that task in Workflows.
+
+The currently verified automatic local execution path reuses a reviewed Go-test skill for a verified changed package. Running the command still requires approval. Other skills provide instructions and context. A recovered task with failed planning steps can complete without producing a trusted draft.
+
 ## Review computer actions
 
 The Computer page shows screen access, computer-action status, and supported devices. **Inspect and act** is available in Standard mode. Select a supported window, inspect its controls, then use **Set value as a task** or **Invoke as a task** to prepare a desktop task. Review the exact target and action before approving. You can check its outcome in the computer action history; Developer mode also shows its steps and evidence in Agent Tasks. A desktop task does not require choosing a code project or configuring a Skill.
@@ -41,7 +49,7 @@ During an approved computer action, press **Esc** on the Windows interactive des
 
 Use the dedicated test window under **Inspect and act** to exercise the currently supported computer actions. For screenshot analysis, choose the display or region, inspect the preview, cover any sensitive content and separately confirm the upload to an image-capable provider. A reviewed model suggestion can prepare a desktop task; executing it requires a separate action approval. An unknown result requires a fresh observation and proposal. Real-provider vision has been verified on the dedicated fixture. Empty Notepad remains a user-initiated acceptance scenario. [Known limitations](KNOWN-LIMITATIONS.md)
 
-The [Perception & Action implementation report](../reports/2026-11-14-perception-action-completion.zh-CN.md) identifies the tested local build. Existing release archives are separate artifacts.
+The [Perception & Action implementation report](../reports/2026-11-15-github-ui-functional-acceptance.zh-CN.md) identifies the tested local build. Existing release archives are separate artifacts.
 
 ## Goals and connections
 
@@ -49,4 +57,4 @@ Open **Goals** to start or review a chat, project, desktop, or connector task. A
 
 The evolution panel shows observed skill use and outcomes, pending improvements, and memory maintenance. To create a personal composition, review its pinned skills and tool permissions, then explicitly enable it.
 
-See the [implementation and acceptance report](../reports/2026-11-14-unified-agent-completion.zh-CN.md) for the tested Windows build and service coverage.
+See the [implementation and acceptance report](../reports/2026-11-15-github-ui-functional-acceptance.zh-CN.md) for the tested Windows build and service coverage.

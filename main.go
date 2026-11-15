@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -276,7 +277,7 @@ func run() int {
 		var connectOnce sync.Once
 		var connectErr error
 		desktopService.connectPresetFixture = func(payload string) (domain.Reply, bool) {
-			if payload != `{"presetId":"deepseek","secret":"preset-native-acceptance-placeholder"}` {
+			if !isPresetAcceptanceRequest(payload) {
 				return domain.Reply{}, false
 			}
 			connectOnce.Do(func() {
@@ -583,4 +584,19 @@ func waitForWindowRemoval(desktop *application.App, runReturned <-chan struct{},
 			return false
 		}
 	}
+}
+
+func isPresetAcceptanceRequest(payload string) bool {
+	var input struct {
+		PresetID string `json:"presetId"`
+		ModelID  string `json:"modelId"`
+		Secret   string `json:"secret"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&input) != nil || decoder.Decode(&struct{}{}) != io.EOF {
+		return false
+	}
+	return input.PresetID == "deepseek" && input.Secret == "preset-native-acceptance-placeholder" &&
+		(input.ModelID == "" || input.ModelID == "deepseek-flash")
 }

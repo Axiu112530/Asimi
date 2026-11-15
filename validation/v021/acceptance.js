@@ -155,6 +155,49 @@ async function setup(live) {
   }
 }
 
+async function checkGoalPrerequisites() {
+  input('unified-kind', 'chat', 'change');
+  await until('visible model requirements', () => byId('unified-model-options')?.open && byId('unified-model-requirement'));
+  check('modelConsentVisibleWhenNeeded', byId('unified-model-consent').getClientRects().length > 0 &&
+    byId('unified-submit').disabled && !!byId('unified-configure-model'));
+  await click('unified-configure-model');
+  await until('model configuration route', () => byId('preset-provider'));
+  check('missingModelLinksToConfiguration', !!byId('preset-provider'));
+  await click('nav-goals');
+  await until('goal compose ready', () => byId('unified-workspace') && !byId('unified-workspace').disabled);
+  const workspace = byId('unified-workspace').value;
+  input('unified-workspace', '', 'change');
+  input('unified-kind', 'development', 'change');
+  await until('project requirement', () => byId('unified-workspace-requirement'));
+  check('missingWorkspaceExplained', byId('unified-submit').disabled && !!byId('unified-workspace-requirement'));
+  input('unified-workspace', workspace, 'change');
+  input('unified-kind', 'auto', 'change');
+  await until('auto route restored', () => !byId('unified-workspace-requirement'));
+}
+
+async function checkTaskReviewNavigation(workspaceId) {
+  const first = await call('CreateAgentTask', { workspaceId, goal: 'Inspect the project structure for acceptance task A' });
+  const second = await call('CreateAgentTask', { workspaceId, goal: 'Inspect the project structure for acceptance task B' });
+  await until('read-only tasks settled', async () => {
+    const tasks = (await call('GetMVPState')).agentTasks;
+    return [first, second].every(task => tasks.find(item => item.id === task.id)?.status === 'COMPLETED');
+  });
+  await click('nav-home');
+  await click('product-recent-task-' + first.id);
+  await until('exact recent task selected', () => byId('product-task-' + first.id)?.getAttribute('aria-current') === 'true');
+  await until('selected task receives focus', () => document.activeElement === byId('product-task-' + first.id));
+  check('recentTaskSelectsExactSource', document.querySelectorAll('[data-task-id][aria-current=true]').length === 1);
+  await click('nav-learning');
+  await until('learning scope selector', () => byId('cognition-workspace') && !byId('cognition-workspace').disabled);
+  input('cognition-workspace', workspaceId, 'change');
+  await until('learning outcome displayed', () => byId('cognition-learning-outcome-' + second.id));
+  check('processedExperienceDoesNotClaimNewSkill', byId('cognition-learning-outcome-' + second.id).dataset.outcome === 'jobExperienceOnly');
+  await click('cognition-learning-source-' + second.id);
+  await until('exact learning source selected', () => byId('product-task-' + second.id)?.getAttribute('aria-current') === 'true');
+  check('learningSourceSelectsExactTask', byId('product-task-' + first.id)?.getAttribute('aria-current') !== 'true' &&
+    document.activeElement === byId('product-task-' + second.id));
+}
+
 async function checkOrdinaryUnifiedTasks() {
   check('standardGoalsAndConnectionsVisible', !!byId('nav-goals') && !!byId('nav-connections') &&
     !byId('nav-developer') && !byId('nav-playground'));
@@ -171,6 +214,7 @@ async function checkOrdinaryUnifiedTasks() {
   await until('ordinary goals page', () => byId('unified-page'));
   check('ordinaryGoalDoesNotRequireModel', byId('unified-kind')?.value === 'auto' &&
     !byId('unified-model-consent')?.checked);
+  await checkGoalPrerequisites();
   const evolution = await until('ordinary evolution evidence', () => byId('evolution-maintenance-preview') && byId('evolution-panel'));
   check('ordinaryEvolutionEvidenceAndCompositionVisible',
     evolution.querySelectorAll('.unified-memory-stats > div').length === 4 &&
@@ -201,11 +245,14 @@ async function checkOrdinaryUnifiedTasks() {
   const approve = byId('connector-approve-' + action.id);
   const consent = byId('connector-consent-' + action.id);
   check('ordinaryApprovalBlockedWithoutConsent', !!approve?.disabled && !!consent && !consent.checked);
-  consent.click();
+  await click('connector-consent-' + action.id);
   await until('exact connector consent', () => !byId('connector-approve-' + action.id)?.disabled);
+  await pause(3400); // Cover a real read-only polling refresh.
+  check('unchangedPollingPreservesConsent', byId('connector-consent-' + action.id)?.checked &&
+    !byId('connector-approve-' + action.id)?.disabled);
   check('checkingConsentDoesNotExecute',
     (await call('ListConnectorActions')).find(item => item.id === action.id)?.status === 'NEEDS_APPROVAL');
-  consent.click();
+  await click('connector-consent-' + action.id);
   await until('consent withdrawn blocks approval', () => byId('connector-approve-' + action.id)?.disabled);
   await click('connector-reject-' + action.id);
   await until('ordinary rejection persists', async () => {
@@ -281,6 +328,7 @@ async function restart(live) {
     await until('mode setting ready', () => byId('interface-mode') && !byId('interface-mode').disabled);
     input('interface-mode', 'developer', 'change');
     await until('developer menus restored', () => byId('nav-developer') && byId('nav-playground'));
+    if (asimi) await checkTaskReviewNavigation(state.workspaces[0].id);
     await click('nav-home');
     await click('product-chat');
     await until('model setup entry', () => byId('chat-model-required'));

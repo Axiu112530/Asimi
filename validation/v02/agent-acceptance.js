@@ -88,7 +88,7 @@ async function run(){
    providerId=profile.id;
  }
  const workspace=await call('PickWorkspace');
- if(stage===11){
+ if(stage===11||stage===12){
    await call('SetCognitionSettings',{memory:true,automaticLearning:true,automaticSkillCreation:true,projectLearning:true});
    await call('SaveCognitionMemory',{kind:'project',workspaceId:workspace.id,key:'Go Add',text:cognitionFixtureText});
  }
@@ -110,7 +110,7 @@ async function run(){
    for(let attempt=0;attempt<3&&!completed;attempt++)completed=await trackRound(want,kind);
    check(`reviewRoundCompleted${want}`,completed);
  }
- if(stage===11){
+ if(stage===11||stage===12){
    const learned=await until('learning evidence',async()=>{
      const data=await call('GetCognitionState',{workspaceId:workspace.id});
      return data.memories.some(item=>item.kind==='episode'&&item.key===taskId&&item.verified)&&
