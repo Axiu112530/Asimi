@@ -39,6 +39,10 @@
     "jobDraftPending": "已生成可复用的技能草案，等待审阅。",
     "jobReviewedSkill": "来自此经验的已审阅技能已启用，可供使用。",
     "jobExperienceOnly": "经验已处理，当前没有可复用的技能草案。",
-    "technicalDetails": "技术详情"
+    "technicalDetails": "技术详情",
+    "choosePackage": "选择技能包",
+    "packageHint": "JSON 技能包 · 最大 32 KB",
+    "importSuccess": "技能包已导入。",
+    "importFailed": "导入失败。请选择有效的 Asimi 技能 JSON 文件，大小不超过 32 KB，然后重试。"
   }
 }

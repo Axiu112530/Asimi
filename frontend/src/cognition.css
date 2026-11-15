@@ -586,3 +586,13 @@
     width: auto;
   }
 }
+
+.skill-import-row { gap: 12px 20px; }
+.skill-import-field { flex: 1 1 280px; min-width: 0; }
+.skill-import-control { display: flex; align-items: center; gap: 12px; min-height: var(--form-control-height, 36px); min-width: 0; }
+.skill-import-trigger { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: var(--form-control-height, 36px); flex: none; margin: 0; cursor: pointer; }
+.product-page .skill-import-trigger > input[type=file] { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: 0; border: 0; overflow: hidden; clip-path: inset(50%); }
+.skill-import-trigger:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.skill-import-trigger.is-disabled { cursor: default; color: var(--muted); background: var(--raised); opacity: .65; }
+.skill-import-filename { min-width: 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+@media(max-width:600px) { .skill-import-control { flex-wrap: wrap; gap: 8px; } }

@@ -1,6 +1,10 @@
 import { h, type VNode, type VNodeChild } from 'vue';
 import { i18n, known, t } from './i18n';
 const paths: Record<string,string[]> = {
+  wrench:['M14.7 6.3a5 5 0 0 0-6.2 6.2L3 18a2.1 2.1 0 0 0 3 3l5.5-5.5a5 5 0 0 0 6.2-6.2L15 12l-3-3 2.7-2.7Z'],
+  pencil:['m15 4 5 5','M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15l-1 6 5-2'],
+  terminal:['M3 4h18v16H3z','m6 9 3 3-3 3','M12 16h5'],
+  upload:['M12 16V3','m7 8 5-5 5 5','M4 15v6h16v-6'],
   goals:['M5 4h14v17H5z','M9 2v4h6V2','m8 12 2 2 5-5','M8 18h8'],
   connections:['M10 8H7a4 4 0 0 0 0 8h3','M14 8h3a4 4 0 0 1 0 8h-3','M8 12h8'],
   logo:['M5 5h9a5 5 0 0 1 0 10H8','M5 5v14','M8 11h6','M15 15l4 4'],

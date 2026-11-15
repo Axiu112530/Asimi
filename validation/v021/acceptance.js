@@ -198,11 +198,49 @@ async function checkTaskReviewNavigation(workspaceId) {
     document.activeElement === byId('product-task-' + second.id));
 }
 
+async function checkSkillPackageImport() {
+  const input = byId('skill-import-input');
+  check('skillImportUsesCompactControl', input && input.getBoundingClientRect().width <= 1 &&
+    document.querySelector('.skill-import-trigger').getBoundingClientRect().height >= 32);
+  const choose = (content, name) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([content], name, {type:'application/json'}));
+    input.files=transfer.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  };
+  choose('{invalid','invalid.json');
+  await until('invalid import feedback',()=>byId('skill-import-feedback')?.getAttribute('role')==='alert');
+  check('importErrorsStayWithinControl', !document.querySelector('.error-notification'));
+  check('invalidSkillImportReportsFailure', !(await call('GetCognitionState',{workspaceId:''})).skills.some(skill=>skill.slug==='invalid'));
+  const key = {scope:'user',workspaceId:'',slug:'local-review-fixture'};
+  const bundle = await call('ExportCognitionSkill',key);
+  await call('ChangeCognitionSkill',{...key,operation:'delete'});
+  await until('file input ready',()=>!input.disabled);
+  choose(JSON.stringify(bundle),'review.asimi-skill.json');
+  await until('successful import feedback',()=>byId('skill-import-feedback')?.getAttribute('role')==='status');
+  const imported = (await call('GetCognitionState',{workspaceId:''})).skills.find(skill=>skill.slug===key.slug);
+  check('skillImportRoundTripUsesRealService', imported?.name==='Local review fixture' && byId('skill-import-filename').textContent==='review.asimi-skill.json');
+}
+
 async function checkOrdinaryUnifiedTasks() {
   check('standardGoalsAndConnectionsVisible', !!byId('nav-goals') && !!byId('nav-connections') &&
     !byId('nav-developer') && !byId('nav-playground'));
   await click('nav-connections');
   const connections = await until('ordinary connections page', () => byId('connections-page'));
+  await until('empty connection page loaded', () => byId('connections-empty'));
+  const emptyBounds = byId('connections-empty').getBoundingClientRect();
+  const formBounds = byId('connection-form').getBoundingClientRect();
+  check('emptyConnectionSpacingCompact', formBounds.top - emptyBounds.bottom >= 0 && formBounds.top - emptyBounds.bottom <= 28);
+  if (params.has('visual')) {
+    globalThis.__asimiVisualCheckpoint={stage,scene:'connections-empty'};
+    await until('empty connection screenshot',()=>globalThis.__asimiCheckpointContinue,42);
+    globalThis.__asimiVisualCheckpoint=undefined;
+  }
+  const grants = [...connections.querySelectorAll('.unified-grants .product-check')];
+  check('connectionGrantCheckboxesAligned', grants.length > 0 && grants.every(label => {
+    const box=label.querySelector('input').getBoundingClientRect(), copy=label.querySelector('.grant-copy').getBoundingClientRect();
+    return box.width===16 && box.height===16 && Math.abs((box.top+box.bottom-copy.top-copy.bottom)/2)<=1;
+  }));
   check('ordinaryConnectionFormHasExactGrants', byId('connection-kind')?.value === 'github' &&
     byId('connection-origin')?.value === 'https://api.github.com' &&
     !!byId('connection-resource') && byId('connection-credential')?.type === 'password' &&
@@ -446,6 +484,7 @@ async function restart(live) {
       saveSkill.click();
       const saved=await until('skill saved by UI',()=>document.querySelector('[data-skill-slug="local-review-fixture"]'));
       check('manualSkillSavedFromUI',saved.textContent.includes('Local review fixture'));
+      await checkSkillPackageImport();
       await click('nav-memory');
       check('memoryPageAvailable',!!await until('memory page',()=>byId('cognition-memory')));
       await click('nav-assistant');

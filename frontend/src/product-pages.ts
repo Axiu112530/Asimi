@@ -8,6 +8,7 @@ import { AIProfilesPage } from './ai-pages';
 import { Markdown } from './markdown';
 import { product,productWork,refreshProduct,selectWorkspace,pickWorkspace,analyzeWorkspace,readSource,approveProductAction,rejectProductAction,diagnoseEnvironment } from './product-store';
 import type { AgentTask,ProductAction,ProjectFile,Skill } from './product-types';
+import { TaskActivity } from './task-activity';
 import { Agent02Panel } from './agent02-panel';
 import { ComputerTaskEvidence } from './agent02-computer-evidence';
 import { DeveloperProjectPanel } from './project021-panel';
@@ -136,6 +137,7 @@ export const TasksPage=defineComponent({setup(){useProduct();const goal=ref(''),
  ...product.data.agentTasks.map(task=>h('article',{class:['product-card',{'product-task-selected':selected.value===task.id}],tabindex:-1,'aria-current':selected.value===task.id?'true':undefined,'data-testid':'product-task-'+task.id,'data-task-id':task.id},[
  h('div',{class:'split'},[h('button',{class:'text-button','aria-expanded':selected.value===task.id,onClick:()=>{selected.value=task.id;product.selectedTask=task.id;}},task.desktop?t('product.desktopTask'):task.goal),badge(task.status)]),h('p',{class:'micro'},date(task.updatedAt)),
  h('div',{class:'product-row'},[action('pause',()=>control('PauseAgentTask',task.id),!['RUNNING','PLANNING','WAITING_APPROVAL','NEEDS_REVIEW'].includes(task.status)),action('resume',()=>resume(task),!!task.desktop||!['PAUSED','RECOVERY_REQUIRED'].includes(task.status)),action('cancel',()=>control('CancelAgentTask',task.id),['COMPLETED','CANCELLED','FAILED'].includes(task.status)),task.agent||task.desktop?null:action('analyzeWithAI',()=>previewAI(task.id)),task.agent||task.desktop?null:action('taskActions',()=>{selectWorkspace(task.workspaceId);product.selectedTask=task.id;state.route='developer';}),task.conversationId?action('taskConversation',()=>openConversation(task.conversationId!)):null]),
+ h(TaskActivity,{task,actions:product.data.actions}),
  task.agent?h(Agent02Panel,{task}):null,
  selected.value===task.id?h(ComputerTaskEvidence,{taskId:task.id}):null,
  h('ol',{class:'product-steps'},task.steps.map((s,index)=>h('li',{class:{current:String(task.currentStep)===String(index)||task.currentStep===s.id}},[h('strong',t('product.step.'+s.kind)===('product.step.'+s.kind)?s.title:t('product.step.'+s.kind)),badge(s.status),s.result?h('details',[h('summary',t('product.result')),h('pre',typeof s.result==='string'?s.result:JSON.stringify(s.result,null,2))]):null,s.error?h('p',{role:'alert'},errorText(s.error)):null]))),

@@ -5,6 +5,8 @@ import { call } from './bridge';
 import { ScreenCaptureActions, ScreenCaptureLabel, ScreenResult } from './screen-pages';
 import { t, date, number } from './i18n';
 import { button, errorText, icon } from './ui';
+import { ConversationActivity } from './conversation-activity';
+import { replyActivity } from './task-activity';
 import { Markdown } from './markdown';
 import type { AIModel, AIProfile, AIUsageRecord, Capability } from './ai-types';
 
@@ -81,14 +83,14 @@ function messages(s: ChatSession) {
     const screenResult=message.role==='assistant'&&(message.vision||message.requestId&&
       (s.screenRequestId===message.requestId||screenRequests.has(message.requestId)));
     const pending=s.busy&&s.requestId===message.requestId;
+    const activity = pending && message.role === 'assistant' && !screenResult ? replyActivity(message.status || 'PENDING', !!message.content) : null;
     return h('article',{class:['message','message-'+message.role],key:message.id,'data-message-id':message.id},[
       h('div',{class:'message-body'},[
         h('header',[h('strong',t(message.role==='user'?'assistant.you':'assistant.agent')),h('time',date(message.createdAt))]),
         message.attachments?.length?attachments(message.attachments):null,
         message.screenCapture?ScreenCaptureLabel(message.screenCapture):null,
         screenResult?(pending||message.vision||message.content?ScreenResult(message.vision,message.content,pending):null):h(Markdown,{content:message.content}),
-        pending && message.role === 'assistant' && !message.content && !screenResult
-          ? h('p', { class: 'micro muted', role: 'status' }, localizedStatus(message.status || 'PENDING')) : null,
+        activity ? h('p', { class: 'reply-activity', role: 'status', 'data-testid': 'reply-activity' }, [h('span', { class: ['activity-symbol', 'activity-' + activity.icon], 'data-state': 'running' }, icon(activity.icon, 16)), t('activity.' + activity.label)]) : null,
         message.errorCode?h('p',{class:'ai-error',role:'alert'},errorText(message.errorCode)):null,
       ]),
     ]);
@@ -187,6 +189,7 @@ export const RealAssistant = defineComponent({
           : null,
         h('div', { class: 'message-scroll', ref: scroll, 'aria-live': 'polite' }, [
           history,
+          h(ConversationActivity, { conversation: session.conversation }),
           !canChat && !props.legacy ? h('div', { class: 'chat-empty', 'data-testid': 'chat-model-required' }, [
             h('h2', t('ai.connectModel')),
             h('p', t('ai.connectModelHint')),

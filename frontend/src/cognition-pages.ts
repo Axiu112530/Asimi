@@ -7,6 +7,7 @@ import { button, icon } from './ui';
 import layoutEn from './locales/cognition-layout.en-US.json';
 import layoutZh from './locales/cognition-layout.zh-CN.json';
 import './cognition.css';
+import { SkillImport } from './skill-import';
 
 i18n.global.mergeLocaleMessage('en-US', layoutEn);
 i18n.global.mergeLocaleMessage('zh-CN', layoutZh);
@@ -471,6 +472,8 @@ export const CognitionSkillsPanel = defineComponent({
     const editing = ref(false);
     const editedDetails=ref<Partial<SkillInput>>({});
     const importScope = ref<'user' | 'project'>('user');
+    const importFeedback = ref<'idle' | 'success' | 'error'>('idle');
+    watch([importScope, workspaceId], () => { importFeedback.value = 'idle'; });
     const selectedVersions = ref('');
     const versions = ref<Version[]>([]);
     const skillKey = (skill: Skill) => ({ scope: skill.scope, workspaceId: skill.workspaceId, slug: skill.slug });
@@ -511,16 +514,22 @@ export const CognitionSkillsPanel = defineComponent({
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
     }
-    function importSkill(event: Event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0];
-      input.value = '';
-      if (!file) return;
+    function importSkill(file: File) {
+      if (busy.value || !state.connected || importScope.value === 'project' && !workspaceId.value) return;
       const scope = importScope.value;
       const project = scope === 'project' ? workspaceId.value : '';
+      importFeedback.value = 'idle';
       return work(async () => {
-        if (file.size > 32 * 1024) throw new Error('COGNITION_INVALID_SKILL');
-        await call('ImportCognitionSkill', { scope, workspaceId: project, package: JSON.parse(await file.text()) });
+        try {
+          if (file.size > 32 * 1024) throw new Error('COGNITION_INVALID_SKILL');
+          let parsed: unknown;
+          try { parsed = JSON.parse(await file.text()); } catch { throw new Error('COGNITION_INVALID_SKILL'); }
+          await call('ImportCognitionSkill', { scope, workspaceId: project, package: parsed });
+          if (scope === importScope.value && (scope !== 'project' || project === workspaceId.value)) importFeedback.value = 'success';
+        } catch (error) {
+          if (scope === importScope.value && (scope !== 'project' || project === workspaceId.value)) importFeedback.value = 'error';
+          // File import errors belong to this control; keep retry feedback local.
+        }
       });
     }
     async function listVersions(skill: Skill) {
@@ -564,12 +573,14 @@ export const CognitionSkillsPanel = defineComponent({
             projectPicker(), label('search', h('input', { type: 'search', value: query.value, onInput: (event: Event) => { query.value = textValue(event); } })),
             localButton('refresh', () => work(async () => {}), busy.value),
           ]),
-          h('div', { class: 'product-row' }, [
+          h('div', { class: 'product-row cognition-toolbar skill-import-row' }, [
             label('importScope', h('select', { value: importScope.value, disabled: busy.value, onChange: (event: Event) => {
               importScope.value = textValue(event) === 'project' ? 'project' : 'user';
             } }, [h('option', { value: 'user' }, t('cognition.user')), h('option', { value: 'project' }, t('cognition.project'))])),
-            label('import', h('input', { type: 'file', accept: '.json', disabled: busy.value || importScope.value === 'project' && !workspaceId.value, onChange: importSkill })),
+            h('div', { class: 'product-field skill-import-field' }, [h('span', t('cognition.import')), h(SkillImport, { disabled: busy.value || !state.connected || importScope.value === 'project' && !workspaceId.value, onImport: importSkill })]),
           ]),
+          importScope.value === 'project' && !workspaceId.value ? h('p', { class: 'micro muted' }, layoutText('chooseWorkspaceHint')) : null,
+          importFeedback.value !== 'idle' ? h('p', { class: importFeedback.value === 'error' ? 'ai-error' : 'micro', role: importFeedback.value === 'error' ? 'alert' : 'status', 'data-testid': 'skill-import-feedback' }, layoutText(importFeedback.value === 'success' ? 'importSuccess' : 'importFailed')) : null,
         ]),
         h('details', { class: 'product-card', 'data-testid': 'cognition-skill-editor', open: editing.value || undefined }, [
           h('summary', t(editing.value ? 'cognition.editSkill' : 'cognition.createSkill')),

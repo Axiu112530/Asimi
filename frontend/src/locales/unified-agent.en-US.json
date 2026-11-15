@@ -222,5 +222,28 @@
     "CONNECTOR_RECOVERY_REQUIRED": "This interrupted action needs manual verification. It will not be replayed automatically.",
     "CONNECTOR_STOPPED": "External operations are stopped. Resume intentionally before preparing a new action.",
     "CONNECTOR_IDENTITY_UNVERIFIED": "The account identity has not been confirmed. Prepare and approve an identity verification read."
+  },
+  "activity": {
+    "history": "Task activity",
+    "planning": "Planning",
+    "verification": "Checking results",
+    "file": "File change",
+    "command": "Command",
+    "tool": "Tool call",
+    "computer": "Computer action",
+    "running": "Running",
+    "approval": "Awaiting review",
+    "completed": "Completed",
+    "failed": "Failed or not applied",
+    "cancelled": "Cancelled",
+    "paused": "Paused",
+    "unknown": "Needs verification",
+    "pending": "Pending",
+    "thinking": "Preparing a response",
+    "replying": "Writing a response",
+    "unavailable": "Task activity could not be refreshed.",
+    "retry": "Retry",
+    "fileCount": "File changes: {count}",
+    "commandCount": "Commands: {count}"
   }
 }

@@ -50,6 +50,9 @@ async function trackRound(want,actionKind=''){
     check('networkConsentRequired',(await rpc('ApproveProductAction',{id:proposal.id,hash:proposal.hash})).error?.code==='COMMAND_NETWORK_CONSENT');
     await click('command network consent',`[data-action-id="${proposal.id}"] [data-testid="agent02-network-consent"]`);
   }
+  const activity = await until('real proposal activity',()=>byId('activity-'+proposal.id));
+  check(`activityAwaitsApproval${want}`,activity.dataset.state==='approval' &&
+    activity.querySelector('.activity-symbol').classList.contains(actionKind==='file'?'activity-pencil':'activity-terminal'));
   const selector=`[data-action-id="${proposal.id}"] [data-testid="product-approve"]`;
   const done=await measured(`${actionKind}ExecutionMs`,async()=>{
     await click('per-action approval',selector);
@@ -57,6 +60,8 @@ async function trackRound(want,actionKind=''){
   });
   check(`approvedActionVerified${want}`,done.status==='SUCCEEDED'&&(actionKind==='file'?done.result.verified:done.result.exitCode===0));
   check(`singleConsumption${want}`,!!(await rpc('ApproveProductAction',{id:proposal.id,hash:proposal.hash})).error);
+  await until('completed activity',()=>byId('activity-'+proposal.id)?.dataset.state==='completed');
+  check(`activityCompletedWithoutMotion${want}`,getComputedStyle(byId('activity-'+proposal.id).querySelector('.activity-symbol > svg')).animationName==='none');
   return true;
 }
 
@@ -118,6 +123,30 @@ async function run(){
    });
    check('verifiedExperiencePersisted',!!learned);
    check('candidateRequiresReview',!learned.skills.some(skill=>skill.scope==='project'&&skill.sourceExperience===taskId));
+ }
+ if(stage===11){
+   const preview=await call('PreviewAgentTaskContext',{id:taskId});
+   const analysis=await call('AnalyzeAgentTask',{id:taskId,contextHash:preview.hash,providerId,modelId,confirmSend:true,stream:false});
+   await click('open real linked conversation',`[data-testid="product-task-${taskId}"] [data-testid="product-taskConversation"]`);
+   await until('conversation activity',()=>byId('conversation-activity')&&byId('task-activity-'+taskId));
+   check('conversationShowsOnlyRealTaskHistory',document.querySelectorAll('[data-testid^=task-activity-]').length===1);
+   await until('local task analysis completed',async()=> (await call('GetUsage')).some(row=>row.requestId===analysis.requestId&&row.status==='COMPLETED'));
+   check('conversationPreservesFileAndCommandIcons',!!document.querySelector('.conversation-activity .activity-pencil')&&!!document.querySelector('.conversation-activity .activity-terminal'));
+   const composer=byId('ai-composer');
+   composer.value='Analyze this user-requested task and its read-only observations. Summarize the local acceptance task.';
+   composer.dispatchEvent(new Event('input',{bubbles:true}));
+   await click('send ordinary reply','[data-testid="real-send"]');
+   const progress=await until('real reply activity',()=>byId('reply-activity'));
+   check('plainReplyHasHonestProgress',!progress.textContent.includes('Tool call')&&!progress.textContent.includes('File change'));
+   check('replyMotionRespectsPreference',matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(progress.querySelector('svg')).animationName!=='none');
+   await until('reply activity settles',()=>!byId('reply-activity'));
+   check('plainReplyDoesNotCreateEffects',(await call('GetMVPState')).actions.filter(action=>action.taskId===taskId).length===2);
+
+ }
+ if(params.has('visual')) {
+   const activity=byId('task-activity-'+taskId);if(activity){activity.open=true;activity.scrollIntoView({block:'center'});}
+   globalThis.__asimiAcceptanceReady={stage};
+   await until('visual review',()=>globalThis.__asimiAcceptanceContinue,45000);
  }
  const after=await call('ReadWorkspaceFile',{workspaceId:workspace.id,path:'calc.go'});
  check('independentFileRead',after.content.includes('a + b')&&before.hash!==after.hash);

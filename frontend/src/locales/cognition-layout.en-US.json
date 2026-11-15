@@ -39,6 +39,10 @@
     "jobDraftPending": "A reusable skill draft is awaiting review.",
     "jobReviewedSkill": "A reviewed skill from this experience is enabled and available.",
     "jobExperienceOnly": "Experience processed. No reusable skill draft is currently available.",
-    "technicalDetails": "Technical details"
+    "technicalDetails": "Technical details",
+    "choosePackage": "Choose skill package",
+    "packageHint": "JSON skill package · up to 32 KB",
+    "importSuccess": "Skill package imported.",
+    "importFailed": "Could not import this package. Choose a valid Asimi skill JSON file of up to 32 KB and try again."
   }
 }

@@ -219,30 +219,30 @@ export const ConnectionsPage=defineComponent({setup(){
   function edit(c:Connection){editing.value=c;additionalScopes.value=c.scopes.slice(1).map(scope=>({resource:scope.resource,operations:[...scope.operations]}));Object.assign(form,{name:c.name,kind:c.kind,origin:c.origin,resource:c.scopes[0]?.resource??'',operations:[...(c.scopes[0]?.operations??[])],credential:'',enabled:c.enabled});}
   const save=()=>remote.work(async()=>{await call('SaveConnection',{...(editing.value?{id:editing.value.id,revision:editing.value.revision}:{}),name:form.name.trim(),kind:form.kind,origin:form.origin.trim(),scopes:[{resource:form.resource.trim(),operations:[...form.operations]},...additionalScopes.value],enabled:form.enabled,...(form.credential?{credential:form.credential}:{})});reset();});
   onUnmounted(()=>{form.credential='';});
-  return ()=>h('section',{class:'product-page unified-page','data-testid':'connections-page'},[
+  return ()=>h('section',{class:'product-page unified-page connections-page','data-testid':'connections-page'},[
     h('header',{class:'product-heading'},[h('h1',t('unified.connections')),h('p',t('unified.connectionsIntro'))]),
     control('refresh',remote.load,remote.busy.value,'connections-refresh'),...remoteState(remote.loading.value,remote.error.value),
-    remote.data.value&&!remote.data.value.connections.length?h('p',{class:'product-empty'},t('unified.noConnections')):null,
-    h('div',{class:'product-columns'},(remote.data.value?.connections??[]).map(c=>h('article',{class:'product-card',key:c.id},[
+    remote.data.value&&!remote.data.value.connections.length?h('p',{class:'connections-empty','data-testid':'connections-empty'},t('unified.noConnections')):null,
+    h('div',{class:'product-columns connections-list'},(remote.data.value?.connections??[]).map(c=>h('article',{class:'product-card',key:c.id},[
       h('div',{class:'split'},[h('h2',c.name),h('span',{class:'badge'},t(c.enabled?'unified.enabled':'unified.revoked'))]),h('code',c.origin),h('p',t('unified.credential.'+c.credentialStatus)),
       c.identity&&c.identity.revision===c.revision?h('p',{'data-testid':'connection-identity-'+c.id},t('unified.verifiedIdentity',{name:c.identity.displayName,id:c.identity.id,at:date(c.identity.verifiedAt)})):h('p',{class:'micro'},t('unified.identityNotVerified')),
       h('ul',c.scopes.map(scope=>h('li',[h('strong',scope.resource),h('p',scope.operations.join(', '))]))),
       h('div',{class:'product-row'},[control('edit',()=>edit(c),remote.busy.value,'connection-edit-'+c.id),control('revoke',()=>remote.work(async()=>{await call('RevokeConnection',{id:c.id});if(editing.value?.id===c.id)reset();}),remote.busy.value||!c.enabled,'connection-revoke-'+c.id)]),
       h(ConnectionOperationPanel,{connection:c,busy:remote.busy.value,onPrepare:(payload:unknown)=>remote.work(()=>call('PrepareConnectorAction',payload))}),
     ]))),
-    h('section',{class:'product-card'},[
+    h('section',{class:'product-card connection-form','data-testid':'connection-form'},[
       h('h2',t(editing.value?'unified.editConnection':'unified.addConnection')),
       label('accountName',h('input',{value:form.name,'data-testid':'connection-name',disabled:remote.busy.value,onInput:(e:Event)=>{form.name=textValue(e);}})),
       label('service',h('select',{value:form.kind,'data-testid':'connection-kind',disabled:remote.busy.value||!!editing.value,onChange:(e:Event)=>{form.kind=textValue(e) as ConnectionKind;form.origin=catalog[form.kind].origin;form.operations=[catalog[form.kind].operations[0]];form.resource='';form.credential='';}},Object.keys(catalog).map(k=>h('option',{value:k},t('unified.serviceName.'+k))))),
       label('origin',h('input',{value:form.origin,disabled:remote.busy.value,'data-testid':'connection-origin',onInput:(e:Event)=>{form.origin=textValue(e);},placeholder:'https://'})),
       label('resource',h('input',{value:form.resource,disabled:remote.busy.value,'data-testid':'connection-resource',placeholder:catalog[form.kind].resource,onInput:(e:Event)=>{form.resource=textValue(e);}})),
       h('fieldset',{class:'unified-grants'},[h('legend',t('unified.allowedOperations')),...catalog[form.kind].operations.map(operation=>h('label',{class:'product-check'},[
-        h('input',{type:'checkbox',checked:form.operations.includes(operation),disabled:remote.busy.value,onChange:(e:Event)=>{form.operations=(e.target as HTMLInputElement).checked?[...form.operations,operation]:form.operations.filter(value=>value!==operation);}}),h('code',operation),h('span',t('unified.operations.'+operation.replaceAll('.','_'))),
+        h('input',{type:'checkbox',checked:form.operations.includes(operation),disabled:remote.busy.value,onChange:(e:Event)=>{form.operations=(e.target as HTMLInputElement).checked?[...form.operations,operation]:form.operations.filter(value=>value!==operation);}}),h('span',{class:'grant-copy'},[h('code',operation),h('span',t('unified.operations.'+operation.replaceAll('.','_')))]),
       ]))]),
       form.kind!=='mcp'?control('addIdentityGrant',()=>{const resource=form.kind==='graph'?'me':'$identity';if(!additionalScopes.value.some(grant=>grant.resource===resource&&grant.operations.includes('identity.read')))additionalScopes.value.push({resource,operations:['identity.read']});},remote.busy.value):null,
       additionalScopes.value.length?h('div',[h('h3',t('unified.additionalGrants')),...additionalScopes.value.map((grant,index)=>h('div',{class:'product-row'},[h('code',grant.resource+' · '+grant.operations.join(', ')),control('removeGrant',()=>{additionalScopes.value.splice(index,1);},remote.busy.value)]))]):null,
       label('credentialLabel',h('input',{type:'password',value:form.credential,autocomplete:'new-password','data-testid':'connection-credential',disabled:remote.busy.value,onInput:(e:Event)=>{form.credential=textValue(e);}})),h('p',{class:'micro muted'},t('unified.credentialHint')),
-      h('label',{class:'product-check'},[h('input',{type:'checkbox',checked:form.enabled,disabled:remote.busy.value,onChange:(e:Event)=>{form.enabled=(e.target as HTMLInputElement).checked;}}),t('unified.enableConnection')]),
+      h('label',{class:'product-check'},[h('input',{type:'checkbox',checked:form.enabled,disabled:remote.busy.value,onChange:(e:Event)=>{form.enabled=(e.target as HTMLInputElement).checked;}}),h('span',t('unified.enableConnection'))]),
       h('p',{class:'product-warning'},t('unified.grantConsent')),
       h('div',{class:'product-row'},[control('saveConnection',save,remote.busy.value||!form.name.trim()||!form.origin.trim()||!form.resource.trim()||!form.operations.length,'connection-save',true),editing.value?control('cancel',reset,remote.busy.value):null]),
     ]),

@@ -58,6 +58,13 @@ func reply(w http.ResponseWriter, r *http.Request) {
 		}
 		contextJSON = blocks[0].Text
 	}
+	// A bounded read-only task-analysis response for the native conversation UI.
+	if strings.HasPrefix(contextJSON, "Analyze this user-requested task and its read-only observations.") {
+		w.Header().Set("Content-Type", "application/json")
+		time.Sleep(500 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "task-analysis-fixture", "choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]string{"content": "The isolated task history is available below. Review the recorded file change and Go test results."}}}, "usage": map[string]int{"prompt_tokens": 64, "completion_tokens": 24, "total_tokens": 88}})
+		return
+	}
 	var context contextEnvelope
 	if json.Unmarshal([]byte(contextJSON), &context) != nil {
 		http.Error(w, "bad context", 400)

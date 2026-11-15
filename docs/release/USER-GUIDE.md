@@ -16,6 +16,10 @@ Use **Chat settings** to switch saved models. Custom model IDs start with unknow
 
 A conversation gets a short title from its first question when you send it. Existing conversations with empty titles are named from their first saved question when Asimi starts. This happens locally without an extra model request.
 
+## Follow task activity
+
+A conversation linked to a workspace task shows an expandable activity log. Wrench, pencil, and terminal icons identify tools, file changes, and commands. Running work has subtle motion; work waiting for review has not executed. Completed, failed, paused, cancelled, and uncertain actions keep their actual status and stop animating. Ordinary messages show response progress without claiming local tool execution.
+
 ## Review usage and costs
 
 Choose a time range to see requests, input and output tokens, total tokens, and estimated cost. Asimi groups usage by provider and model, keeps currencies separate, and flags missing values. Three days includes today and the previous two calendar days. The week starts on Monday in your local time zone.
@@ -34,6 +38,8 @@ Use **Stop all** to cancel active tasks. The task history records proposed actio
 ## Review learned skills
 
 Open **Memory** to manage memory and learning settings. Automatic skill creation is off in a new profile; enable it if you want eligible, verified project tasks to produce skill drafts. Choose the project scope in **Learning** to see its history. Completed processing can produce a draft, an enabled reviewed skill, or experience without a reusable draft; each outcome is shown separately.
+
+To import an exported skill package, select its personal or project destination, then choose a JSON file of up to 32 KB. Project import requires a selected workspace. The control shows the selected filename and success or error feedback, and allows retrying the same file.
 
 Review a draft before enabling it. Reviewed skill packages are stored locally with versioned `SKILL.md` and `manifest.json` files. Learning history can open the exact source task, and recent-task links select and focus that task in Workflows.
 

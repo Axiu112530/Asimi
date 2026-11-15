@@ -1,4 +1,4 @@
-param([string]$Bin = 'build/bin/v02-portable', [ValidateSet('Loopback','Live')][string]$Mode = 'Loopback', [switch]$Version021Evidence, [string]$PresetProfile, [switch]$AsimiEvidence)
+param([string]$Bin = 'build/bin/v02-portable', [ValidateSet('Loopback','Live')][string]$Mode = 'Loopback', [switch]$Version021Evidence, [string]$PresetProfile, [switch]$AsimiEvidence, [switch]$Visual)
 
 $ErrorActionPreference = 'Stop'
 $Repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -76,6 +76,13 @@ try {
             $ProcessArgs += $(if ($PresetProfile) { '--acceptance-preset-profile-agent' } else { '--acceptance-live-agent' })
         }
         if ($GitFixture) { $ProcessArgs += '--acceptance-git-fixture' }
+        $CaptureVisual = $Visual -and $CurrentStage -in @(11,12)
+        if ($CaptureVisual) {
+            $Listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
+            $Listener.Start()
+            try { $DebugPort = $Listener.LocalEndpoint.Port } finally { $Listener.Stop() }
+            $ProcessArgs += @('--acceptance-debug-port',$DebugPort)
+        }
         $Runtime = Join-Path $Profile 'runtime.log'
         $PreviousLength = if (Test-Path -LiteralPath $Runtime) { ([IO.File]::ReadAllText($Runtime)).Length } else { 0 }
         $Timer = [Diagnostics.Stopwatch]::StartNew()
@@ -83,6 +90,10 @@ try {
         $Process = Start-Process -FilePath $Exe -WorkingDirectory $Run -ArgumentList $ProcessArgs -Environment $ChildEnvironment -WindowStyle Hidden -PassThru -RedirectStandardError $Stderr
         try {
             $null = $Process.Handle
+            if ($CaptureVisual) {
+                & node "$PSScriptRoot/capture-app.cjs" $DebugPort $Evidence | Out-Host
+                if ($LASTEXITCODE) { throw 'Native Agent visual check failed' }
+            }
             $Peak = 0L
             while (!$Process.WaitForExit(150) -and $Timer.Elapsed.TotalSeconds -lt 190) {
                 $Process.Refresh()

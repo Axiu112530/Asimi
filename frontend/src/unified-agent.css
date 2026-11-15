@@ -13,7 +13,7 @@
 .unified-action { border-left: 3px solid var(--accent, #6558d9); }
 .unified-action .product-check { margin: 1rem 0; }
 .unified-grants { border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
-.unified-grants .product-check { margin: .65rem 0; flex-wrap: wrap; }
+.unified-grants .product-check { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 10px; margin: 6px 0; padding: 5px 0; }
 .unified-grants .product-check span { color: var(--muted, #687384); font-size: .85rem; }
 .unified-table-wrap { overflow-x: auto; margin: 1rem 0; }
 .unified-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -31,3 +31,10 @@
 
 .unified-operation,.unified-composition { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .unified-composition > .product-check { margin: 1rem 0; }
+
+.unified-grants .grant-copy { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 9px; line-height: 22px; }
+.unified-grants .grant-copy code { font-size: 12px; color: var(--text); }
+.unified-grants .grant-copy > span { font-size: 12px; color: var(--muted); }
+.connections-page .connections-empty { margin: 14px 0 18px; padding: 0; color: var(--muted); line-height: 1.6; }
+.connections-list:empty { display: none; }
+.connections-page > .connection-form { margin-top: 16px; }

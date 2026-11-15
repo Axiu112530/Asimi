@@ -222,5 +222,28 @@
     "CONNECTOR_RECOVERY_REQUIRED": "此中断操作需要人工核查，不会自动重放。",
     "CONNECTOR_STOPPED": "外部操作已停止，请明确恢复后再准备新操作。",
     "CONNECTOR_IDENTITY_UNVERIFIED": "账户身份尚未确认，请准备并批准账户身份读取。"
+  },
+  "activity": {
+    "history": "任务活动",
+    "planning": "规划任务",
+    "verification": "验证结果",
+    "file": "文件修改",
+    "command": "运行命令",
+    "tool": "调用工具",
+    "computer": "电脑操作",
+    "running": "执行中",
+    "approval": "等待审核",
+    "completed": "已完成",
+    "failed": "失败或未执行",
+    "cancelled": "已取消",
+    "paused": "已暂停",
+    "unknown": "需要核验",
+    "pending": "待处理",
+    "thinking": "正在准备回复",
+    "replying": "正在回复",
+    "unavailable": "任务活动暂时无法刷新。",
+    "retry": "重试",
+    "fileCount": "文件修改 {count} 项",
+    "commandCount": "命令 {count} 项"
   }
 }

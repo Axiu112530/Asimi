@@ -11,10 +11,26 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
  let id=0;const pending=new Map();socket.onmessage=e=>{const v=JSON.parse(e.data);const p=pending.get(v.id);if(p){pending.delete(v.id);v.error?p.reject(v.error):p.resolve(v.result)}};
  const send=(method,params={})=>new Promise((resolve,reject)=>{const key=++id;pending.set(key,{resolve,reject});socket.send(JSON.stringify({id:key,method,params}))});
  const evaluate=async expression=>(await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true})).result?.value;
- let ready;for(let attempt=0;attempt<180;attempt++){ready=await evaluate('globalThis.__asimiAcceptanceReady');if(ready)break;await pause(150)}
+ const checkpoints=[];
+ let ready;for(let attempt=0;attempt<260;attempt++){
+  ready=await evaluate('globalThis.__asimiAcceptanceReady');if(ready)break;
+  const checkpoint=await evaluate('globalThis.__asimiVisualCheckpoint');
+  if(checkpoint&&!checkpoints.some(row=>row.scene===checkpoint.scene)){
+   await fs.mkdir(output,{recursive:true});
+   for(const [label,width,height] of [['wide',1380,820],['compact',1000,700],['narrow',720,620]]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(140);
+    const layout=await evaluate(`(()=>{const empty=document.querySelector('[data-testid=connections-empty]').getBoundingClientRect(),form=document.querySelector('[data-testid=connection-form]').getBoundingClientRect();return {width:innerWidth,gap:form.top-empty.bottom,noHorizontalOverflow:document.documentElement.scrollWidth<=innerWidth}})()`);
+    if(layout.gap>28||layout.gap<0)throw new Error('Empty connections spacing is excessive');
+    checkpoints.push({label:checkpoint.scene+'-'+label,scene:checkpoint.scene,...layout});
+    const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(output,`stage${checkpoint.stage}-${checkpoint.scene}-${label}.png`),Buffer.from(shot.data,'base64'));
+   }
+   await send('Emulation.clearDeviceMetricsOverride');await evaluate('globalThis.__asimiCheckpointContinue=true');
+  }
+  await pause(150);
+ }
  if(!ready)throw new Error('Acceptance did not reach visual review');
  await fs.mkdir(output,{recursive:true});
- const metrics=[];
+ const metrics=[...checkpoints];
  for(const [label,width,height] of [['desktop',1380,820],['compact',1000,700],['minimum',900,620]]){
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(200);
   const dimensions=await evaluate('({width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,language:document.documentElement.lang})');
@@ -50,6 +66,8 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
     await pause(180);
     await evaluate("document.querySelector('.preset-provenance').open=true");
    }
+   if (page === 'connections') await evaluate("document.querySelector('[data-testid=connection-form]').scrollIntoView({block:'start'})");
+   if (page === 'skills') await evaluate("document.querySelector('.skill-import-row').scrollIntoView({block:'center'})");
    for (const [label, width, height] of [['wide',1380,820],['compact',1000,700],['narrow',720,620]]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
     await pause(150);
@@ -70,7 +88,16 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
      const toolbarAligned = !select || !button || (Math.abs(select.bottom - button.bottom) <= 1 &&
        Math.abs(select.height - button.height) <= 1);
      const controlsPresent = root.dataset.testid !== 'cognition-memory' || (checkPairs.length === 4 && select && button);
-     const alignment = !!controlsPresent && toolbarAligned && checkPairs.every(row => row.centerDelta <= 1 && row.boxHeight <= 18);
+     const grantAlignment = [...root.querySelectorAll('.unified-grants .product-check')].every(row=>{
+       const box=row.querySelector('input').getBoundingClientRect(),copy=row.querySelector('.grant-copy').getBoundingClientRect();
+       return box.width===16&&box.height===16&&Math.abs((box.top+box.bottom-copy.top-copy.bottom)/2)<=1;
+     });
+     const importInput = root.querySelector('[data-testid=skill-import-input]');
+     const importSelect = root.querySelector('.skill-import-row select')?.getBoundingClientRect();
+     const importTrigger = root.querySelector('.skill-import-trigger')?.getBoundingClientRect();
+     const uploadAligned = !importSelect || !importTrigger || (Math.abs(importSelect.height-importTrigger.height)<=1 && Math.abs(importSelect.bottom-importTrigger.bottom)<=1);
+     const uploadCompact = !importInput || importInput.getBoundingClientRect().width<=1 && uploadAligned;
+     const alignment = grantAlignment && uploadCompact && !!controlsPresent && toolbarAligned && checkPairs.every(row => row.centerDelta <= 1 && row.boxHeight <= 18);
      return { width: innerWidth, pageWidth: main.clientWidth, pageScrollWidth: main.scrollWidth,
        alignment, toolbarAligned, checkPairs,
        scrollContainerFits: scroller.scrollWidth <= scroller.clientWidth + 1,
