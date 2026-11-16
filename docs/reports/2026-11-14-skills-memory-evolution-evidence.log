@@ -1,0 +1,26 @@
+=== RUN   TestCognitionExecutableSkillRechecksApprovalAndAllowedTool
+--- PASS: TestCognitionExecutableSkillRechecksApprovalAndAllowedTool (0.04s)
+=== RUN   TestCognitionNaturalPreferenceAndConflictReview
+--- PASS: TestCognitionNaturalPreferenceAndConflictReview (0.03s)
+=== RUN   TestCognitionV11VerifiedWorkflowReviewAndReuse
+    cognition_v11_loop_test.go:257: baseline requests=3 elapsed_ms=1577; reuse requests=2 elapsed_ms=1558; both tasks verified; failed_steps=0/0
+    cognition_v11_loop_test.go:298: loopback requests=5 elapsed_ms=3533 database_growth_bytes=32768
+--- PASS: TestCognitionV11VerifiedWorkflowReviewAndReuse (4.19s)
+=== RUN   TestCognitionExecutableSkillRechecksApprovalAndAllowedTool
+--- PASS: TestCognitionExecutableSkillRechecksApprovalAndAllowedTool (0.04s)
+=== RUN   TestCognitionNaturalPreferenceAndConflictReview
+--- PASS: TestCognitionNaturalPreferenceAndConflictReview (0.05s)
+=== RUN   TestCognitionV11VerifiedWorkflowReviewAndReuse
+    cognition_v11_loop_test.go:257: baseline requests=3 elapsed_ms=1531; reuse requests=2 elapsed_ms=1543; both tasks verified; failed_steps=0/0
+    cognition_v11_loop_test.go:298: loopback requests=5 elapsed_ms=3549 database_growth_bytes=32768
+--- PASS: TestCognitionV11VerifiedWorkflowReviewAndReuse (4.23s)
+=== RUN   TestCognitionExecutableSkillRechecksApprovalAndAllowedTool
+--- PASS: TestCognitionExecutableSkillRechecksApprovalAndAllowedTool (0.04s)
+=== RUN   TestCognitionNaturalPreferenceAndConflictReview
+--- PASS: TestCognitionNaturalPreferenceAndConflictReview (0.04s)
+=== RUN   TestCognitionV11VerifiedWorkflowReviewAndReuse
+    cognition_v11_loop_test.go:257: baseline requests=3 elapsed_ms=1634; reuse requests=2 elapsed_ms=1553; both tasks verified; failed_steps=0/0
+    cognition_v11_loop_test.go:298: loopback requests=5 elapsed_ms=3551 database_growth_bytes=32768
+--- PASS: TestCognitionV11VerifiedWorkflowReviewAndReuse (4.23s)
+PASS
+ok  	asimi/internal/app	13.833s
