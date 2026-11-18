@@ -21,3 +21,10 @@ func TestVisionStructure(t *testing.T) {
 		}
 	}
 }
+
+func TestTruncatedAnalysisRetainsCompleteSummary(t *testing.T) {
+	result := ParseVision("{\"summary\":\"A settings dialog is open.\",\"detectedText\":[\"Set")
+	if result.Parsed || result.Summary != "A settings dialog is open." {
+		t.Fatalf("expected only the complete summary: %+v", result)
+	}
+}

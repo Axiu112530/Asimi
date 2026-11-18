@@ -125,7 +125,7 @@ const App=defineComponent({setup(){
 }});
 const app=createApp(App);app.use(i18n);app.mount('#app');
 let productBooted=false;
-watch(()=>state.connected,async connected=>{if(!connected)return;try{await refreshProduct();if(!productBooted){productBooted=true;if(!legacyAcceptance||stage===9||stage===10){product.showOnboarding=!product.data.onboarding.completed;if(!state.conversation)state.route='home';}}}catch(e){fail(e);}},{immediate:true});
+watch(()=>state.connected,async connected=>{if(!connected)return;try{await refreshProduct();if(!productBooted){productBooted=true;if(!legacyAcceptance||stage===9||stage===10){product.showOnboarding=!product.data.onboarding.completed;if(!state.conversation&&!state.newConversationVersion)state.route='home';}}}catch(e){fail(e);}},{immediate:true});
 const compact=matchMedia('(max-width:850px)');
 const dark=matchMedia('(prefers-color-scheme: dark)');
 if(compact.matches)state.inspectorOpen=false;

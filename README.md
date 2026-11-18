@@ -6,7 +6,7 @@ Asimi is a local-first AI desktop assistant for everyday questions, writing, ima
 
 Use **Settings → General → Interface mode** to open developer tools for projects, code review and test runs.
 
-**Version 0.2.1 is a trial release candidate for Windows x64.** Native acceptance has been performed on Windows 11 25H2 x64. Other Windows versions require validation on the target machine.
+**Version 0.3.0 is available for Windows x64.** Native acceptance has been performed on Windows 11 25H2 x64. Other Windows versions require validation on the target machine.
 
 [Installation](docs/release/INSTALLATION-GUIDE.md) · [User guide](docs/release/USER-GUIDE.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.md) · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
@@ -15,6 +15,7 @@ Use **Settings → General → Interface mode** to open developer tools for proj
 | Capability | Workflow |
 | --- | --- |
 | AI conversations | Connect a built-in provider with your own API key or configure a compatible endpoint. Stream replies and keep conversation history locally. |
+| Local environment checks | Ask the assistant to check your development environment. Asimi checks installed runtimes locally without a model connection. |
 | Project understanding | Select a workspace and inspect its structure, relevant source files, Git status and available runtimes. |
 | Agent tasks | Describe a goal, review the context being sent to the model, then inspect the proposed plan, file diffs and commands. |
 | Approved execution | Approve file changes and commands individually. Review actual execution, file readback, test output and recovery status. |
@@ -38,7 +39,7 @@ Portable builds contain the application and its helpers. Source builds additiona
 
 ## Install and start
 
-1. Download `Asimi-0.2.1-Setup-x64.exe` and its matching SHA256 file from the same release.
+1. Download `Asimi-0.3.0-Setup-x64.exe` and its matching SHA256 file from the same release.
 2. Verify the checksum, open the installer, and choose a language and destination. The default is `%LOCALAPPDATA%\Programs\Asimi`.
 3. Open **Asimi** from Start after installation. The installer can also create a desktop shortcut.
 4. Connect a model on first launch or select **Set up later** to use the local features.

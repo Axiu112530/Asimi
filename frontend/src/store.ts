@@ -6,6 +6,7 @@ const defaults: Settings = { appLanguage:'en-US',agentLanguage:'follow-app',them
 export const state = reactive({
   route:'assistant' as Route, ready:false, connected:false, loading:false, busy:false, saving:false, error:'', errorParams:{} as Record<string,string>, notice:'',
   settings:{...defaults}, info:null as AppInfo|null, conversations:[] as Conversation[], conversation:null as Conversation|null,
+  newConversationVersion:0, computerToolsRequested:false,
   tasks:[] as Task[], task:null as Task|null, approvals:[] as Approval[], approvalHistory:[] as Approval[], audits:[] as AuditEvent[], executions:[] as ToolExecution[], providers:[] as ProviderProfile[], security:null as SecurityStatus|null,
   inspectorOpen:true, selectedProvider:'mock', securityTab:'overview', draft:'', controlStopVersion:0, controlStoppedLocally:false, activeControlActionId:'', controlEscapeAvailable:false,
 });
@@ -53,7 +54,7 @@ export async function boot() {
     const [info,providers]=await Promise.all([call<AppInfo>('GetAppInfo'),call<ProviderProfile[]>('ListProviders'),refreshIndex(),refreshSecurity()]);
     state.info=info;state.providers=providers||[];
     const recent = state.conversations.find(item => !item.playground || state.settings.interfaceMode === 'developer');
-    if (state.settings.startup === 'last' && recent) await openConversation(recent.id);
+    if (state.settings.startup === 'last' && recent && !state.newConversationVersion) await openConversation(recent.id);
   }catch(e){disconnectStore();fail(e);}finally{state.ready=true;state.loading=false;connecting=null;}})();return connecting;
 }
 export async function saveSettings(patch: Partial<Settings>) {
@@ -72,14 +73,28 @@ export async function saveSettings(patch: Partial<Settings>) {
   });
   state.saving = false;
 }
-export async function newConversation() {
-  await run(async()=>{state.conversation=await call<Conversation>('CreateConversation');state.task=null;state.draft='';state.route='assistant';await refreshIndex();});
+let conversationNavigation = 0;
+export function newConversation() {
+  conversationNavigation++;
+  state.conversation = null;
+  state.task = null;
+  state.draft = '';
+  state.notice = '';
+  state.error = '';
+  state.newConversationVersion++;
+  state.route = 'assistant';
 }
 export async function openConversation(id: string, taskId?: string) {
+  const navigation = ++conversationNavigation;
   await run(async()=>{state.loading=true;try {
-    const c=await call<Conversation>('GetConversation',{id});state.conversation=c;state.route=c.playground?'playground':'assistant';
+    const c=await call<Conversation>('GetConversation',{id});
+    if (navigation !== conversationNavigation) return;
+    state.conversation=c;state.route=c.playground?'playground':'assistant';
     const tasks=c.tasks||[];const task=taskId?tasks.find(x=>x.id===taskId):tasks[0];
-    state.task=task?await call<Task>('GetTask',{id:task.id}):null;state.inspectorOpen=true;
+    const selected=task?await call<Task>('GetTask',{id:task.id}):null;
+    if (navigation === conversationNavigation) {
+      state.task=selected;state.inspectorOpen=true;
+    }
   }finally{state.loading=false;}});
 }
 export async function selectTask(id: string) { await run(async()=>{state.task=await call<Task>('GetTask',{id});state.inspectorOpen=true;}); }

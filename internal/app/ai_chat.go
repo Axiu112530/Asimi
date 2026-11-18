@@ -145,7 +145,10 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 		return nil, e
 	}
 	lang := responseLanguage(in.Content, appSettings)
-	req := ai.Request{RequestID: newID(), ConversationID: c.ID, ProviderID: p.ID, ModelID: model.ID, MaxOutputTokens: in.MaxOutputTokens, Stream: in.Stream, ResponseLanguage: lang, Temperature: in.Temperature, Messages: []ai.Message{}, SystemInstruction: "You are Asimi, a text and image assistant. You have no access to tools, files, computer controls, or shell. Respond in " + lang + " unless the user explicitly asks for another language."}
+	req := ai.Request{RequestID: newID(), ConversationID: c.ID, ProviderID: p.ID, ModelID: model.ID, MaxOutputTokens: in.MaxOutputTokens, Stream: in.Stream, ResponseLanguage: lang, Temperature: in.Temperature, Messages: []ai.Message{}, SystemInstruction: "You are Asimi, the assistant in the Asimi desktop app. Identify yourself as Asimi and do not invent a vendor, creator, or 'powered by' attribution. Respond in " + lang + " unless the user explicitly asks for another language."}
+	if upload == nil && !in.Playground && !test {
+		req.SystemInstruction += "\nAsimi can check installed development runtimes locally from the Assistant. The Computer page can inspect the screen and propose supported Windows actions for review. This model response cannot itself execute local actions. Report only verified outcomes. When asked to operate the computer, explain how to use the applicable capability and its limits."
+	}
 	if upload != nil {
 		if upload.suggestion != nil {
 			req.SystemInstruction += "\n" + upload.suggestion.instruction()
@@ -449,7 +452,7 @@ func (s *Service) runChat(ctx context.Context, cancel context.CancelFunc, adapte
 	}
 	meta.Status = status
 	meta.ErrorCode = code
-	if screenAnalysis && status == "COMPLETED" {
+	if screenAnalysis && (status == "COMPLETED" || suggestion == nil && code == "RESPONSE_INCOMPLETE") {
 		var vision screen.VisionResult
 		if suggestion == nil {
 			vision = screen.ParseVision(response.Content)

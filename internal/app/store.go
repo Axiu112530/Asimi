@@ -298,6 +298,16 @@ func (s *Service) tasksLocked(conversationID string) ([]domain.Task, error) {
 	}
 	return out, nil
 }
+
+const conversationHistoryQuery = `
+SELECT c.id,c.title,c.created_at,c.updated_at,COALESCE(ac.playground,0)
+FROM conversations c LEFT JOIN ai_conversations ac ON ac.conversation_id=c.id
+WHERE EXISTS (SELECT 1 FROM ai_attachment_cleanup cleanup WHERE cleanup.conversation_id=c.id)
+   OR (COALESCE(ac.deleted,0)=0 AND (
+        EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id=c.id AND m.created_at>=COALESCE(ac.context_since,''))
+        OR EXISTS (SELECT 1 FROM task_sessions t WHERE t.conversation_id=c.id)))
+ORDER BY c.updated_at DESC,c.id DESC`
+
 func (s *Service) conversationLocked(id string, full bool) (domain.Conversation, error) {
 	c := domain.Conversation{Messages: []domain.Message{}, Tasks: []domain.Task{}}
 	e := s.db.QueryRow("SELECT id,title,created_at,updated_at FROM conversations WHERE id=?", id).Scan(&c.ID, &c.Title, &c.CreatedAt, &c.UpdatedAt)

@@ -1,9 +1,9 @@
-# Install Asimi 0.2.1
+# Install Asimi 0.3.0
 
 Use a standard Windows account on Windows x64. Asimi needs Microsoft Edge WebView2 Evergreen Runtime and Windows .NET Framework 4.x. Native acceptance was performed on Windows 11 25H2 x64. [WebView2 Runtime](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution) · [.NET Framework versions](https://learn.microsoft.com/en-us/dotnet/framework/install/versions-and-dependencies)
 
-1. Download `Asimi-0.2.1-Setup-x64.exe` and the matching `.sha256` file from Releases.
-2. In PowerShell, run `Get-FileHash .\Asimi-0.2.1-Setup-x64.exe -Algorithm SHA256` and compare it with the published checksum.
+1. Download `Asimi-0.3.0-Setup-x64.exe` and the matching `.sha256` file from Releases.
+2. In PowerShell, run `Get-FileHash .\Asimi-0.3.0-Setup-x64.exe -Algorithm SHA256` and compare it with the published checksum.
 3. Close Asimi if you are upgrading. Other applications can stay open. Open the installer, select a language, then choose an installation folder. The default is `%LOCALAPPDATA%\Programs\Asimi`. Choose **Browse** to use another folder.
 4. Follow the prompts to install and create an optional desktop shortcut. Launch Asimi from Start or from the final installer screen.
 5. Choose your interface language and connect a model, or select **Set up later** to browse projects and history.

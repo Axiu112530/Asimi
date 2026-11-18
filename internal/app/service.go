@@ -261,6 +261,9 @@ func (s *Service) Call(method, payload string) domain.Reply {
 	if reply, handled := s.callMVP(method, payload); handled {
 		return reply
 	}
+	if method == "DiagnoseChatEnvironment" {
+		return s.callDiagnoseChatEnvironment(payload)
+	}
 	if method == "CreateDesktopTask" {
 		return s.callCreateDesktopTask(payload)
 	}
@@ -321,7 +324,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
 		}
-		return result(map[string]any{"version": "0.2.1-rc.8", "goVersion": runtime.Version(), "wailsVersion": "3.1.0", "dataDir": s.dataDir, "workspace": s.registry.Workspace(), "mode": "MOCK_LOCAL", "provider": "mock", "model": "mock-local-v1"}, nil)
+		return result(map[string]any{"version": "0.3.0", "goVersion": runtime.Version(), "wailsVersion": "3.1.0", "dataDir": s.dataDir, "workspace": s.registry.Workspace(), "mode": "MOCK_LOCAL", "provider": "mock", "model": "mock-local-v1"}, nil)
 	case "GetSettings":
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
@@ -363,7 +366,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
 		}
-		rows, e := s.db.Query("SELECT id,title,created_at,updated_at,COALESCE((SELECT playground FROM ai_conversations ac WHERE ac.conversation_id=conversations.id),0) FROM conversations WHERE NOT EXISTS (SELECT 1 FROM ai_conversations ac WHERE ac.conversation_id=conversations.id AND ac.deleted=1 AND NOT EXISTS (SELECT 1 FROM ai_attachment_cleanup cleanup WHERE cleanup.conversation_id=conversations.id)) ORDER BY updated_at DESC,id DESC")
+		rows, e := s.db.Query(conversationHistoryQuery)
 		if e != nil {
 			return fail(errorCode(e))
 		}

@@ -1,5 +1,5 @@
 import { defineComponent, h, ref, watch, nextTick, cloneVNode, isVNode, onMounted, onUnmounted, type VNodeChild } from 'vue';
-import { ai, profile, model, selectProvider, selectModel, refreshAI, resetChatDraft, emptyModel, sendAI, cancelAI, importImages, removeAttachment, clearAI, type ChatSession } from './ai-store';
+import { ai, profile, model, selectProvider, selectModel, refreshAI, resetChatDraft, emptyModel, sendAI, isEnvironmentRequest, cancelAI, importImages, removeAttachment, clearAI, type ChatSession } from './ai-store';
 import { state, fail } from './store';
 import { call } from './bridge';
 import { ScreenCaptureActions, ScreenCaptureLabel, ScreenResult } from './screen-pages';
@@ -102,9 +102,12 @@ function composer(session: ChatSession, playground: boolean) {
   const selectedModel = model(session);
   const supportsImages = selectedModel?.capabilities.vision === 'SUPPORTED';
   const cannotAttach = session.busy || session.starting || session.importing || !state.connected;
-  const cannotSend = session.busy || !state.connected || session.importing || session.starting || !profile(session)?.enabled ||
-    selectedModel?.capabilities.text !== 'SUPPORTED' || (!session.draft.trim() && !session.attachments.length) ||
-    (session.attachments.length > 0 && !supportsImages);
+  const localDiagnosis = !playground && !session.attachments.length && isEnvironmentRequest(session.draft);
+  const modelReply = !!profile(session)?.enabled && selectedModel?.capabilities.text === 'SUPPORTED' &&
+    (!!session.draft.trim() || session.attachments.length > 0) && (!session.attachments.length || supportsImages);
+  const cannotSend = session.busy || !state.connected || session.importing || session.starting || (!localDiagnosis && !modelReply);
+  const errorOnMessage = !!session.requestId && session.conversation?.messages.some(message =>
+    message.requestId === session.requestId && message.errorCode === session.error);
   const attachmentLabel = t('ai.attachMedia');
   return h('form', {
     class: 'composer-wrap',
@@ -143,15 +146,20 @@ function composer(session: ChatSession, playground: boolean) {
           }),
         ]),
         playground ? null : h(ScreenCaptureActions, { source: 'assistant' }),
+        playground ? null : button('ai.computerActions', () => {
+          state.computerToolsRequested = true;
+          state.route = 'computer';
+        }, { class: 'button secondary', disabled: !state.connected, 'data-testid': 'assistant-computer-actions' }),
         h('span', { class: 'chat-keyboard-hint', id: 'chat-keyboard-hint' }, t('ai.keyboardHint')),
-        session.busy ? action('cancel', () => cancelAI(session), !session.requestId) : h('button', {
+        session.diagnosing ? h('span', { role: 'status', class: 'micro muted' }, t('ai.diagnosingEnvironment')) :
+          session.busy ? action('cancel', () => cancelAI(session), !session.requestId) : h('button', {
           type: 'submit', class: 'button primary', disabled: cannotSend,
           'data-testid': playground ? 'playground-send' : 'real-send',
         }, t('ai.send')),
       ]),
     ]),
     session.importing ? h('p', { role: 'status' }, t('ai.importing')) : null,
-    session.error || (session.attachments.length && !supportsImages) ? h('p', { class: 'ai-error', role: 'alert' },
+    session.error && !errorOnMessage || (session.attachments.length && !supportsImages) ? h('p', { class: 'ai-error', role: 'alert' },
       errorText(session.error || 'MODEL_IMAGE_UNSUPPORTED')) : null,
   ]);
 }
@@ -173,14 +181,14 @@ export const RealAssistant = defineComponent({
       const canChat = !!profile(session)?.enabled && model(session)?.capabilities.text === 'SUPPORTED';
       const history = hasMessages ? messages(session) : null;
       return h('section', { class: 'assistant-workspace ai-chat', 'data-testid': 'ai-assistant' }, [
-        h('header', { class: 'conversation-header' }, [
+        hasMessages || props.legacy ? h('header', { class: 'conversation-header' }, [
           h('div', [h('h1', session.conversation?.title || t('assistant.newConversation'))]),
           h('div', { class: 'ai-row' }, [
             props.developer ? button('product.agentTasks', () => { state.route = 'workflows'; }, { class: 'button secondary' }) : null,
             hasMessages ? action('clear', () => clearAI(session), session.busy) : null,
             hasMessages ? action('deleteConversation', () => clearAI(session, true), session.busy) : null,
           ]),
-        ]),
+        ]) : null,
         ai.profiles.some(item => item.enabled) || props.legacy
           ? h('details', { class: 'ai-chat-options', open: props.legacy && !session.conversation }, [
               h('summary', t('ai.chatSettings')),
@@ -194,12 +202,9 @@ export const RealAssistant = defineComponent({
             h('h2', t('ai.connectModel')),
             h('p', t('ai.connectModelHint')),
             button('ai.configureModel', () => { state.route = 'models'; }, { class: 'button primary' }),
-          ]) : !hasMessages ? h('div', { class: 'chat-empty' }, [
-            h('h2', t('ai.startConversation')),
-            h('p', t('ai.startConversationHint')),
           ]) : null,
         ]),
-        canChat || props.legacy ? composer(session, false) : null,
+        composer(session, false),
       ]);
     };
   },

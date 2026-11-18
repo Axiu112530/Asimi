@@ -63,10 +63,12 @@ export function ScreenCaptureLabel(capture: ScreenMetadata) {
 
 export function ScreenResult(result: VisionResult | undefined, text: string, pending: boolean) {
   if (pending) return status('screen.analyzing');
-  if (!result?.parsed) return h('div', { class: 'screen-result', 'data-testid': 'screen-result' }, [
-    h('p', { class: 'micro muted' }, t('screen.unstructured')),
-    h('p', { class: 'screen-plain-text' }, text),
-  ]);
+  if (!result?.parsed) {
+    const plain = result?.summary || (/^\s*(?:```(?:json)?\s*)?[\[{]/i.test(text) ? '' : text);
+    return h('div', { class: 'screen-result', 'data-testid': 'screen-result' }, [
+      h('p', { class: 'screen-plain-text' }, plain || t('screen.analysisNoSummary')),
+    ]);
+  }
   function resultList(key: string, values?: string[]) {
     return values?.length ? h('section', [h('h4', t('screen.' + key)), h('ul', values.map(value => h('li', value)))]) : null;
   }
@@ -531,7 +533,8 @@ export const ComputerPage = defineComponent({
     const pending = ref(false);
     const changing = ref(false);
     const error = ref('');
-    const toolsOpen = ref(false);
+    const toolsOpen = ref(state.computerToolsRequested);
+    state.computerToolsRequested = false;
     const toolsKey = ref(0);
     const suggestion = ref<ComputerSuggestionTarget>();
     const suggestionRevision = ref(0);
@@ -668,7 +671,7 @@ export const ComputerPage = defineComponent({
             ]))) : h('p', { class: 'muted' }, t('screen.emptyHistory')),
         ]),
         h('details', {
-          class: 'computer-secondary computer-developer-tools', 'data-testid': 'computer-tools',
+          class: 'computer-secondary computer-developer-tools', 'data-testid': 'computer-tools', open: toolsOpen.value,
           onToggle: (event: Event) => { toolsOpen.value = (event.currentTarget as HTMLDetailsElement).open; },
         }, [
           h('summary', text('tools')),

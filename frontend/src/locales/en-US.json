@@ -449,6 +449,7 @@
     "VERIFICATION_FAILED": "The actual file did not pass independent verification.",
     "REGISTRY_CLOSED": "The tool registry is closed.",
     "INVALID_REQUEST": "The request configuration is invalid.",
+    "ENVIRONMENT_DIAGNOSIS_FAILED": "Could not check the local development runtimes.",
     "NOT_FOUND": "This record could not be found.",
     "STORAGE_ERROR": "The local data could not be saved or loaded.",
     "INTERNAL_ERROR": "The local service could not complete the operation.",
@@ -708,6 +709,8 @@
     "cancel": "Cancel request",
     "send": "Send",
     "startConversationHint": "Write a message or attach an image.",
+    "computerActions": "Computer actions",
+    "diagnosingEnvironment": "Checking local runtimes…",
     "startConversation": "Start a conversation",
     "configureModel": "Configure model",
     "connectModelHint": "Add a model to start chatting. Your local projects and history are available in the sidebar.",
@@ -874,7 +877,8 @@
     "issues": "Issues",
     "suggestions": "Suggested Steps",
     "uncertainties": "Uncertainties",
-    "unstructured": "The provider returned a text response."
+    "unstructured": "The provider returned a text response.",
+    "analysisNoSummary": "The screen analysis did not return a readable summary."
   },
   "control": {
     "proposeTaskValue": "Set value as a task",

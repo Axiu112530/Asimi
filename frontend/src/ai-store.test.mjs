@@ -10,7 +10,7 @@ const clone=value=>structuredClone(value);
 const caps={text:'SUPPORTED',vision:'SUPPORTED',streaming:'SUPPORTED',toolCalling:'UNSUPPORTED',structuredOutput:'UNKNOWN',computerUse:'UNSUPPORTED',temperature:'SUPPORTED',contextLimit:null,imageDetails:['auto']};
 const profiles=[{id:'p',name:'Local fixture',protocol:'responses',baseUrl:'http://127.0.0.1:1/v1',enabled:true,hasCredential:false,trustedHttp:false,models:[{id:'m',displayName:'Fixture',capabilities:caps,pricing:null}]}];
 const settings={defaultProviderId:'p',defaultModelId:'m',visionProviderId:'p',visionModelId:'m',maxOutputTokens:1024,maxContextBytes:65536,warningThreshold:null};
-const state=reactive({connected:true,conversation:null,conversations:[],route:'assistant',inspectorOpen:true});
+const state=reactive({connected:true,conversation:null,conversations:[],route:'assistant',inspectorOpen:true,newConversationVersion:0});
 globalThis.__aiTest={state,fail:error=>{throw error;},call:async(method,payload={})=>{
   calls.push({method,payload});if(override){const result=override(method,payload);if(result!==undefined)return await result;}
   if(method==='ListAIProfiles')return clone(profiles);
@@ -133,3 +133,45 @@ assert.equal(ai.assistant.attachments.length,0);
 console.log('PASS: screen admission preserves early terminal events in the Assistant conversation');
 stopAI();
 assert.equal(listeners.size,0);
+
+
+// A new blank draft resets the composer even when no persisted ID changed.
+await startAI(true);
+state.route = 'assistant';
+state.conversation = null;
+ai.assistant.draft = 'Unsent text';
+state.newConversationVersion++;
+assert.equal(ai.assistant.draft, '');
+
+const diagnosis = '那你能操控我的电脑，帮我装环境嘛？';
+ai.assistant.draft = diagnosis;
+ai.assistant.providerId = '';
+const beforeDiagnosis = calls.length;
+override = (method, payload) => {
+  if (method !== 'DiagnoseChatEnvironment') return;
+  assert.equal(payload.content, diagnosis);
+  assert.equal(payload.conversationId, undefined);
+  const c = conversation('local-environment', false, 'Detected Node.js');
+  delete c.messages[0].providerId;
+  delete c.messages[0].modelId;
+  conversations.set(c.id, c);
+  return c;
+};
+await sendAI(ai.assistant);
+assert.equal(state.conversation.id, 'local-environment');
+assert.equal(ai.assistant.conversation.messages[0].content, 'Detected Node.js');
+assert.equal(ai.assistant.draft, '');
+assert.ok(!calls.slice(beforeDiagnosis).some(item => item.method === 'StartChat'));
+
+const slowDiagnosis = deferred();
+override = method => method === 'DiagnoseChatEnvironment' ? slowDiagnosis.promise : undefined;
+ai.assistant.draft = 'Check my development environment';
+const diagnosisRequest = sendAI(ai.assistant);
+state.conversation = null;
+state.newConversationVersion++;
+slowDiagnosis.resolve(conversation('late-diagnosis'));
+await diagnosisRequest;
+assert.equal(state.conversation, null);
+assert.equal(ai.assistant.conversation, null);
+console.log('PASS: chat diagnoses local runtimes without a model and preserves the next blank draft');
+stopAI();

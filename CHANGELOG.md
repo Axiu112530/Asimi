@@ -1,5 +1,13 @@
 # Changelog
 
+## Asimi 0.3.0
+
+- Run local development environment checks from chat and open reviewed Windows actions from the composer.
+- Ask for concise screen analysis and show a readable summary when a provider response is truncated.
+- Start each new conversation with an empty draft and add it to history after the first message. Hide older empty conversations from history.
+- Enable memory, learning, and automatic skill creation by default. Describe Asimi's role and available desktop capabilities accurately in chat.
+- Apply the selected light or dark appearance to the sidebar and Windows title bar. Keep a single visible logo in the app and preserve the taskbar icon.
+
 ## Asimi 0.2.1-rc.8
 
 - Unified the desktop app, Windows installer and favicon under the silver-blue Asimi mark.

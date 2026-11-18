@@ -1,4 +1,4 @@
-# Upgrade to Asimi 0.2.1
+# Upgrade to Asimi 0.3.0
 
 The default profile is **`%LOCALAPPDATA%\Asimi`**, with database **`asimi.db`**. Earlier versions used `%LOCALAPPDATA%\DeskPilotAI` and `deskpilot.db`.
 

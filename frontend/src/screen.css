@@ -37,7 +37,7 @@
 .screen-result ul { margin: 4px 0; padding-inline-start: 20px; }
 .screen-result li { margin-bottom: 4px; }
 .screen-result-usage { margin-top: 6px; }
-.screen-plain-text { white-space: pre-wrap; }
+.screen-plain-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .screen-capture-label { margin: 6px 0; color: var(--muted); font-size: 11px; }
 .ai-profiles > .page-heading, .computer-page > .page-heading { flex-wrap: wrap; }
 .screen-mock-composer { flex-wrap: wrap; }

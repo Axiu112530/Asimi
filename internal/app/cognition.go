@@ -93,11 +93,11 @@ type cognitionState struct {
 }
 
 func loadCognitionSettings(q querier) (cognitionSettings, error) {
-	var settings cognitionSettings
+	settings := cognitionSettings{Memory: true, AutomaticLearning: true, AutomaticSkillCreation: true, ProjectLearning: true}
 	var raw string
 	err := q.QueryRow("SELECT settings FROM cognition_settings WHERE id=1").Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		return cognitionSettings{Memory: true, AutomaticLearning: true, ProjectLearning: true}, nil
+		return settings, nil
 	}
 	if err != nil {
 		return settings, err

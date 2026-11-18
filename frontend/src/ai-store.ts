@@ -10,6 +10,7 @@ export interface ChatSession {
   providerId:string; modelId:string; draft:string; attachments:AIAttachment[]; importing:boolean;
   busy:boolean; starting:boolean; requestId:string; conversation:Conversation|null; scope:number;
   stream:boolean; maxOutputTokens:number; temperature:number|null; imageDetail:string; error:string;
+  diagnosing?: boolean;
   response?:AIStreamEvent['response'];
   screenRequestId?:string;
 }
@@ -52,27 +53,28 @@ function terminal(id:string){requests.delete(id);terminalRequests.add(id);if(ter
 async function discardUnsent(attachments:AIAttachment[]){for(const attachment of attachments){try{await call('DeleteAttachment',{id:attachment.id});}catch{/* The backend refuses deletion if a request already references this image. */}}}
 export function resetChatDraft(s:ChatSession){
   const unsent=s.attachments;s.scope++;s.attachments=[];s.draft='';s.importing=false;s.error='';s.response=undefined;
-  s.busy=false;s.starting=false;s.requestId='';s.screenRequestId=undefined;void discardUnsent(unsent);
+  s.busy=false;s.starting=false;s.diagnosing=false;s.requestId='';s.screenRequestId=undefined;void discardUnsent(unsent);
 }
 export function stopAI(){
   epoch++;for(const off of disposers)off();disposers=[];stopWatch?.();stopWatch=undefined;
   requests.clear();terminalRequests.clear();pendingEvents.clear();
-  for(const s of [ai.assistant,ai.playground]){s.scope++;s.busy=false;s.starting=false;s.importing=false;}
+  for(const s of [ai.assistant,ai.playground]){s.scope++;s.busy=false;s.starting=false;s.importing=false;s.diagnosing=false;}
 }
 export async function startAI(releaseMode = false){
   stopAI();const generation=epoch;
   if (releaseMode) ai.mode = 'real';
   for(const name of ['started','delta','completed','failed','cancelled'])disposers.push(subscribe('assistant.stream.'+name,data=>{if(data&&typeof data==='object')void receive(data as AIStreamEvent,name,generation);}));
   let selectedSession:ChatSession|undefined;
-  stopWatch=watch(()=>state.conversation?.id,()=>{
+  stopWatch=watch(()=>[state.conversation?.id, state.newConversationVersion] as const,([, revision], previousSelection)=>{
     const c=state.conversation;const target=c?.playground?ai.playground:ai.assistant;
+    const newDraft = previousSelection && revision !== previousSelection[1];
     if(selectedSession&&selectedSession!==target)resetChatDraft(selectedSession);
-    if(target.conversation?.id!==c?.id)resetChatDraft(target);
+    if(newDraft||target.conversation?.id!==c?.id)resetChatDraft(target);
     target.conversation=c;selectedSession=target;
     const previous=[...(c?.messages||[])].reverse().find(m=>m.providerId&&m.providerId!=='mock');
     if(previous){if(!c?.playground)ai.mode='real';target.providerId=previous.providerId!;target.modelId=previous.modelId||'';state.inspectorOpen=false;}
     else if(!releaseMode && c?.tasks?.length)ai.mode='mock';
-    else if (releaseMode && c && !c.playground && !c.messages.length && ai.loaded) {
+    else if (releaseMode && !c?.playground && !c?.messages.length && ai.loaded) {
       selectProvider(target, ai.settings.defaultProviderId);
       selectModel(target, ai.settings.defaultModelId);
     }
@@ -194,8 +196,47 @@ export async function startScreenAnalysis(input: ScreenAnalysisInput) {
   },()=>state.route===route);
 }
 
+export function isEnvironmentRequest(content: string) {
+  const request = content.trim().replace(/[。.!！?？]+$/, '');
+  const chinese = /^(?:那你能(?:操控|操作)我的电脑[，,]\s*)?(?:(?:能不能|能否|可以|能|请|麻烦|帮我|给我|先|在本机|我想让你)\s*)*(?:检查|检测|诊断|配置|搭建|安装|装)(?:一下|下|个)?\s*(?:本机|本地|我的)?(?:的)?\s*(?:开发|运行|Python|Node(?:\.js)?|Go|Java|\.NET)?\s*环境(?:吗|嘛|吧)?$/i;
+  const english = /^(?:please\s+|can you\s+|could you\s+)?(?:help me\s+)?(?:check|inspect|diagnose|set up|configure|install)\s+(?:my\s+|the\s+|a\s+)?(?:(?:local|development|dev|runtime|python|node(?:\.js)?|go|java|\.net)\s+)*environment(?:\s+please)?$/i;
+  return chinese.test(request) || english.test(request);
+}
+
+async function diagnoseFromChat(s: ChatSession, content: string) {
+  const generation = epoch, scope = s.scope;
+  const current = () => generation === epoch && scope === s.scope;
+  s.busy = true;
+  s.diagnosing = true;
+  s.error = '';
+  s.response = undefined;
+  s.requestId = '';
+  try {
+    const conversation = await call<Conversation>('DiagnoseChatEnvironment', {
+      conversationId: screenConversation(s.conversation)?.id, content,
+    });
+    if (current()) {
+      s.draft = '';
+      s.conversation = conversation;
+      state.conversation = conversation;
+    }
+    await refreshHistory(generation);
+  } catch (error) {
+    if (current()) s.error = error instanceof ServiceError ? error.code : 'app.unexpected';
+  } finally {
+    if (current()) {
+      s.busy = false;
+      s.diagnosing = false;
+    }
+  }
+}
+
 export async function sendAI(s:ChatSession,playground=false,test=false){
   if(s.busy||s.starting||s.importing||!state.connected)return;
+  if(!playground&&!test&&!s.attachments.length&&isEnvironmentRequest(s.draft)) {
+    await diagnoseFromChat(s,s.draft.trim());
+    return;
+  }
   const p=profile(s),m=model(s);if(!p?.enabled||!m||m.capabilities.text!=='SUPPORTED')return;
   if(!test&&s.attachments.length&&m.capabilities.vision!=='SUPPORTED'){s.error='MODEL_IMAGE_UNSUPPORTED';return;}
   if(!test&&!s.draft.trim()&&!s.attachments.length)return;

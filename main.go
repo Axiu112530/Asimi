@@ -74,6 +74,7 @@ type DesktopService struct {
 	service              *backend.Service
 	legacyAcceptance     bool
 	connectPresetFixture func(string) (domain.Reply, bool)
+	syncWindowTheme      func(string)
 }
 
 func (s *DesktopService) Call(method, payload string) domain.Reply {
@@ -91,6 +92,11 @@ func (s *DesktopService) Call(method, payload string) domain.Reply {
 		}
 	}
 	reply := s.service.Call(method, payload)
+	if (method == "GetSettings" || method == "UpdateSettings") && s.syncWindowTheme != nil {
+		if settings, ok := reply.Data.(domain.Settings); ok && reply.Error == nil {
+			s.syncWindowTheme(settings.Theme)
+		}
+	}
 	if !s.legacyAcceptance && method == "GetAppInfo" {
 		if info, ok := reply.Data.(map[string]any); ok {
 			delete(info, "mode")
@@ -99,6 +105,26 @@ func (s *DesktopService) Call(method, payload string) domain.Reply {
 		}
 	}
 	return reply
+}
+
+func isDarkWindowTheme(theme string) bool {
+	return theme == "dark" || theme == "system" && w32.IsCurrentlyDarkMode()
+}
+
+func applyWindowTheme(window *application.WebviewWindow, dark bool) {
+	hwnd := uintptr(window.NativeWindow())
+	if hwnd == 0 {
+		return
+	}
+	w32.SetTheme(hwnd, dark)
+	// DWM expects COLORREF values in BGR order.
+	if dark {
+		w32.SetTitleBarColour(hwnd, 0x221917)
+		w32.SetTitleTextColour(hwnd, 0xf8f2f0)
+	} else {
+		w32.SetTitleBarColour(hwnd, 0xf8f6f5)
+		w32.SetTitleTextColour(hwnd, 0x261b17)
+	}
 }
 
 // AcceptanceService is NEVER registered in an ordinary launch.
@@ -473,7 +499,7 @@ func run() int {
 			url += fmt.Sprintf("&seconds=%d", soakSeconds)
 		}
 	}
-	windowOptions := application.WebviewWindowOptions{Name: "main", Title: productName, URL: url, Width: 900, Height: 600, MinWidth: 640, MinHeight: 360, BackgroundColour: application.NewRGB(247, 248, 250), DevToolsEnabled: acceptance, DefaultContextMenuDisabled: true, Permissions: map[application.PermissionType]application.Permission{
+	windowOptions := application.WebviewWindowOptions{Windows: application.WindowsWindow{DisableIcon: true, Theme: application.Light}, Name: "main", Title: productName, URL: url, Width: 900, Height: 600, MinWidth: 640, MinHeight: 360, BackgroundColour: application.NewRGB(247, 248, 250), DevToolsEnabled: acceptance, DefaultContextMenuDisabled: true, Permissions: map[application.PermissionType]application.Permission{
 		application.PermissionCamera: application.PermissionDeny, application.PermissionMicrophone: application.PermissionDeny, application.PermissionGeolocation: application.PermissionDeny, application.PermissionNotifications: application.PermissionDeny, application.PermissionClipboardRead: application.PermissionDeny,
 	}}
 	if workArea, ok := primaryWorkArea(); ok {
@@ -483,7 +509,17 @@ func run() int {
 		windowOptions.Width, windowOptions.Height = bounds.Width, bounds.Height
 		windowOptions.MinWidth, windowOptions.MinHeight = minimum.Width, minimum.Height
 	}
+	if settings, ok := service.Call("GetSettings", "{}").Data.(domain.Settings); ok && isDarkWindowTheme(settings.Theme) {
+		windowOptions.Windows.Theme = application.Dark
+		windowOptions.BackgroundColour = application.NewRGB(23, 25, 34)
+	}
 	window = desktop.Window.NewWithOptions(windowOptions)
+	desktopService.syncWindowTheme = func(theme string) {
+		application.InvokeAsync(func() { applyWindowTheme(window, isDarkWindowTheme(theme)) })
+	}
+	desktop.Event.OnApplicationEvent(events.Windows.SystemThemeChanged, func(*application.ApplicationEvent) {
+		desktopService.Call("GetSettings", "{}")
+	})
 	service.SetWorkspacePicker(func(ctx context.Context) (string, error) {
 		if ctx.Err() != nil || stopping.Load() {
 			return "", context.Canceled
@@ -494,7 +530,14 @@ func run() int {
 		}
 		return desktop.Dialog.OpenFile().CanChooseFiles(false).CanChooseDirectories(true).CanCreateDirectories(false).SetTitle(productName + " — Select workspace / 选择工作区").AttachToWindow(window).PromptForSingleSelection()
 	})
+	var taskbarIcon sync.Once
 	window.OnWindowEvent(events.Windows.WebViewNavigationCompleted, func(*application.WindowEvent) {
+		taskbarIcon.Do(func() {
+			// The native frame hides its small icon. Keep the large icon for the taskbar.
+			if icon, err := application.NewIconFromResource(w32.GetModuleHandle(""), 3); err == nil {
+				w32.SendMessage(uintptr(window.NativeWindow()), w32.WM_SETICON, w32.ICON_BIG, icon)
+			}
+		})
 		logger.Info("lifecycle.navigation_completed")
 	})
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {

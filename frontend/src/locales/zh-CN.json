@@ -449,6 +449,7 @@
     "VERIFICATION_FAILED": "实际文件未通过独立验证。",
     "REGISTRY_CLOSED": "工具注册表已关闭。",
     "INVALID_REQUEST": "请求配置无效。",
+    "ENVIRONMENT_DIAGNOSIS_FAILED": "无法检测本机开发环境。",
     "NOT_FOUND": "找不到此记录。",
     "STORAGE_ERROR": "无法保存或加载本地数据。",
     "INTERNAL_ERROR": "本地服务无法完成此操作。",
@@ -708,6 +709,8 @@
     "cancel": "取消请求",
     "send": "发送",
     "startConversationHint": "输入消息，或添加图片。",
+    "computerActions": "电脑操作",
+    "diagnosingEnvironment": "正在检查本机开发环境…",
     "startConversation": "开始对话",
     "configureModel": "配置模型",
     "connectModelHint": "配置模型后即可聊天。项目和历史记录可以从侧栏打开。",
@@ -874,7 +877,8 @@
     "issues": "发现的问题",
     "suggestions": "建议步骤",
     "uncertainties": "不确定项",
-    "unstructured": "供应商返回了文字回复。"
+    "unstructured": "供应商返回了文字回复。",
+    "analysisNoSummary": "屏幕分析未返回可读的摘要。"
   },
   "control": {
     "proposeTaskValue": "创建设置文本任务",

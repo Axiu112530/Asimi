@@ -140,6 +140,20 @@ WHERE meta.message_id=?`, messages[i].ID).Scan(&raw, &usage)
 		messages[i].ScreenCapture = m.ScreenCapture
 		messages[i].Vision = m.Vision
 	}
+	// Older versions stored incomplete screen replies without structured metadata.
+	screenRequests := make(map[string]bool)
+	for _, message := range messages {
+		if message.ScreenCapture != nil {
+			screenRequests[message.RequestID] = true
+		}
+	}
+	for i := range messages {
+		message := &messages[i]
+		if message.Role == "assistant" && message.Vision == nil && message.ErrorCode == "RESPONSE_INCOMPLETE" && screenRequests[message.RequestID] {
+			vision := screen.ParseVision(message.Content)
+			message.Vision = &vision
+		}
+	}
 	return nil
 }
 func (s *Service) aiProfileLocked(id string) (ai.Profile, error) {
