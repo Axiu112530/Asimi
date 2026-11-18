@@ -1,4 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <rect width="24" height="24" rx="5" fill="#292436"/>
-  <path d="M5 5h9a5 5 0 0 1 0 10H8 M5 5v14 M8 11h6 M15 15l4 4" fill="none" stroke="#c8bfff" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#304b69"/>
+      <stop offset=".48" stop-color="#17283e"/>
+      <stop offset="1" stop-color="#101c2a"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#a7c6e5"/>
+      <stop offset=".48" stop-color="#4b6682"/>
+      <stop offset="1" stop-color="#688cac"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2=".79" y2="1">
+      <stop stop-color="#f9fbff"/>
+      <stop offset=".35" stop-color="#dceafa"/>
+      <stop offset=".63" stop-color="#a5c5e7"/>
+      <stop offset="1" stop-color="#88b4e0"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="0" y1=".9" x2="1" y2=".12">
+      <stop stop-color="#8eb9e4"/>
+      <stop offset=".62" stop-color="#a3c6e9"/>
+      <stop offset="1" stop-color="#3b5675"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="124" height="124" rx="29" fill="url(#tile)" stroke="url(#edge)" stroke-width="1.5"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7.5">
+    <path d="M24 82c-8 14 3 22 14 18 11-3 25-14 36-17" stroke="url(#fold)"/>
+    <path d="m24 82 25-43c8-14 22-15 30 0l26 43c6 11 0 17-8 15-12-3-26-18-39-24-10-5-18-4-26 1" stroke="url(#ribbon)"/>
+  </g>
 </svg>

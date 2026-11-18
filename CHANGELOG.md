@@ -1,5 +1,10 @@
 # Changelog
 
+## Asimi 0.2.1-rc.8
+
+- Unified the desktop app, Windows installer and favicon under the silver-blue Asimi mark.
+- Updated the light and dark desktop themes to use a muted steel-blue accent.
+
 ## Asimi 0.2.1
 
 - Renamed the default profile to %LOCALAPPDATA%\Asimi, with asimi.db and asimi.lock.

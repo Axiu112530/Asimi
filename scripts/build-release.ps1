@@ -16,7 +16,7 @@ try {
     }
     $Info = Get-Content -LiteralPath 'build/windows/asimi-info.json' -Raw | ConvertFrom-Json
     $Version = $Info.info.'0409'.ProductVersion
-    if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected a numeric Asimi Windows product version.' }
+    if ($Version -notmatch '^\d+\.\d+\.\d+(?:-rc\.\d+)?$') { throw 'Expected an Asimi Windows product version or release-candidate version.' }
     $ReleaseName = if ($LocalCandidate) { "$Version-local-$(Get-Date -Format 'yyyyMMdd-HHmmss')" } else { $Version }
     $Relative = "build/releases/$ReleaseName"
     $Output = Join-Path $Repo $Relative

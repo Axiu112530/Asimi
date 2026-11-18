@@ -10,9 +10,9 @@
   --line: #d8dee8;
   --field-line: #aab4c3;
   --form-control-height: 40px;
-  --accent: #5141b1;
-  --accent-hover: #403092;
-  --accent-soft: #eeebff;
+  --accent: #365b78;
+  --accent-hover: #28465f;
+  --accent-soft: #e7eff5;
   --primary-text: #ffffff;
   --sidebar: #191c27;
   color: var(--text);
@@ -26,10 +26,10 @@
   --muted: #b5bed0;
   --line: #3c4456;
   --field-line: #69758b;
-  --accent: #b7a9ff;
-  --accent-hover: #c7bdff;
-  --accent-soft: #353053;
-  --primary-text: #19112f;
+  --accent: #9dbdd9;
+  --accent-hover: #c1d7e9;
+  --accent-soft: #293e52;
+  --primary-text: #122332;
 }
 button:disabled {
   opacity: 1;

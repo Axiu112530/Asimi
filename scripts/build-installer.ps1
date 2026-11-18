@@ -58,7 +58,7 @@ $CompilerPath = (Get-Item -LiteralPath $CompilerPath).FullName
 
 $Setup = Join-Path $OutputDirectory "Asimi-$AppVersion-Setup-x64.exe"
 $Definition = Join-Path $Repo 'build/windows/asimi.iss'
-$Arguments = @("/O$OutputDirectory", "/DAppVersion=$AppVersion", "/DPayloadDir=$Payload")
+$Arguments = @("/O$OutputDirectory", "/DAppVersion=$AppVersion", "/DFileVersion=$($AppInfo.fixed.file_version)", "/DPayloadDir=$Payload")
 $ChineseMessages = Join-Path (Split-Path -Parent $CompilerPath) 'Languages/ChineseSimplified.isl'
 if (Test-Path -LiteralPath $ChineseMessages -PathType Leaf) {
     $Arguments += '/DIncludeChinese'

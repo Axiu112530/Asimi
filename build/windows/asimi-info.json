@@ -7,7 +7,7 @@
   "info": {
     "0409": {
       "ProductName": "Asimi",
-      "ProductVersion": "0.2.1",
+      "ProductVersion": "0.2.1-rc.8",
       "FileVersion": "0.2.1.0",
       "FileDescription": "Asimi is a local-first AI desktop assistant for everyday questions, writing, image analysis and help with tasks on your computer.",
       "InternalName": "Asimi",

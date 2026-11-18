@@ -7,7 +7,6 @@ const paths: Record<string,string[]> = {
   upload:['M12 16V3','m7 8 5-5 5 5','M4 15v6h16v-6'],
   goals:['M5 4h14v17H5z','M9 2v4h6V2','m8 12 2 2 5-5','M8 18h8'],
   connections:['M10 8H7a4 4 0 0 0 0 8h3','M14 8h3a4 4 0 0 1 0 8h-3','M8 12h8'],
-  logo:['M5 5h9a5 5 0 0 1 0 10H8','M5 5v14','M8 11h6','M15 15l4 4'],
   assistant:['M8 3h8l4 5v9H4V8l4-5Z','M8 17v4','M16 17v4','M8 10h.01','M16 10h.01','M9 14h6'],
   camera:['M3 7h4l2-3h6l2 3h4v13H3z','M12 10a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z'],
   microphone:['M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0V5Z','M5 10v1a7 7 0 0 0 14 0v-1','M12 18v4','M8 22h8'],
@@ -23,7 +22,12 @@ const paths: Record<string,string[]> = {
   panel:['M3 4h18v16H3z','M14 4v16'], spark:['m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z'], info:['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z','M12 11v6','M12 7h.01'],
   warning:['m12 3 10 18H2L12 3Z','M12 9v5','M12 17h.01'], menu:['M4 6h16','M4 12h16','M4 18h16'], refresh:['M4 10a8 8 0 1 1 2 9','M4 4v6h6'],
 };
-export function icon(name: string, size = 20): VNode { return h('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':1.65,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',class:'icon'},(paths[name]||paths.info).map(d=>h('path',{d}))); }
+export function icon(name: string, size = 20): VNode {
+  if (name === 'logo') {
+    return h('img', { src: '/asimi.svg', width: size, height: size, alt: '', draggable: false, class: 'icon' });
+  }
+  return h('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':1.65,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',class:'icon'},(paths[name]||paths.info).map(d=>h('path',{d})));
+}
 export function badge(status: string): VNode { return h('span',{class:['badge','state-'+status.toLowerCase()],'data-testid':'task-status'},[h('span',{class:'status-dot'}),known('tasks.status.'+status)]); }
 export function button(key: string, action: () => unknown, opts: Record<string,unknown> = {}, children?: VNodeChild): VNode {
   return h('button',{type:'button',...opts,onClick:action},[children||t(key)]);

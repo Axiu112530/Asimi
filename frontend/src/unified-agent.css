@@ -10,7 +10,7 @@
 .unified-page .product-row { flex-wrap: wrap; }
 .unified-page .product-field { min-width: 0; }
 .unified-page .product-row > .product-field { flex: 1 1 220px; }
-.unified-action { border-left: 3px solid var(--accent, #6558d9); }
+.unified-action { border-left: 3px solid var(--accent, #456f90); }
 .unified-action .product-check { margin: 1rem 0; }
 .unified-grants { border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin: 1rem 0; }
 .unified-grants .product-check { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 10px; margin: 6px 0; padding: 5px 0; }
