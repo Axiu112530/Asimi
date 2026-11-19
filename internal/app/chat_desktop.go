@@ -114,10 +114,10 @@ func (s *Service) saveEnvironmentChatLocked(id, content, reply string) (domain.C
 
 func environmentDiagnosisText(diagnostics []command.Diagnostic, chinese bool) string {
 	intro, missing, failed := "I checked the development runtimes on this computer.", "Not found on PATH", "Version check failed"
-	outro := "Use the official download sources for any runtimes you need to install."
+	outro := "For any missing runtime you need, download and run its official installer."
 	if chinese {
 		intro, missing, failed = "我已检查这台电脑上的开发环境。", "在 PATH 中未找到", "版本检查失败"
-		outro = "需要安装的组件可以从对应的官方网站下载。"
+		outro = "需要安装的组件，请从对应的官方网站下载安装程序并运行。"
 	}
 	names := map[string]string{"go": "Go", "java": "Java", "node": "Node.js", "npm": "npm", "dotnet": ".NET", "python": "Python", "git": "Git"}
 	var text strings.Builder

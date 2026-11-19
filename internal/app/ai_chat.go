@@ -147,7 +147,7 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 	lang := responseLanguage(in.Content, appSettings)
 	req := ai.Request{RequestID: newID(), ConversationID: c.ID, ProviderID: p.ID, ModelID: model.ID, MaxOutputTokens: in.MaxOutputTokens, Stream: in.Stream, ResponseLanguage: lang, Temperature: in.Temperature, Messages: []ai.Message{}, SystemInstruction: "You are Asimi, the assistant in the Asimi desktop app. Identify yourself as Asimi and do not invent a vendor, creator, or 'powered by' attribution. Respond in " + lang + " unless the user explicitly asks for another language."}
 	if upload == nil && !in.Playground && !test {
-		req.SystemInstruction += "\nAsimi can check installed development runtimes locally from the Assistant. The Computer page can inspect the screen and propose supported Windows actions for review. This model response cannot itself execute local actions. Report only verified outcomes. When asked to operate the computer, explain how to use the applicable capability and its limits."
+		req.SystemInstruction += "\nAsimi checks local runtimes in Assistant and runs reviewed actions on supported Windows controls in Computer. Connections runs reviewed actions for configured services, including MCP. Asimi has no built-in Gmail connector or generic software installer. State the applicable capability and entry point when asked, and report only verified outcomes."
 	}
 	if upload != nil {
 		if upload.suggestion != nil {
@@ -157,15 +157,7 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 			req.SystemInstruction += "\n" + screen.VisionInstruction
 		}
 	}
-	if !test && !in.Playground && upload == nil && cognitionSnapshot == nil {
-		knowledge, err := s.cognitionContext("", in.Content, 1800, false)
-		if err != nil {
-			return nil, err
-		}
-		if len(knowledge.Memories) > 0 {
-			req.SystemInstruction += "\n" + cognitionReferenceInstruction + "\n" + encode(knowledge)
-		}
-	}
+	useCognition := !test && !in.Playground && upload == nil && cognitionSnapshot == nil
 	contextBytes := len(req.SystemInstruction)
 	imageBytes := 0
 	imageCount := 0
@@ -245,12 +237,27 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 		a.PreviewDataURL = ""
 		attachments = append(attachments, a)
 	}
-	if contextBytes > settings.MaxContextBytes {
+	contextLimit := settings.MaxContextBytes
+	// UTF-8 byte count is a conservative text token upper bound.
+	if caps.ContextLimit != nil {
+		contextLimit = int(min(int64(contextLimit), *caps.ContextLimit-int64(req.MaxOutputTokens)))
+	}
+	if contextBytes > contextLimit {
 		return nil, codedError("CONTEXT_LIMIT_EXCEEDED")
 	}
-	// UTF-8 byte count is a conservative text token upper bound; never fabricate a tokenizer estimate.
-	if caps.ContextLimit != nil && int64(contextBytes+req.MaxOutputTokens) > *caps.ContextLimit {
-		return nil, codedError("CONTEXT_LIMIT_EXCEEDED")
+	var references *domain.CognitionReferences
+	if useCognition {
+		prefix := "\n" + cognitionReferenceInstruction + "\n"
+		budget := min(4200, contextLimit-contextBytes-len(prefix))
+		knowledge, err := s.cognitionContext("", in.Content, budget, true)
+		if err != nil {
+			return nil, err
+		}
+		context := chatCognitionPrompt(knowledge)
+		if context != "" && len(context) <= budget {
+			req.SystemInstruction += prefix + context
+			references = &domain.CognitionReferences{Memories: len(knowledge.Memories), Skills: len(knowledge.Skills)}
+		}
 	}
 	req.Messages = append(req.Messages, ai.Message{Role: "user", Content: parts, Timestamp: now()})
 	stamp := time.Now().UTC()
@@ -322,6 +329,7 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 			return e
 		}
 		meta.Status = "PENDING"
+		meta.Cognition = references
 		meta.Attachments = nil
 		meta.ScreenCapture = nil
 		if _, e := tx.Exec("INSERT INTO ai_message_metadata(message_id,json) VALUES(?,?)", assistant.ID, encode(computerSuggestionMetadata{meta, suggestion})); e != nil {
@@ -343,7 +351,7 @@ func (s *Service) startChatRequestLocked(in ChatInput, test bool, upload *screen
 		if _, e := tx.Exec("UPDATE conversations SET updated_at=? WHERE id=?", now(), c.ID); e != nil {
 			return e
 		}
-		if !test && !in.Playground && upload == nil && cognitionSnapshot == nil {
+		if useCognition {
 			if err := captureCognitionPreference(tx, user.ID, in.Content); err != nil {
 				return err
 			}
@@ -572,6 +580,7 @@ func (s *Service) clearChatLocked(id string, deleteAttachments, deleted bool) (b
 			metadata.Attachments = nil
 			metadata.ScreenCapture = nil
 			metadata.Vision = nil
+			metadata.Cognition = nil
 			if metadata.ComputerSuggestion != nil && metadata.ComputerSuggestion.ActionID == "" {
 				metadata.ComputerSuggestion = nil
 			}

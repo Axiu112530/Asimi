@@ -569,11 +569,10 @@ export const CognitionSkillsPanel = defineComponent({
         ]),
         h('article', { class: 'product-card' }, [
           h('h2', t('cognition.localSkills')),
-          h('div', { class: 'product-row cognition-toolbar' }, [
-            projectPicker(), label('search', h('input', { type: 'search', value: query.value, onInput: (event: Event) => { query.value = textValue(event); } })),
+          h('div', { class: 'cognition-skill-tools' }, [
+            projectPicker(),
+            label('search', h('input', { type: 'search', value: query.value, onInput: (event: Event) => { query.value = textValue(event); } })),
             localButton('refresh', () => work(async () => {}), busy.value),
-          ]),
-          h('div', { class: 'product-row cognition-toolbar skill-import-row' }, [
             label('importScope', h('select', { value: importScope.value, disabled: busy.value, onChange: (event: Event) => {
               importScope.value = textValue(event) === 'project' ? 'project' : 'user';
             } }, [h('option', { value: 'user' }, t('cognition.user')), h('option', { value: 'project' }, t('cognition.project'))])),

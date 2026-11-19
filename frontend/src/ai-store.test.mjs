@@ -32,7 +32,7 @@ registerHooks({
     return next(url,context);
   },
 });
-const {ai,startAI,stopAI,sendAI,startScreenAnalysis,importImages,resetChatDraft,cancelAI}=await import('./ai-store.ts');
+const {ai,startAI,stopAI,sendAI,isEnvironmentRequest,startScreenAnalysis,importImages,resetChatDraft,cancelAI}=await import('./ai-store.ts');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const conversation=(id,playground=false,content='')=>({id,title:id,createdAt:'2026-11-11T00:00:00Z',updatedAt:'2026-11-11T00:00:00Z',playground,tasks:[],messages:content?[{id:'answer-'+id,conversationId:id,role:'assistant',content,createdAt:'2026-11-11T00:00:00Z',providerId:'p',modelId:'m',requestId:'r-'+id,status:'COMPLETED'}]:[]});
@@ -175,3 +175,8 @@ assert.equal(state.conversation, null);
 assert.equal(ai.assistant.conversation, null);
 console.log('PASS: chat diagnoses local runtimes without a model and preserves the next blank draft');
 stopAI();
+
+assert.equal(isEnvironmentRequest('那你能帮我装环境嘛？'), true);
+assert.equal(isEnvironmentRequest('你能先帮我检查开发环境吗？'), true);
+assert.equal(isEnvironmentRequest('那你能帮我装环境吗，我想看看有哪些步骤'), false);
+assert.equal(isEnvironmentRequest('那你能帮我装环境的这个匹配规则怎么写？'), false);

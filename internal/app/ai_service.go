@@ -35,15 +35,16 @@ type ChatInput struct {
 	Playground            bool     `json:"playground"`
 }
 type messageMetadata struct {
-	ProviderID    string               `json:"providerId"`
-	ModelID       string               `json:"modelId"`
-	RequestID     string               `json:"requestId"`
-	Status        string               `json:"status"`
-	ErrorCode     string               `json:"errorCode,omitempty"`
-	Attachments   []ai.Attachment      `json:"attachments,omitempty"`
-	Usage         *ai.Usage            `json:"usage,omitempty"`
-	ScreenCapture *screen.Metadata     `json:"screenCapture,omitempty"`
-	Vision        *screen.VisionResult `json:"vision,omitempty"`
+	ProviderID    string                      `json:"providerId"`
+	ModelID       string                      `json:"modelId"`
+	RequestID     string                      `json:"requestId"`
+	Status        string                      `json:"status"`
+	ErrorCode     string                      `json:"errorCode,omitempty"`
+	Attachments   []ai.Attachment             `json:"attachments,omitempty"`
+	Usage         *ai.Usage                   `json:"usage,omitempty"`
+	ScreenCapture *screen.Metadata            `json:"screenCapture,omitempty"`
+	Vision        *screen.VisionResult        `json:"vision,omitempty"`
+	Cognition     *domain.CognitionReferences `json:"cognition,omitempty"`
 }
 
 func (s *Service) initializeAI() error {
@@ -139,6 +140,7 @@ WHERE meta.message_id=?`, messages[i].ID).Scan(&raw, &usage)
 		messages[i].Usage = m.Usage
 		messages[i].ScreenCapture = m.ScreenCapture
 		messages[i].Vision = m.Vision
+		messages[i].Cognition = m.Cognition
 	}
 	// Older versions stored incomplete screen replies without structured metadata.
 	screenRequests := make(map[string]bool)

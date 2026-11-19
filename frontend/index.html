@@ -1,2 +1,48 @@
 <!doctype html>
-<html lang="en-US"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://wails.localhost; object-src 'none'; base-uri 'none'; form-action 'none'"><link rel="icon" type="image/svg+xml" href="/asimi.svg"><title>Asimi</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://wails.localhost; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" type="image/svg+xml" href="/asimi.svg">
+  <title>Asimi</title>
+  <style>
+    body { margin: 0; }
+    .startup-loader {
+      min-height: 100vh;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 14px;
+      background: #f7f8fa;
+      color: #384b60;
+      font: 14px system-ui, sans-serif;
+    }
+    .startup-loader p { margin: 0; }
+    .startup-indicator {
+      width: 24px;
+      height: 24px;
+      box-sizing: border-box;
+      border: 2px solid currentColor;
+      border-inline-end-color: transparent;
+      border-radius: 50%;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .startup-indicator { animation: asimi-startup-spin 800ms linear infinite; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .startup-loader { background: #0e1217; color: #aebed0; }
+    }
+    @keyframes asimi-startup-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="startup-loader" role="status">
+      <span class="startup-indicator" aria-hidden="true"></span>
+      <p>Starting Asimi…</p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

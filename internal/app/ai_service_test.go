@@ -39,6 +39,9 @@ func aiFixture(t *testing.T, emit func(string, any)) *Service {
 	if e = s.initializeAI(); e != nil {
 		t.Fatal(e)
 	}
+	if e = s.initializeMVP(); e != nil {
+		t.Fatal(e)
+	}
 	t.Cleanup(func() {
 		if e := s.Close(); e != nil {
 			t.Error(e)

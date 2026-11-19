@@ -21,6 +21,10 @@ type Settings struct {
 	Startup       string `json:"startup"`
 	InterfaceMode string `json:"interfaceMode"`
 }
+type CognitionReferences struct {
+	Memories int `json:"memories"`
+	Skills   int `json:"skills"`
+}
 type Message struct {
 	ID             string               `json:"id"`
 	ConversationID string               `json:"conversationId"`
@@ -37,6 +41,7 @@ type Message struct {
 	Usage          *ai.Usage            `json:"usage,omitempty"`
 	ScreenCapture  *screen.Metadata     `json:"screenCapture,omitempty"`
 	Vision         *screen.VisionResult `json:"vision,omitempty"`
+	Cognition      *CognitionReferences `json:"cognition,omitempty"`
 }
 type Conversation struct {
 	Playground bool      `json:"playground"`

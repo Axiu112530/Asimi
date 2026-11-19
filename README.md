@@ -1,3 +1,5 @@
+<img src="frontend/public/asimi.svg" alt="Asimi" width="64" height="64">
+
 # Asimi
 
 [English](README.md) · [简体中文](README.zh-CN.md)
@@ -6,9 +8,13 @@ Asimi is a local-first AI desktop assistant for everyday questions, writing, ima
 
 Use **Settings → General → Interface mode** to open developer tools for projects, code review and test runs.
 
-**Version 0.3.0 is available for Windows x64.** Native acceptance has been performed on Windows 11 25H2 x64. Other Windows versions require validation on the target machine.
+**Version 0.3.1 is available for Windows x64.** Native acceptance has been performed on Windows 11 25H2 x64. Other Windows versions require validation on the target machine.
 
-[Installation](docs/release/INSTALLATION-GUIDE.md) · [User guide](docs/release/USER-GUIDE.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.md) · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+[Download for Windows](https://github.com/Axiu112530/Asimi/releases/latest) · [Installation](docs/release/INSTALLATION-GUIDE.md) · [User guide](docs/release/USER-GUIDE.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.md) · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+
+[![Asimi Assistant in dark mode with a real development runtime report](docs/images/asimi-assistant-en-US.png)](docs/images/asimi-assistant-en-US.png)
+
+Asimi Community on Windows, showing a real local development environment check.
 
 ## Features
 
@@ -39,7 +45,7 @@ Portable builds contain the application and its helpers. Source builds additiona
 
 ## Install and start
 
-1. Download `Asimi-0.3.0-Setup-x64.exe` and its matching SHA256 file from the same release.
+1. Download `Asimi-0.3.1-Setup-x64.exe` and its matching SHA256 file from the same release.
 2. Verify the checksum, open the installer, and choose a language and destination. The default is `%LOCALAPPDATA%\Programs\Asimi`.
 3. Open **Asimi** from Start after installation. The installer can also create a desktop shortcut.
 4. Connect a model on first launch or select **Set up later** to use the local features.
@@ -117,7 +123,7 @@ Pop-Location
 .\scripts\build.ps1
 ```
 
-The complete output is in `build/bin/asimi-0.2.1/`. Launch its `Asimi.exe`, or use the run script.
+The complete output is in `build/bin/asimi-0.3.1/`. Launch its `Asimi.exe`, or use the run script.
 
 ```powershell
 .\scripts\run.ps1
@@ -167,7 +173,7 @@ Keep personal profiles, databases, API keys and raw diagnostic records locally. 
 
 ## Current limitations
 
-- This release candidate has Windows verification for its recorded environment.
+- Windows verification is scoped to the environment recorded in the acceptance report.
 - Real-desktop visual analysis and blank Notepad scenarios require user-initiated acceptance on the target machine.
 - Additional providers and custom models need their own connection and capability checks.
 - Operations can require recovery or renewed approval. Inspect the task timeline and actual target state. [Known limitations](docs/release/KNOWN-LIMITATIONS.md)
@@ -180,7 +186,7 @@ Fork the repository and open a Pull Request for a proposed change. Maintainers r
 
 ## License
 
-Asimi source code and project documentation use the **MIT License**. The copyright notice is in the root LICENSE file.
+Asimi Community source code and project documentation are released under the **MIT License**. The root [LICENSE](LICENSE) contains the complete terms and the copyright notice for Axiu.
 
 MIT permits personal and commercial use, copying, modification and redistribution. Copies or substantial portions must retain the copyright and permission notices. Its AS IS warranty and liability provisions apply. MIT itself does not require publication of all modified source. Dependencies retain their own licenses. [MIT text](LICENSE) · [License guide](docs/release/LICENSE-DECISION.md) · [Third-party notices](docs/release/THIRD-PARTY-NOTICES.md)
 

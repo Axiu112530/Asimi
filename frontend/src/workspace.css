@@ -234,8 +234,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ai-chat .composer-box:focus-within { border-color: var(--accent); outline: 1px solid var(--accent); }
 .ai-chat .composer-box textarea { min-height: 64px; font-size: 15px; line-height: 1.55; }
 .ai-chat .composer-box textarea::placeholder { color: var(--muted); }
-.ai-chat .message .markdown { font-size: 15px; }
+.ai-chat .message { padding: 0; margin-block: 20px 26px; gap: 12px; }
+.ai-chat .message-user { justify-content: flex-end; }
+.ai-chat .message-user .message-body {
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: min(100%, 42rem);
+  padding: 10px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 4px 14px;
+  background: var(--accent-soft);
+}
+.ai-chat .message-body > header { min-height: 24px; margin-bottom: 4px; flex-wrap: wrap; gap: 4px 10px; }
 .ai-chat .message-body > header strong { font-size: 13px; }
+.ai-chat .message-body time { font-size: 11px; }
+.ai-chat .message .markdown { font-size: 15px; overflow-wrap: anywhere; }
+.ai-chat .message-user .markdown > :first-child,
+.ai-chat .message-assistant .markdown > :first-child { margin-top: 0; }
+.ai-chat .message-user .markdown > :last-child { margin-bottom: 0; }
+.chat-author-mark { width: 25px; height: 25px; flex: none; }
+.chat-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-context span { display: inline-flex; align-items: center; gap: 4px; }
 .ai-chat .composer-bottom { justify-content: flex-start; }
 .ai-chat .composer-bottom > button[type=submit] { margin-left: auto; }
 .attachment-trigger {

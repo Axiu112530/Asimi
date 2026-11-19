@@ -1,5 +1,11 @@
 # Changelog
 
+## Asimi 0.3.1
+
+- Distinguish the user's messages from Asimi's replies, including author labels and clearer styling.
+- Show how many relevant local memories and skills were referenced in completed replies.
+- Refine learning and skills layouts and add the Asimi logo and real Windows screenshots to both READMEs.
+
 ## Asimi 0.3.0
 
 - Run local development environment checks from chat and open reviewed Windows actions from the composer.

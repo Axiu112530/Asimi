@@ -1,5 +1,5 @@
 param(
-    [string] $OutputDirectory = 'build/bin/asimi-0.3.0'
+    [string] $OutputDirectory = 'build/bin/asimi-0.3.1'
 )
 
 $ErrorActionPreference = 'Stop'

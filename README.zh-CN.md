@@ -1,3 +1,5 @@
+<img src="frontend/public/asimi.svg" alt="Asimi" width="64" height="64">
+
 # Asimi
 
 [English](README.md) · 简体中文
@@ -6,9 +8,13 @@ Asimi 是一款本地优先的 AI 桌面助手，帮助你解答问题、撰写�
 
 可在「设置 → 通用 → 界面模式」切换到开发者模式，打开项目、代码审阅和测试工具。
 
-当前版本为 **0.3.0**，面向 Windows x64。原生验收环境为 Windows 11 25H2 x64，其他 Windows 版本仍需验证。
+当前版本为 **0.3.1**，面向 Windows x64。原生验收环境为 Windows 11 25H2 x64，其他 Windows 版本仍需验证。
 
-[安装指南](docs/release/INSTALLATION-GUIDE.md) · [使用指南](docs/release/USER-GUIDE.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.md) · [更新记录](CHANGELOG.md) · [MIT 许可证](LICENSE)
+[下载 Windows 版](https://github.com/Axiu112530/Asimi/releases/latest) · [安装指南](docs/release/INSTALLATION-GUIDE.md) · [使用指南](docs/release/USER-GUIDE.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.md) · [更新记录](CHANGELOG.md) · [MIT 许可证](LICENSE)
+
+[![Asimi 浅色主题助手界面，展示实际检测到的开发环境和版本](docs/images/asimi-assistant-zh-CN.png)](docs/images/asimi-assistant-zh-CN.png)
+
+Windows 上的 Asimi 社区版。图中展示了在对话中完成的一次本地开发环境检测。
 
 ## 可以做什么
 
@@ -41,7 +47,7 @@ Asimi 是一款本地优先的 AI 桌面助手，帮助你解答问题、撰写�
 
 ### 运行安装向导
 
-1. 从 Releases 下载 `Asimi-0.3.0-Setup-x64.exe` 和对应的 SHA256 文件，核对校验值。
+1. 从 Releases 下载 `Asimi-0.3.1-Setup-x64.exe` 和对应的 SHA256 文件，核对校验值。
 2. 运行安装程序，选择语言和安装目录。默认安装到 `%LOCALAPPDATA%\Programs\Asimi`，也可通过「浏览」选择其他目录。
 3. 完成安装后，从开始菜单打开 **Asimi**。安装时可以选择创建桌面快捷方式。
 4. 首次打开时连接模型，或选择「稍后配置」并继续使用本地功能。
@@ -112,7 +118,7 @@ Pop-Location
 .\scripts\build.ps1
 ```
 
-构建产物位于 `build/bin/asimi-0.2.1/`。运行完整目录中的 `Asimi.exe`，或执行启动脚本。
+构建产物位于 `build/bin/asimi-0.3.1/`。运行完整目录中的 `Asimi.exe`，或执行启动脚本。
 
 ```powershell
 .\scripts\run.ps1
@@ -162,7 +168,7 @@ Pop-Location
 
 ## 当前限制
 
-- 0.2.1 为试用候选版，Windows 验证结果限于已记录的环境。
+- Windows 验证结果适用于验收报告记录的环境。
 - 真实桌面视觉分析和空白记事本场景仍需要用户在目标桌面主动验收。
 - 额外供应商和自定义模型需要各自的连接与能力检查。
 - 连接模型前仍可浏览本地项目和历史记录。
@@ -176,7 +182,7 @@ Pop-Location
 
 ## 开源协议
 
-Asimi 的源码和项目文档采用 **MIT License**，版权归属见根目录 LICENSE。
+Asimi 社区版源码和项目文档使用 **MIT License**。根目录的 [LICENSE](LICENSE) 包含完整授权条款及 Axiu 的版权声明。
 
 MIT 允许个人使用、商业使用、修改、复制和再分发。分发软件副本或实质性部分时，需要保留版权声明和许可声明。软件按许可证中的「AS IS」条款提供。MIT 本身无需修改者公开其全部源代码。第三方组件遵循各自许可证。[完整 MIT 原文](LICENSE) · [协议说明](docs/release/LICENSE-DECISION.zh-CN.md) · [第三方声明](docs/release/THIRD-PARTY-NOTICES.md)
 

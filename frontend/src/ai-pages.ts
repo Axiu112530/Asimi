@@ -84,13 +84,22 @@ function messages(s: ChatSession) {
       (s.screenRequestId===message.requestId||screenRequests.has(message.requestId)));
     const pending=s.busy&&s.requestId===message.requestId;
     const activity = pending && message.role === 'assistant' && !screenResult ? replyActivity(message.status || 'PENDING', !!message.content) : null;
-    return h('article',{class:['message','message-'+message.role],key:message.id,'data-message-id':message.id},[
-      h('div',{class:'message-body'},[
-        h('header',[h('strong',t(message.role==='user'?'assistant.you':'assistant.agent')),h('time',date(message.createdAt))]),
+    const author = t(message.role === 'user' ? 'assistant.you' : 'assistant.agent');
+    const cognition = message.status === 'COMPLETED' ? message.cognition : undefined;
+    return h('article', { class: ['message', 'message-' + message.role], key: message.id, 'data-message-id': message.id, 'aria-label': author }, [
+      message.role === 'assistant' && s === ai.assistant
+        ? h('span', { class: 'chat-author-mark', 'aria-hidden': 'true' }, icon('logo', 25))
+        : null,
+      h('div', { class: 'message-body' }, [
+        h('header', [h('strong', author), h('time', { datetime: message.createdAt }, date(message.createdAt))]),
         message.attachments?.length?attachments(message.attachments):null,
         message.screenCapture?ScreenCaptureLabel(message.screenCapture):null,
         screenResult?(pending||message.vision||message.content?ScreenResult(message.vision,message.content,pending):null):h(Markdown,{content:message.content}),
         activity ? h('p', { class: 'reply-activity', role: 'status', 'data-testid': 'reply-activity' }, [h('span', { class: ['activity-symbol', 'activity-' + activity.icon], 'data-state': 'running' }, icon(activity.icon, 16)), t('activity.' + activity.label)]) : null,
+        cognition ? h('div', { class: 'chat-context', 'aria-label': t('ai.contextReferences') }, [
+          cognition.memories > 0 ? h('span', [icon('memory', 13), t('ai.contextMemories', { count: cognition.memories })]) : null,
+          cognition.skills > 0 ? h('span', [icon('skills', 13), t('ai.contextSkills', { count: cognition.skills })]) : null,
+        ]) : null,
         message.errorCode?h('p',{class:'ai-error',role:'alert'},errorText(message.errorCode)):null,
       ]),
     ]);

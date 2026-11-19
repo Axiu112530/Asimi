@@ -198,9 +198,12 @@ export async function startScreenAnalysis(input: ScreenAnalysisInput) {
 
 export function isEnvironmentRequest(content: string) {
   const request = content.trim().replace(/[。.!！?？]+$/, '');
-  const chinese = /^(?:那你能(?:操控|操作)我的电脑[，,]\s*)?(?:(?:能不能|能否|可以|能|请|麻烦|帮我|给我|先|在本机|我想让你)\s*)*(?:检查|检测|诊断|配置|搭建|安装|装)(?:一下|下|个)?\s*(?:本机|本地|我的)?(?:的)?\s*(?:开发|运行|Python|Node(?:\.js)?|Go|Java|\.NET)?\s*环境(?:吗|嘛|吧)?$/i;
+  const localRequest = request
+    .replace(/^(?:那(?:么)?|所以)\s*/, '')
+    .replace(/^你(?:能(?:操控|操作)我的电脑[，,])?\s*/, '');
+  const chinese = /^(?:(?:能不能|能否|可以|能|请|麻烦|帮我|给我|先|在本机|我想让你)\s*)*(?:检查|检测|诊断|配置|搭建|安装|装)(?:一下|下|个)?\s*(?:本机|本地|我的)?(?:的)?\s*(?:开发|运行|Python|Node(?:\.js)?|Go|Java|\.NET)?\s*环境(?:吗|嘛|吧)?$/i;
   const english = /^(?:please\s+|can you\s+|could you\s+)?(?:help me\s+)?(?:check|inspect|diagnose|set up|configure|install)\s+(?:my\s+|the\s+|a\s+)?(?:(?:local|development|dev|runtime|python|node(?:\.js)?|go|java|\.net)\s+)*environment(?:\s+please)?$/i;
-  return chinese.test(request) || english.test(request);
+  return chinese.test(localRequest) || english.test(request);
 }
 
 async function diagnoseFromChat(s: ChatSession, content: string) {

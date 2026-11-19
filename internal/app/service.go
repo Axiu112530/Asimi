@@ -324,7 +324,7 @@ func (s *Service) Call(method, payload string) domain.Reply {
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
 		}
-		return result(map[string]any{"version": "0.3.0", "goVersion": runtime.Version(), "wailsVersion": "3.1.0", "dataDir": s.dataDir, "workspace": s.registry.Workspace(), "mode": "MOCK_LOCAL", "provider": "mock", "model": "mock-local-v1"}, nil)
+		return result(map[string]any{"version": "0.3.1", "goVersion": runtime.Version(), "wailsVersion": "3.1.0", "dataDir": s.dataDir, "workspace": s.registry.Workspace(), "mode": "MOCK_LOCAL", "provider": "mock", "model": "mock-local-v1"}, nil)
 	case "GetSettings":
 		if e := decode(payload, &struct{}{}); e != nil {
 			return fail(errorCode(e))
